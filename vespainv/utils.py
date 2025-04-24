@@ -60,3 +60,73 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
         phase_shift[(N+1)//2:] = np.exp(1j * phase_rad)
 
     return W * phase_shift
+
+def prepare__inputs_from_sac(data_dir, output_dir):
+
+    import os
+    from obspy import read
+    from obspy.geodetics import gps2dist_azimuth
+    from glob import glob
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Match files
+    sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
+    stations = {}
+    traces = {"UZ": [], "UR": [], "UT": []}
+    dists = []
+    bazs = []
+
+    for f in sac_files:
+        tr = read(f)[0]
+        ch = tr.stats.channel[-1]  # Z, R, or T
+        net = tr.stats.network
+        sta = tr.stats.station
+        key = f"{net}.{sta}"
+
+        if key not in stations:
+            stations[key] = {"Z": None, "R": None, "T": None}
+        stations[key][ch] = tr
+
+    for sta, comps in stations.items():
+        trZ, trR, trT = comps["Z"], comps["R"], comps["T"]
+        if trZ is None or trR is None or trT is None:
+            print(f"Skipping incomplete station {sta}")
+            continue
+
+        # Check consistency
+        if len(trZ.data) != len(trR.data) or len(trZ.data) != len(trT.data):
+            print(f"Skipping inconsistent trace lengths for {sta}")
+            continue
+
+        # Time vector (just grab from one trace)
+        if len(traces["UZ"]) == 0:
+            npts = len(trZ.data)
+            dt = trZ.stats.delta
+            time = np.arange(0, npts * dt, dt)
+            evla = trZ.stats.sac.evla
+            evlo = trZ.stats.sac.evlo
+            np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
+
+        traces["UZ"].append(trZ.data)
+        traces["UR"].append(trR.data)
+        traces["UT"].append(trT.data)
+
+        # Metadata
+        stla = trZ.stats.sac.stla
+        stlo = trZ.stats.sac.stlo
+        dist_deg = trZ.stats.sac.gcarc
+        _, baz, _ = gps2dist_azimuth(evla, evlo, stla, stlo)
+        dists.append(dist_deg)
+        bazs.append(baz)
+
+    # Save component matrices
+    for comp in ["UZ", "UR", "UT"]:
+        arr = np.column_stack(traces[comp])
+        np.savetxt(os.path.join(output_dir, f"{comp}.csv"), arr, delimiter=",")
+
+    # Save station metadata
+    metadata = np.column_stack([dists, bazs])
+    np.savetxt(os.path.join(output_dir, "station_metadata.csv"), metadata, delimiter=",", header="dist_deg,baz", comments='')
+
+    print(f"Saved data to: {output_dir}")
