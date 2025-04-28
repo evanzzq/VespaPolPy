@@ -18,6 +18,8 @@ class Prior:
     refLat: float
     refLon: float
     refBaz: float
+    srcLat: float
+    srcLon: float
     timeRange: tuple
 
     maxN: int = 5
@@ -95,6 +97,8 @@ class Prior3c:
     refLat: float
     refLon: float
     refBaz: float
+    srcLat: float
+    srcLon: float
     timeRange: tuple
 
     maxN: int = 5

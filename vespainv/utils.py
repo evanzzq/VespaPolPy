@@ -128,5 +128,76 @@ def prepare__inputs_from_sac(data_dir, output_dir):
     # Save station metadata
     metadata = np.column_stack([dists, bazs])
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"), metadata, delimiter=",", header="dist_deg,baz", comments='')
+    evinfo = np.column_stack([evla, evlo])
+    np.savetxt(os.path.join(output_dir, "eventinfo.csv"), evinfo, delimiter=",", header="evla,evlo", comments='')
 
     print(f"Saved data to: {output_dir}")
+
+def make_vespagram(
+    U: np.ndarray,                   # shape (n_time, n_traces)
+    time: np.ndarray,               # shape (n_time,)
+    metadata: np.ndarray,           # shape (n_traces, 2) = [dist, baz]
+    refLat: float,
+    refLon: float,
+    srcLat: float,
+    srcLon: float,
+    slow_grid: np.ndarray,
+    refBaz: float = None
+) -> np.ndarray:
+
+    import matplotlib.pyplot as plt
+    from scipy.interpolate import interp1d
+
+    n_time, n_traces = U.shape
+    vespa = np.zeros((len(slow_grid), n_time))
+
+    for i, slow in enumerate(slow_grid):
+        stack = np.zeros(n_time)
+
+        for itrace in range(n_traces):
+            trDist, trBaz = metadata[itrace]
+
+            # Compute station lat/lon
+            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
+
+            # Local dx, dy (same convention as forward modeling)
+            dx = (trLon - refLon) * np.cos(np.radians(refLat))
+            dy = trLat - refLat
+
+            # Slowness vector
+            if refBaz is not None:
+                trBaz = refBaz
+            slow_x = slow * np.cos(np.radians(90 - trBaz))
+            slow_y = slow * np.sin(np.radians(90 - trBaz))
+
+            # Time shift
+            tshift = (slow_x * dx + slow_y * dy)
+
+            # Interpolate and stack
+            trace = U[:, itrace]
+            trace /= np.max(np.abs(trace))  # normalize
+            shifted = interp1d(
+                time,
+                trace,
+                kind='linear',
+                bounds_error=False,
+                fill_value=0.0
+            )(time-tshift)
+            stack += shifted
+
+        vespa[i, :] = stack / n_traces
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    extent = [time[0], time[-1], slow_grid[0], slow_grid[-1]]
+    plt.imshow(vespa, aspect='auto', extent=extent, origin='lower',
+               cmap='seismic', vmin=-np.max(np.abs(vespa)), vmax=np.max(np.abs(vespa)))
+    plt.colorbar(label='Amplitude')
+    plt.xlabel("Time (s)")
+    plt.ylabel("Slowness (s/deg)")
+    plt.title("Vespagram")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    return vespa

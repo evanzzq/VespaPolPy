@@ -228,9 +228,8 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     from vespainv.model import VespaModel, Prior
     from vespainv.waveformBuilder import create_U_from_model
 
-    n_traces = U_obs.shape[0]
-    trace_len = U_obs.shape[1]
-    Nmax = prior.maxN
+    trace_len = U_obs.shape[0]
+    n_traces = U_obs.shape[1]
 
     totalSteps = bookkeeping.totalSteps
     burnInSteps = bookkeeping.burnInSteps
@@ -250,7 +249,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     # Start from an empty model
     model = VespaModel.create_empty(Ntrace=n_traces)
 
-    trace_shape = (n_traces, trace_len)
+    trace_shape = (trace_len, n_traces)
     samples = []
     logL_trace = []
 
@@ -259,8 +258,6 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
-
-    progress_log_path = os.path.join(saveDir, "progress_log.txt")
 
     for iStep in range(totalSteps):
 
@@ -327,9 +324,8 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     from vespainv.model import VespaModel3c, Prior3c
     from vespainv.waveformBuilder import create_U_from_model_3c, create_U_from_model_3c_freqdomain
 
-    n_traces = U_obs.shape[0]
-    trace_len = U_obs.shape[1]
-    Nmax = prior.maxN
+    trace_len = U_obs.shape[0]
+    n_traces = U_obs.shape[1]
 
     totalSteps = bookkeeping.totalSteps
     burnInSteps = bookkeeping.burnInSteps
@@ -349,7 +345,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     # # Start from an empty model
     # model = VespaModel3c.create_empty(Ntrace=n_traces)
 
-    trace_shape = (n_traces, trace_len, 3)
+    trace_shape = (trace_len, n_traces, 3)
     samples = []
     logL_trace = []
 

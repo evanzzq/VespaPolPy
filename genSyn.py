@@ -3,11 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c
 from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
+from vespainv.utils import dest_point
 
 # Parameter setup
-modname = "model3"
+modname = "model1"
 Nphase = 3
-is3c = True
+is3c = False
 
 # Parameter setup: stf
 f0 = 0.2
@@ -17,9 +18,15 @@ dt = 0.05
 tmax = 120
 
 # Parameter setup: array
+srcLat = 0.0
+srcLon = 0.0
 base_dist = 35.0
 base_baz = 70.0
 Ntrace = 50
+refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
+
+# Parameter setup: arrival times
+arr = np.array([30, 60, 90])
 
 synDir = os.path.join("./SynData/", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -47,19 +54,19 @@ np.savetxt(os.path.join(synDir, "stf_syn.csv"), stf_array, delimiter=",", header
 # Generate station metadata and save
 time = np.arange(0, tmax, dt)
 # np.random.seed(0)
-dists = base_dist + np.random.uniform(-2.0, 2.0, Ntrace)
-bazs = base_baz + np.random.uniform(-2.0, 2.0, Ntrace)
+dists = base_dist + np.random.uniform(-5.0, 5.0, Ntrace)
+bazs = base_baz + np.random.uniform(-5.0, 5.0, Ntrace)
 station_metadata = np.column_stack((dists, bazs))
 
 np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delimiter=",", header="distance,baz", comments="")
 
 # Define prior and model, and save
 if is3c:
-    prior = Prior3c(refLat = 0., refLon = 0.,refBaz=base_baz, timeRange=(time[0],time[-1]), ampRange=(0.5, 1), slwRange=(0,0.1))
-    model = VespaModel3c.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=np.array([30, 60, 90]))
+    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=(0.5, 1), slwRange=(0,0.1))
+    model = VespaModel3c.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
 else:
-    prior = Prior(refLat = 0., refLon = 0.,refBaz=base_baz, timeRange=(time[0],time[-1]), ampRange=(0.5, 1))
-    model = VespaModel.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior)
+    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=(0.5, 1), slwRange=(0, 10))
+    model = VespaModel.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
 
 # Save model details as a human-readable text file
 with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
@@ -116,10 +123,10 @@ if is3c:
     components = ['Z', 'R', 'T']
     fig, axes = plt.subplots(1, 3, figsize=(12, 10), sharex=True)
     offset = 1.2 * np.max(np.abs(U))  # spacing between traces
-    n_traces = U.shape[0]
+    n_traces = U.shape[1]
     for i, ax in enumerate(axes):
         for j in range(n_traces):
-            ax.plot(time, U[j, :, i] + j * offset, color='black')
+            ax.plot(time, U[:, j, i] + j * offset, color='black')
         ax.set_ylabel(f"{components[i]} Amplitude (offset)")
         ax.set_title(f"{components[i]} Component")
         ax.grid(True)
@@ -127,10 +134,10 @@ if is3c:
     plt.tight_layout()
 else:
     plt.figure(figsize=(10, 6))
-    n_traces = U.shape[0]
+    n_traces = U.shape[1]
     offset = 1.2 * np.max(np.abs(U))  # spacing between traces
     for i in range(n_traces):
-        plt.plot(time, U[i, :] + i * offset, color="black")
+        plt.plot(time, U[:, i] + i * offset, color="black")
     plt.xlabel("Time (s)")
     plt.ylabel("Amplitude (offset by trace index)")
     plt.title("Synthetic Seismograms")
@@ -139,16 +146,16 @@ else:
 
 plt.show()
 
-np.savetxt(os.path.join(synDir, "time_syn.csv"), time, delimiter=",")
+np.savetxt(os.path.join(synDir, "time.csv"), time, delimiter=",")
 
 if is3c:
     Z = U[:, :, 0]
     R = U[:, :, 1]
     T = U[:, :, 2]
-    np.savetxt(os.path.join(synDir, "UZ_syn.csv"), Z, delimiter=",")
-    np.savetxt(os.path.join(synDir, "UR_syn.csv"), R, delimiter=",")
-    np.savetxt(os.path.join(synDir, "UT_syn.csv"), T, delimiter=",")
+    np.savetxt(os.path.join(synDir, "UZ.csv"), Z, delimiter=",")
+    np.savetxt(os.path.join(synDir, "UR.csv"), R, delimiter=",")
+    np.savetxt(os.path.join(synDir, "UT.csv"), T, delimiter=",")
 else:
-    np.savetxt(os.path.join(synDir, "U_syn.csv"), U, delimiter=",")
+    np.savetxt(os.path.join(synDir, "U.csv"), U, delimiter=",")
 
 sys.exit(0)

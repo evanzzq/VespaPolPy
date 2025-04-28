@@ -29,11 +29,13 @@ def create_U_from_model(
     """
 
     n_traces = metadata.shape[0]
-    U_model = np.zeros((n_traces, len(time)))
+    U_model = np.zeros((len(time), n_traces))
 
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
+    srcLat = prior.srcLat
+    srcLon = prior.srcLon
 
     for itrace in range(n_traces):
         
@@ -41,7 +43,7 @@ def create_U_from_model(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(refLat, refLon, trBaz, trDist)
+        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
 
         dx = (trLon - refLon) * np.cos(np.radians(refLat))
         dy = trLat - refLat
@@ -66,7 +68,7 @@ def create_U_from_model(
 
             trace += model.amp[iph] * shifted
 
-        U_model[itrace, :] = trace
+        U_model[:, itrace] = trace
 
     return U_model
 
@@ -98,11 +100,13 @@ def create_U_from_model_3c(
     from scipy.signal import hilbert
 
     n_traces = metadata.shape[0]
-    U_model = np.zeros((n_traces, len(time), 3))
+    U_model = np.zeros((len(time), n_traces, 3))
 
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
+    srcLat = prior.srcLat
+    srcLon = prior.srcLon
 
     for itrace in range(n_traces):
         
@@ -110,7 +114,7 @@ def create_U_from_model_3c(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(refLat, refLon, trBaz, trDist)
+        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
 
         dx = (trLon - refLon) * np.cos(np.radians(refLat))
         dy = trLat - refLat
@@ -174,9 +178,9 @@ def create_U_from_model_3c(
             traceR += R
             traceT += T
 
-        U_model[itrace, :, 0] = traceZ
-        U_model[itrace, :, 1] = traceR
-        U_model[itrace, :, 2] = traceT
+        U_model[:, itrace, 0] = traceZ
+        U_model[:, itrace, 1] = traceR
+        U_model[:, itrace, 2] = traceT
 
     return U_model, P_wvlt, S_wvlt
 
@@ -205,11 +209,13 @@ def create_U_from_model_3c_freqdomain(
     - U_model: np.ndarray of shape (n_traces, len(time), 3), synthetic seismograms
     """
     n_traces = metadata.shape[0]
-    U_model = np.zeros((n_traces, len(time), 3))
+    U_model = np.zeros((len(time), n_traces, 3))
 
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
+    srcLat = prior.srcLat
+    srcLon = prior.srcLon
 
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
@@ -222,7 +228,7 @@ def create_U_from_model_3c_freqdomain(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(refLat, refLon, trBaz, trDist)
+        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
 
         dx = (trLon - refLon) * np.cos(np.radians(refLat))
         dy = trLat - refLat
@@ -277,9 +283,9 @@ def create_U_from_model_3c_freqdomain(
             traceR += R
             traceT += T
 
-        U_model[itrace, :, 0] = traceZ
-        U_model[itrace, :, 1] = traceR
-        U_model[itrace, :, 2] = traceT
+        U_model[:, itrace, 0] = traceZ
+        U_model[:, itrace, 1] = traceR
+        U_model[:, itrace, 2] = traceT
 
     return U_model, P_wvlt_W, S_wvlt_W
 
