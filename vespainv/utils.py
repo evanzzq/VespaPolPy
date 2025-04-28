@@ -142,7 +142,8 @@ def make_vespagram(
     srcLat: float,
     srcLon: float,
     slow_grid: np.ndarray,
-    refBaz: float = None
+    refBaz: float = None,
+    clim: tuple = None
 ) -> np.ndarray:
 
     import matplotlib.pyplot as plt
@@ -182,7 +183,7 @@ def make_vespagram(
                 kind='linear',
                 bounds_error=False,
                 fill_value=0.0
-            )(time-tshift)
+            )(time+tshift)
             stack += shifted
 
         vespa[i, :] = stack / n_traces
@@ -190,8 +191,15 @@ def make_vespagram(
     # Plot
     plt.figure(figsize=(10, 6))
     extent = [time[0], time[-1], slow_grid[0], slow_grid[-1]]
+
+    if clim is None:
+        vmax = np.max(np.abs(vespa))
+        vmin = -vmax
+    else:
+        vmin, vmax = clim
+        
     plt.imshow(vespa, aspect='auto', extent=extent, origin='lower',
-               cmap='seismic', vmin=-np.max(np.abs(vespa)), vmax=np.max(np.abs(vespa)))
+               cmap='seismic', vmin=vmin, vmax=vmax)
     plt.colorbar(label='Amplitude')
     plt.xlabel("Time (s)")
     plt.ylabel("Slowness (s/deg)")
@@ -201,3 +209,144 @@ def make_vespagram(
     plt.show()
 
     return vespa
+
+def bandpass(data, fs, fmin, fmax, corners=4, zerophase=True):
+    """
+    Vectorized bandpass filter using ObsPy's Stream.
+
+    Parameters:
+    - data: numpy array of shape
+        - (n_samples,)
+        - (n_samples, n_traces)
+        - (n_samples, n_traces, n_components)
+    - fs: Sampling frequency (Hz)
+    - fmin: Low corner frequency (Hz)
+    - fmax: High corner frequency (Hz)
+    - corners: Filter order
+    - zerophase: Apply filter forward and backward to avoid phase shift
+
+    Returns:
+    - Filtered data (same shape as input)
+    """
+    import obspy
+
+    data = np.asarray(data)
+    original_shape = data.shape
+
+    if data.ndim == 1:
+        data_reshaped = data[:, np.newaxis]
+    elif data.ndim == 2:
+        data_reshaped = data
+    elif data.ndim == 3:
+        n_samples, n_traces, n_comp = data.shape
+        data_reshaped = data.reshape(n_samples, n_traces * n_comp)
+    else:
+        raise ValueError("Input data must be 1D, 2D, or 3D.")
+
+    n_samples, n_series = data_reshaped.shape
+
+    # Create list of Trace objects
+    traces = []
+    for i in range(n_series):
+        tr = obspy.Trace()
+        tr.data = data_reshaped[:, i].copy()
+        tr.stats.sampling_rate = fs
+        traces.append(tr)
+
+    # Create Stream and filter
+    st = obspy.Stream(traces)
+    st.filter('bandpass', freqmin=fmin, freqmax=fmax, corners=corners, zerophase=zerophase)
+
+    # Collect filtered data
+    filtered = np.stack([tr.data for tr in st], axis=-1)
+
+    # Reshape back to original
+    if data.ndim == 1:
+        filtered = filtered.squeeze()
+    elif data.ndim == 2:
+        filtered = filtered
+    elif data.ndim == 3:
+        filtered = filtered.reshape(n_samples, n_traces, n_comp)
+
+    return filtered
+
+
+def calc_array_center(station_metadata, srcLat, srcLon):
+    """
+    Calculate approximate center of an array.
+
+    Inputs:
+      station_metadata: np.ndarray of shape (n_station, 2) [distance (deg), back-azimuth (deg)]
+      srcLat, srcLon: event source latitude and longitude (degrees)
+
+    Returns:
+      centerLat, centerLon, centerBaz
+    """
+
+    n_station = station_metadata.shape[0]
+    
+    latitudes = []
+    longitudes = []
+    for i in range(n_station):
+        dist, baz = station_metadata[i]
+        lat, lon = dest_point(srcLat, srcLon, baz, dist)
+        latitudes.append(lat)
+        longitudes.append(lon)
+    
+    latitudes = np.array(latitudes)
+    longitudes = np.array(longitudes)
+    
+    centerLat = np.mean(latitudes)
+    centerLon = np.mean(longitudes)
+    
+    # Compute centerBaz from src -> array center
+    d2r = np.pi / 180
+    r2d = 180 / np.pi
+    dlon = (centerLon - srcLon) * d2r
+    y = np.sin(dlon) * np.cos(centerLat * d2r)
+    x = np.cos(srcLat * d2r) * np.sin(centerLat * d2r) - np.sin(srcLat * d2r) * np.cos(centerLat * d2r) * np.cos(dlon)
+    centerBaz = (np.arctan2(y, x) * r2d) % 360
+
+    return centerLat, centerLon, centerBaz
+
+def create_stf(f0, dt):
+    stf_time_0 = np.arange(-4 / f0, 4 / f0 + dt, dt)
+    stf_0 = np.exp(-stf_time_0 ** 2 / (2 * (1 / (2 * np.pi * f0)) ** 2))
+    stf_time = stf_time_0[:-1]
+    stf = np.diff(stf_0) / np.diff(stf_time_0)
+    stf = stf / np.max(np.abs(stf))
+    return np.column_stack([stf_time, stf])
+
+def est_dom_freq(data, fs):
+    """
+    Estimate the dominant frequency of a seismogram.
+
+    Parameters:
+    - data: 1D or 2D numpy array (single trace or multiple traces)
+             shape = (n_samples,) or (n_samples, n_traces)
+    - fs: Sampling frequency (Hz)
+
+    Returns:
+    - f0: Estimated dominant frequency (Hz) 
+          (scalar)
+    """
+    import numpy as np
+
+    n = data.shape[0]
+    freqs = np.fft.rfftfreq(n, d=1/fs)
+
+    if data.ndim == 1:
+        fft_amp = np.abs(np.fft.rfft(data))
+        f0 = np.sum(freqs * fft_amp) / np.sum(fft_amp)
+    elif data.ndim == 2:
+        def _single_trace_f0(trace):
+            fft_amp = np.abs(np.fft.rfft(trace))
+            return np.sum(freqs * fft_amp) / np.sum(fft_amp)
+
+        f0_all = np.apply_along_axis(_single_trace_f0, axis=0, arr=data)
+        f0 = np.mean(f0_all)
+    else:
+        raise ValueError("Input data must be 1D or 2D numpy array.")
+
+    return f0
+

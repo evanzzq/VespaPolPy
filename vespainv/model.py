@@ -8,6 +8,8 @@ class Bookkeeping:
     burnInSteps:    int = None
     nSaveModels:    int = 100
     actionsPerStep: int = 2
+    locDiff:        bool = False
+    Temp:           float = 1.
 
     def __post_init__(self):
         if self.burnInSteps is None:
@@ -26,8 +28,8 @@ class Prior:
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    distRange: tuple = (-1, 1)
-    bazRange: tuple = (-10, 10)
+    distRange: tuple = (-5, 5)
+    bazRange: tuple = (-5, 5)
 
     arrStd: float = 1.0
     slwStd: float = None

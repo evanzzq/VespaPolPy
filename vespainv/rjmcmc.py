@@ -236,6 +236,8 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
+    locDiff = bookkeeping.locDiff
+    Temp = bookkeeping.Temp
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -264,7 +266,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = np.random.choice(5, size=actionsPerStep, replace=False)
+            actions = np.random.choice(7 if locDiff else 5, size=actionsPerStep, replace=False)
         
         model_new = model
 
@@ -287,8 +289,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
-        T = 0.2 #  T < 1 - less accepting of worse models
-        log_accept_ratio = (new_logL - logL)/T  # assume log_alpha is 0
+        log_accept_ratio = (new_logL - logL)/Temp  # assume log_alpha is 0
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
@@ -322,7 +323,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel3c, Prior3c
-    from vespainv.waveformBuilder import create_U_from_model_3c, create_U_from_model_3c_freqdomain
+    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
 
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -332,6 +333,8 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
+    locDiff = bookkeeping.locDiff
+    Temp = bookkeeping.Temp
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -350,7 +353,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     logL_trace = []
 
     # U_model = np.zeros(trace_shape)
-    U_model, _, _ = create_U_from_model_3c(model, prior, metadata, Utime, stf_time, stf_data)
+    U_model, _, _ = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data)
     logL = compute_log_likelihood(U_obs, U_model)
 
     start_time = time.time()
@@ -363,7 +366,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = np.random.choice(12, size=actionsPerStep, replace=False)
+            actions = np.random.choice(14 if locDiff else 12, size=actionsPerStep, replace=False)
         
         model_new = model
         successAll = False
@@ -421,8 +424,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
-        T = 0.1 #  T < 1 - less accepting of worse models
-        log_accept_ratio = (new_logL - logL)/T  # assume log_alpha is 0
+        log_accept_ratio = (new_logL - logL)/Temp  # assume log_alpha is 0
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new

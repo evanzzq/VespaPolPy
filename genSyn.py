@@ -6,9 +6,11 @@ from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c
 from vespainv.utils import dest_point
 
 # Parameter setup
-modname = "model1"
+modname = "model2"
 Nphase = 3
 is3c = False
+ampRange = (-1, 1)
+slwRange = (0, 5)
 
 # Parameter setup: stf
 f0 = 0.2
@@ -24,6 +26,11 @@ base_dist = 35.0
 base_baz = 70.0
 Ntrace = 50
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
+
+# Parameter setup: location perturbation
+locDiff = True
+distDiff = np.random.uniform(-5.0, 5.0, Ntrace)
+bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
 
 # Parameter setup: arrival times
 arr = np.array([30, 60, 90])
@@ -49,7 +56,7 @@ stf = stf / np.max(np.abs(stf))
 
 # Pack and save stf
 stf_array = np.column_stack([stf_time, stf])
-np.savetxt(os.path.join(synDir, "stf_syn.csv"), stf_array, delimiter=",", header="time,stf", comments="")
+np.savetxt(os.path.join(synDir, "stf.csv"), stf_array, delimiter=",", header="time,stf", comments="")
 
 # Generate station metadata and save
 time = np.arange(0, tmax, dt)
@@ -62,11 +69,14 @@ np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delim
 
 # Define prior and model, and save
 if is3c:
-    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=(0.5, 1), slwRange=(0,0.1))
+    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel3c.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
 else:
-    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=(0.5, 1), slwRange=(0, 10))
+    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
+    if locDiff:
+        model.distDiff = distDiff
+        model.bazDiff  = bazDiff
 
 # Save model details as a human-readable text file
 with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
@@ -107,10 +117,15 @@ with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
     if hasattr(model, 'wvtype'):
         ftxt.write("--- Wave Type (P = True) ---\n")
         ftxt.write(np.array2string(model.wvtype, separator=", ") + "\n\n")
+    if locDiff:
+        ftxt.write("--- Distance perturbation (deg) ---\n")
+        ftxt.write(np.array2string(model.distDiff, separator=", ") + "\n\n")
+        ftxt.write("--- BAZ perturbation (deg) ---\n")
+        ftxt.write(np.array2string(model.bazDiff, separator=", ") + "\n\n")
 
-with open(os.path.join(synDir, "synModel.pkl"), "wb") as f1:
+with open(os.path.join(synDir, "Model.pkl"), "wb") as f1:
     pickle.dump(model, f1)
-with open(os.path.join(synDir, "synPrior.pkl"), "wb") as f2:
+with open(os.path.join(synDir, "Prior.pkl"), "wb") as f2:
     pickle.dump(prior, f2)
 
 # Generate U, plot, and save

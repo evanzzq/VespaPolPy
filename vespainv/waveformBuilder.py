@@ -338,7 +338,7 @@ def tstar_conv_freqdomain(W: np.ndarray, freqs: np.ndarray, t_star: float) -> np
     return W_attenuated
 
 
-def PVH_to_ZRT(P, SV, SH, slw, a0=6.3, b0=3.6):
+def PVH_to_ZRT(P, SV, SH, slw, a0=6.3, b0=3.6, radius=6371.):
     """
     Transform PVH components to ZRT components.
     
@@ -350,7 +350,8 @@ def PVH_to_ZRT(P, SV, SH, slw, a0=6.3, b0=3.6):
     Returns:
     - Z, R, T: numpy arrays
     """
-
+    from obspy.geodetics import degrees2kilometers
+    slw /= degrees2kilometers(1, radius) # s/deg to s/km
     qa0 = np.sqrt(a0**(-2) - slw**2)
     qb0 = np.sqrt(b0**(-2) - slw**2)
 
