@@ -10,7 +10,7 @@ is3c = False # for synthetic this will be overriden
 comp = "R" # only applies to real data
 
 modname = "200705062111"
-runname = "run2_R"
+runname = "run2_R_tmp"
 totalSteps = int(3e5)
 
 burnInSteps = int(2e5)
@@ -65,11 +65,12 @@ dt = Utime[1] - Utime[0]
 if isbp:
     U_obs = bandpass(U_obs, 1/dt, freqs[0], freqs[1])
 
-# ---- Load (for synthetic) or prepare (for data) stf ----
+# ---- Load (for synthetic) or prepare and save (for data) stf ----
 if isSyn:
     stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)  # columns: stf_time, stf
 else:
     stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:,:,0], 1/dt), dt)
+    np.savetxt(os.path.join(datadir, modname, "stf.csv"), stf, delimiter=",", header="time,stf", comments="")
 
 # ---- Load (for synthetic) or prepare and save (for data) prior ----
 if isSyn:

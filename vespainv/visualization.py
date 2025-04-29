@@ -62,3 +62,28 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plt.legend()
 
     plt.tight_layout()
+    plt.show()
+
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, model=None, prior=None, metadata=None, stf=None):
+
+    from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
+    plt.figure(figsize=(10, 8))
+    n_traces = U.shape[1]
+
+    is3c = True if U.ndim == 3 else False
+
+    if ensemble is not None:
+        for model in ensemble:
+            U_model += create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1]) if is3c else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1])
+
+    for i in range(n_traces):
+        trace = U[:, i]
+        trace /= np.max(np.abs(trace))
+        plt.plot(time, trace + i * offset, color='black')
+    
+    plt.xlabel("Time (s)")
+    plt.ylabel("Trace Index")
+    plt.title(f"Input Seismogram")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
