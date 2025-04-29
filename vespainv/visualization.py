@@ -62,28 +62,53 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plt.legend()
 
     plt.tight_layout()
-    plt.show()
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, model=None, prior=None, metadata=None, stf=None):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None):
 
     from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
-    plt.figure(figsize=(10, 8))
-    n_traces = U.shape[1]
 
     is3c = True if U.ndim == 3 else False
+    n_traces = U.shape[1]
 
     if ensemble is not None:
+        U_model = np.zeros_like(U)
         for model in ensemble:
-            U_model += create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1]) if is3c else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1])
+            U_model += (
+                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1]) 
+                if is3c 
+                else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1])
+                )
+        U_model /= len(ensemble)
 
-    for i in range(n_traces):
-        trace = U[:, i]
-        trace /= np.max(np.abs(trace))
-        plt.plot(time, trace + i * offset, color='black')
-    
-    plt.xlabel("Time (s)")
-    plt.ylabel("Trace Index")
-    plt.title(f"Input Seismogram")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+    if is3c:
+        fig, axs = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
+        comp_labels = ['Z', 'R', 'T']
+        for comp in range(3):
+            ax = axs[comp]
+            for i in range(n_traces):
+                trace = U[:, i, comp]
+                trace /= np.max(np.abs(trace))
+                ax.plot(time, trace + i * offset, color='black')
+                if U_model is not None:
+                    trace_model = U_model[:, i, comp]
+                    trace_model /= np.max(np.abs(trace_model))
+                    ax.plot(time, trace_model + i * offset, color='red')
+            ax.set_title(f"Component {comp_labels[comp]}")
+            ax.set_xlabel("Time (s)")
+        axs[0].set_ylabel("Trace Index")
+    else:
+        plt.figure(figsize=(10, 8))
+        for i in range(n_traces):
+            trace = U[:, i]
+            trace /= np.max(np.abs(trace))
+            plt.plot(time, trace + i * offset, color='black')
+            if U_model is not None:
+                trace_model = U_model[:, i]
+                trace_model /= np.max(np.abs(trace_model))
+                plt.plot(time, trace_model + i * offset, color='red')
+        plt.xlabel("Time (s)")
+        plt.ylabel("Trace Index")
+        plt.title("Input Seismogram")
+
+        plt.grid(True)
+        plt.tight_layout()

@@ -9,7 +9,6 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "python": "C:/Users/zzq/AppData/Local/anaconda3/envs/zzq_seismo/python.exe",
             "console": "integratedTerminal"
         }
     ]

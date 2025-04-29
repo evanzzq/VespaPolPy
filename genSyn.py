@@ -6,14 +6,14 @@ from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c
 from vespainv.utils import dest_point
 
 # Parameter setup
-modname = "model2"
+modname = "model1"
 Nphase = 3
 is3c = False
 ampRange = (-1, 1)
 slwRange = (0, 5)
 
 # Parameter setup: stf
-f0 = 0.2
+f0 = 0.5
 dt = 0.05
 
 # Parameter setup: time vector
@@ -28,7 +28,7 @@ Ntrace = 50
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
 
 # Parameter setup: location perturbation
-locDiff = True
+locDiff = False
 distDiff = np.random.uniform(-5.0, 5.0, Ntrace)
 bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
 
@@ -63,6 +63,7 @@ time = np.arange(0, tmax, dt)
 # np.random.seed(0)
 dists = base_dist + np.random.uniform(-5.0, 5.0, Ntrace)
 bazs = base_baz + np.random.uniform(-5.0, 5.0, Ntrace)
+idx = np.argsort(dists); dists, bazs = dists[idx], bazs[idx] # sort by dist
 station_metadata = np.column_stack((dists, bazs))
 
 np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delimiter=",", header="distance,baz", comments="")

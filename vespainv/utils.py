@@ -61,7 +61,7 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare__inputs_from_sac(data_dir, output_dir):
+def prepare_inputs_from_sac(data_dir, output_dir):
 
     import os
     from obspy import read
@@ -119,6 +119,13 @@ def prepare__inputs_from_sac(data_dir, output_dir):
         _, baz, _ = gps2dist_azimuth(evla, evlo, stla, stlo)
         dists.append(dist_deg)
         bazs.append(baz)
+    
+    # Sort all data by increasing distance
+    idx = np.argsort(dists)
+    for comp in ["UZ", "UR", "UT"]:
+        traces[comp] = [traces[comp][i] for i in idx]
+    dists = [dists[i] for i in idx]
+    bazs = [bazs[i] for i in idx]
 
     # Save component matrices
     for comp in ["UZ", "UR", "UT"]:
@@ -337,16 +344,50 @@ def est_dom_freq(data, fs):
 
     if data.ndim == 1:
         fft_amp = np.abs(np.fft.rfft(data))
-        f0 = np.sum(freqs * fft_amp) / np.sum(fft_amp)
+        fft_pwr = fft_amp**2
+        f0 = np.sum(freqs * fft_pwr) / np.sum(fft_pwr)
     elif data.ndim == 2:
         def _single_trace_f0(trace):
             fft_amp = np.abs(np.fft.rfft(trace))
-            return np.sum(freqs * fft_amp) / np.sum(fft_amp)
+            fft_pwr = fft_amp**2
+            return np.sum(freqs * fft_pwr) / np.sum(fft_pwr)
 
         f0_all = np.apply_along_axis(_single_trace_f0, axis=0, arr=data)
         f0 = np.mean(f0_all)
     else:
         raise ValueError("Input data must be 1D or 2D numpy array.")
 
+    print(f"Dominant frequency: {f0: .2f} Hz")
     return f0
 
+def prep_data(datadir, modname, is3c, comp, isbp, freqs):
+    import os
+    if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
+        if is3c:
+            response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
+            if response == "y":
+                is3c = False
+            else:
+                print("Aborted.")
+                return
+        U_obs = np.loadtxt(os.path.join(datadir, modname, "U.csv"), delimiter=",")  # columns: data
+    else:
+        if is3c:
+            Z_obs = np.loadtxt(os.path.join(datadir, modname, "UZ.csv"), delimiter=",")  # columns: data
+            R_obs = np.loadtxt(os.path.join(datadir, modname, "UR.csv"), delimiter=",")  # columns: data
+            T_obs = np.loadtxt(os.path.join(datadir, modname, "UT.csv"), delimiter=",")  # columns: data
+            U_obs = np.stack([Z_obs, R_obs, T_obs], axis=-1)
+        else:
+            Uname = "U"+comp+".csv"
+            U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
+
+    U_obs /= np.max(np.abs(U_obs)) # normalize
+
+    Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
+    metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
+    dt = Utime[1] - Utime[0]
+
+    if isbp:
+        U_obs = bandpass(U_obs, 1/dt, freqs[0], freqs[1])
+    
+    return U_obs, Utime, metadata, is3c

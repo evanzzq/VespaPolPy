@@ -56,7 +56,7 @@ def create_U_from_model(
             slow_x = slow * np.cos(np.radians(90-refBaz))
             slow_y = slow * np.sin(np.radians(90-refBaz))
 
-            tshift = model.arr[iph] - (slow_x * dx + slow_y * dy)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
             shifted = interp1d(
                 stf_time + tshift,
@@ -129,7 +129,7 @@ def create_U_from_model_3c(
             slow_x = slow * np.cos(np.radians(90-refBaz))
             slow_y = slow * np.sin(np.radians(90-refBaz))
 
-            tshift = model.arr[iph] - (slow_x * dx + slow_y * dy)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
             if P_wvlt is None or S_wvlt is None:
                 P_wvlt = tstar_conv(stf, stf_time, model.atts[iph]*0.25)
@@ -243,7 +243,7 @@ def create_U_from_model_3c_freqdomain(
             slow_x = slow * np.cos(np.radians(90-refBaz))
             slow_y = slow * np.sin(np.radians(90-refBaz))
 
-            tshift = model.arr[iph] - (slow_x * dx + slow_y * dy)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
             if P_wvlt_W is None or S_wvlt_W is None:
                 P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25)
