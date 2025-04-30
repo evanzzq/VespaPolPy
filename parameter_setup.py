@@ -4,10 +4,10 @@ is3c = False # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "200705062111"
-runname = "run3_Z"
-totalSteps = int(2e5)
+runname = "run4_Z"
+totalSteps = int(2e6)
 
-burnInSteps = int(1e5)
+burnInSteps = int(1.5e6)
 nSaveModels = 100
 actionsPerStep = 2
 
