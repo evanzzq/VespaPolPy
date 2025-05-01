@@ -3,11 +3,11 @@ isSyn = False
 is3c = False # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "200705062111"
-runname = "run4_Z"
-totalSteps = int(2e6)
+modname = "201111221848"
+runname = "run2_Z"
+totalSteps = int(1e6)
 
-burnInSteps = int(1.5e6)
+burnInSteps = int(8e5)
 nSaveModels = 100
 actionsPerStep = 2
 
@@ -21,4 +21,4 @@ locDiff = False
 distRange = (-5., -5.)
 bazRange = (-5., -5.)
 
-Temp = 0.1 # acceptance rate for worse models lower if smaller
+Temp = 1 # acceptance rate for worse models lower if smaller

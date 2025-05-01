@@ -8,8 +8,8 @@ from parameter_setup import isbp, freqs
 isSyn = False
 is3c = False
 comp = "Z"
-modname = "200705062111"
-runname = "run2_Z"
+modname = "201111221848"
+runname = "run1_Z"
 
 datadir = "./SynData/" if isSyn else "./RealData/"
 resdir = "./runs/syn/" if isSyn else "./runs/data/"

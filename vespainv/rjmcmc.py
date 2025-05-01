@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
 
-def compute_log_likelihood(U_obs, U_model, sigma=1.0):
+def compute_log_likelihood(U_obs, U_model, sigma=0.08):
     residual = U_obs - U_model
     return -0.5 * np.sum((residual / sigma)**2)
 
@@ -289,7 +289,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
-        log_accept_ratio = (new_logL - logL)/Temp  # assume log_alpha is 0
+        log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) / Temp
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
