@@ -2,7 +2,7 @@ import pickle, time, os
 import numpy as np
 from vespainv.model import Bookkeeping, Prior, Prior3c
 from vespainv.rjmcmc import rjmcmc_run, rjmcmc_run3c
-from vespainv.utils import calc_array_center, bandpass, create_stf, est_dom_freq, prep_data
+from vespainv.utils import calc_array_center, bandpass, create_stf, est_stf_wid, est_dom_freq, prep_data
 from parameter_setup import *
 
 # ---- Parameter setup ----
@@ -32,6 +32,8 @@ else:
     stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:,:,0], 1/dt), dt)
     np.savetxt(os.path.join(datadir, modname, "stf.csv"), stf, delimiter=",", header="time,stf", comments="")
 
+stf_wid = minSpace if minSpace is not None else est_stf_wid(stf)
+
 # ---- Load (for synthetic) or prepare and save (for data) prior ----
 if isSyn:
     with open(os.path.join(datadir, modname, "Prior.pkl"), "rb") as f:
@@ -42,12 +44,12 @@ else:
     refLat, refLon, refBaz = calc_array_center(metadata, srcLat, srcLon)
     if is3c:
         prior = Prior3c(
-            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, 
+            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid,
             timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
             )
     else:
         prior = Prior(
-            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, 
+            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid,
             timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
             )
     with open(os.path.join(datadir, modname, "Prior.pkl"), "wb") as f:

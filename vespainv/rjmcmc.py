@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.08):
+def compute_log_likelihood(U_obs, U_model, sigma=0.1):
     residual = U_obs - U_model
     return -0.5 * np.sum((residual / sigma)**2)
 
@@ -45,9 +45,9 @@ def birth3c(model, prior):
 
 def death(model, prior):
     model_new = copy.deepcopy(model)
-    if model_new.Nphase > 1:
+    if model_new.Nphase > 0:
         model_new.Nphase -= 1
-        idx = np.random.randint(model_new.Nphase)
+        idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
@@ -58,9 +58,9 @@ def death(model, prior):
 
 def death3c(model, prior):
     model_new = copy.deepcopy(model)
-    if model_new.Nphase > 1:
+    if model_new.Nphase > 0:
         model_new.Nphase -= 1
-        idx = np.random.randint(model_new.Nphase)
+        idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
@@ -266,15 +266,19 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = np.random.choice(7 if locDiff else 5, size=actionsPerStep, replace=False)
+            actions = np.random.choice(7 if locDiff else 5, size=actionsPerStep, replace=True)
         
         model_new = model
 
-        for iAction in actions:
+        for i in range(len(actions)):
+            iAction = actions[i]
             if iAction == 0:
                 model_new, _ = birth(model_new, prior)
             elif iAction == 1:
                 model_new, _ = death(model_new, prior)
+                if model_new.Nphase == 0 and i+1 < len(actions):
+                    if actions[i+1] in [2, 3, 4]:
+                        actions[i+1] = 0
             elif iAction == 2:
                 model_new, _ = update_arr(model_new, prior)
             elif iAction == 3:
@@ -289,7 +293,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
-        log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) / Temp
+        log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new

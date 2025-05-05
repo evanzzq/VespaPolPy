@@ -31,6 +31,9 @@ def create_U_from_model(
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces))
 
+    if model.Nphase == 0:
+        return U_model
+
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
@@ -53,8 +56,8 @@ def create_U_from_model(
         for iph in range(model.Nphase):
             
             slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-refBaz))
-            slow_y = slow * np.sin(np.radians(90-refBaz))
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
@@ -102,6 +105,9 @@ def create_U_from_model_3c(
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
 
+    if model.Nphase == 0:
+        return U_model
+
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
@@ -126,8 +132,8 @@ def create_U_from_model_3c(
         for iph in range(model.Nphase):
             
             slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-refBaz))
-            slow_y = slow * np.sin(np.radians(90-refBaz))
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
@@ -211,6 +217,9 @@ def create_U_from_model_3c_freqdomain(
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
 
+    if model.Nphase == 0:
+        return U_model
+
     refLat = prior.refLat
     refLon = prior.refLon
     refBaz = prior.refBaz
@@ -240,8 +249,8 @@ def create_U_from_model_3c_freqdomain(
         for iph in range(model.Nphase):
             
             slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-refBaz))
-            slow_y = slow * np.sin(np.radians(90-refBaz))
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 

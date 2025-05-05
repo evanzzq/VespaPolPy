@@ -25,41 +25,12 @@ def generate_arr(timeRange: np.ndarray, existing_arr: np.ndarray, min_space: flo
     """
     tmin, tmax = timeRange[0], timeRange[-1]
 
-    # If no existing arrivals, the full range is valid
-    if len(existing_arr) == 0:
-        return np.random.uniform(tmin, tmax)
-
-    # Start with full interval
-    valid_intervals = [(tmin+min_space, tmax-min_space)]
-
-    # Remove ±min_space around each existing arrival
-    for arr in existing_arr:
-        new_intervals = []
-        for start, end in valid_intervals:
-            # Exclude [arr - min_space, arr + min_space]
-            exclude_start = max(tmin, arr - min_space)
-            exclude_end = min(tmax, arr + min_space)
-
-            # Left piece
-            if exclude_start > start:
-                new_intervals.append((start, exclude_start))
-            # Right piece
-            if exclude_end < end:
-                new_intervals.append((exclude_end, end))
-
-        valid_intervals = new_intervals
-
-    # If no valid intervals remain
-    if not valid_intervals:
-        raise ValueError("No valid time intervals available.")
-
-    # Choose one interval based on its length
-    lengths = np.array([end - start for start, end in valid_intervals])
-    probs = lengths / lengths.sum()
-    idx = np.random.choice(len(valid_intervals), p=probs)
-    start, end = valid_intervals[idx]
-    return np.random.uniform(start, end)
-
+    for _ in range(500):
+        candidate = np.random.uniform(tmin, tmax)
+        if np.all(np.abs(existing_arr - candidate) >= min_space):
+            return candidate
+    
+    raise ValueError("Cannot place a new arrival without violating minimum spacing rule!")
 
 def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
     """
@@ -352,6 +323,12 @@ def create_stf(f0, dt):
     stf = stf / np.max(np.abs(stf))
     return np.column_stack([stf_time, stf])
 
+def est_stf_wid(stf, threshold=0.01):
+    stf_time = stf[:,0]
+    stf_data = stf[:,1]
+    inds = np.where(np.abs(stf_data) >= threshold)[0]
+    return (stf_time[inds[-1]] - stf_time[inds[0]]) if inds.size else 1.0
+
 def est_dom_freq(data, fs):
     """
     Estimate the dominant frequency of a seismogram.
@@ -409,13 +386,13 @@ def prep_data(datadir, modname, is3c, comp, isbp, freqs):
             Uname = "U"+comp+".csv"
             U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
 
-    U_obs /= np.max(np.abs(U_obs)) # normalize
-
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
     dt = Utime[1] - Utime[0]
 
     if isbp:
         U_obs = bandpass(U_obs, 1/dt, freqs[0], freqs[1])
+    
+    U_obs /= np.max(np.abs(U_obs)) # normalize
     
     return U_obs, Utime, metadata, is3c
