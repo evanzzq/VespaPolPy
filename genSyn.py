@@ -2,28 +2,28 @@ import pickle, os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c
-from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
+from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c, create_U_from_model_3c_freqdomain
 from vespainv.utils import dest_point
 
 # Parameter setup
-modname = "model1"
+modname = "model3"
 Nphase = 3
-is3c = False
+is3c = True
 ampRange = (-1, 1)
-slwRange = (0, 5)
+slwRange = (0, 2)
 
 # Parameter setup: stf
 f0 = 0.5
 dt = 0.05
 
 # Parameter setup: time vector
-tmax = 120
+tmax = 100
 
 # Parameter setup: array
 srcLat = 0.0
 srcLon = 0.0
 base_dist = 35.0
-base_baz = 70.0
+base_baz = 30.0
 Ntrace = 50
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
 
@@ -33,7 +33,17 @@ distDiff = np.random.uniform(-5.0, 5.0, Ntrace)
 bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
 
 # Parameter setup: arrival times
-arr = np.array([30, 60, 90])
+defAll = True
+arr = np.array([20, 40, 60, 80])
+slw = np.array([0.2, 0.4, 0.6, 0.])
+amp = np.array([1, 1, 1, 1])
+dip = np.array([20, 45, 90, 50])
+azi = np.array([0, 0, 90, 45])
+ph_hh = np.array([10, 20, 30, 40])
+ph_vh = np.array([40, 30, 20, 10])
+atts = np.array([1, 1, 1, 1])
+svfac = np.array([0, 1, 0, 0.5])
+wvtype = np.array([1, 0, 0, 0])
 
 synDir = os.path.join("./SynData/", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -44,15 +54,6 @@ stf_0 = np.exp(-stf_time_0 ** 2 / (2 * (1 / (2 * np.pi * f0)) ** 2))
 stf_time = stf_time_0[:-1]
 stf = np.diff(stf_0) / np.diff(stf_time_0)
 stf = stf / np.max(np.abs(stf))
-
-# # Plot stf
-# plt.figure(figsize=(8, 3))
-# plt.plot(stf_time, stf)
-# plt.title("Source-Time Function (diff of Gaussian)")
-# plt.xlabel("Time (s)")
-# plt.ylabel("Amplitude")
-# plt.grid(True)
-# plt.tight_layout()
 
 # Pack and save stf
 stf_array = np.column_stack([stf_time, stf])
@@ -71,10 +72,18 @@ np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delim
 # Define prior and model, and save
 if is3c:
     prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
-    model = VespaModel3c.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
+    model = VespaModel3c.create_random(
+        Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
+        ) if not defAll else VespaModel3c(
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, dip=dip, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, svfac=svfac, wvtype=wvtype
+        )
 else:
     prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
-    model = VespaModel.create_random(Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr)
+    model = VespaModel.create_random(
+        Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
+        ) if not defAll else VespaModel(
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp
+        )
     if locDiff:
         model.distDiff = distDiff
         model.bazDiff  = bazDiff

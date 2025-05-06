@@ -71,8 +71,14 @@ class VespaModel:
     nc1: float
     nc2: float
     sig: float
-    distDiff: np.ndarray
-    bazDiff: np.ndarray
+    distDiff: np.ndarray = None
+    bazDiff: np.ndarray = None
+
+    def __post_init__(self):
+        if self.distDiff is None:
+            self.distDiff = np.zeros(self.Ntrace)
+        if self.bazDiff is None:
+            self.bazDiff = np.zeros(self.Ntrace)
 
     @classmethod
     def create_empty(cls, Ntrace: int, prior: Prior):
@@ -183,8 +189,13 @@ class VespaModel3c:
     atts: np.ndarray
     svfac: np.ndarray
     wvtype: np.ndarray
-    distDiff: np.ndarray
-    bazDiff: np.ndarray
+    distDiff: np.ndarray = None
+    bazDiff: np.ndarray = None
+    def __post_init__(self):
+        if self.distDiff is None:
+            self.distDiff = np.zeros(self.Ntrace)
+        if self.bazDiff is None:
+            self.bazDiff = np.zeros(self.Ntrace)
 
     @classmethod
     def create_empty(cls, Ntrace: int):

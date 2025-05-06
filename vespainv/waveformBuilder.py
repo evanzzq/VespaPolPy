@@ -137,9 +137,8 @@ def create_U_from_model_3c(
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
-            if P_wvlt is None or S_wvlt is None:
-                P_wvlt = tstar_conv(stf, stf_time, model.atts[iph]*0.25)
-                S_wvlt = tstar_conv(stf, stf_time, model.atts[iph])
+            P_wvlt = tstar_conv(stf, stf_time, model.atts[iph]*0.25)
+            S_wvlt = tstar_conv(stf, stf_time, model.atts[iph])
 
             P_shifted = interp1d(
                 stf_time + tshift,
@@ -254,9 +253,8 @@ def create_U_from_model_3c_freqdomain(
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
-            if P_wvlt_W is None or S_wvlt_W is None:
-                P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25)
-                S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph])
+            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25)
+            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph])
 
             P_shifted_W = P_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
             S_shifted_W = S_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
