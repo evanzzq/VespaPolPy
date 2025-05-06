@@ -7,6 +7,48 @@ def compute_log_likelihood(U_obs, U_model, sigma=0.1):
     residual = U_obs - U_model
     return -0.5 * np.sum((residual / sigma)**2)
 
+def compute_log_likelihood_with_noise(U_obs, U_model, model, dt, CdInv,
+                                      R_LT=None, R_UT=None, R_P=None,
+                                      LogDetR=None, T_fast=None):
+    from scipy.linalg import toeplitz, lu, cholesky, solve_triangular
+
+    # Build R matrix and decompositions if needed
+    if CdInv and (R_LT is None or R_UT is None or R_P is None or LogDetR is None):
+        Rrow = np.exp(-model.nc1 * np.arange(U_obs.shape[0]) * dt) * \
+               np.cos(model.nc2 * np.pi * model.nc1 * np.arange(U_obs.shape[0]) * dt)
+        R = toeplitz(Rrow)
+        L = cholesky(R, lower=True)
+        LogDetR = 2 * np.sum(np.log(np.diag(L)))
+        R_P, R_LT, R_UT = lu(R)
+
+    # Precompute fast transformation matrix if not given
+    if CdInv and T_fast is None:
+        # Compute T = inv(R_UT) @ inv(R_LT) @ R_P
+        I = np.eye(R_UT.shape[0])
+        inv_RUT = solve_triangular(R_UT, I, lower=False)
+        inv_RLT = solve_triangular(R_LT, I, lower=True)
+        T_fast = inv_RUT @ inv_RLT @ R_P
+
+    # Dimension check
+    if U_model.ndim == 2:
+        U_model = U_model[:, :, np.newaxis]
+        U_obs = U_obs[:, :, np.newaxis]
+
+    logL = 0
+    for icomp in range(U_obs.shape[2]):
+        residual = U_model[:, :, icomp] - U_obs[:, :, icomp]
+        if CdInv:
+            y = T_fast @ residual  # much faster than 2 triangular solves
+            MahalDist = np.sum(residual * y, axis=0) / (model.sig**2)
+            LogCdDet = residual.shape[0] * np.log(model.sig) + 0.5 * LogDetR
+        else:
+            MahalDist = np.sum((residual / model.sig)**2, axis=0)
+            LogCdDet = residual.shape[0] * np.log(model.sig)
+        logL += np.sum(-LogCdDet - MahalDist / 2)
+
+    return logL, R_LT, R_UT, R_P, LogDetR, T_fast
+
+
 def birth(model, prior):
     model_new = copy.deepcopy(model)
     if model_new.Nphase < prior.maxN:
@@ -118,6 +160,26 @@ def update_amp(model, prior):
     # Success, return
     return model_new, True
 
+def update_nc(model, prior):
+    # Copy model
+    model_new = copy.deepcopy(model)
+    # Update
+    eps = np.finfo(float).eps
+    model_new.nc1 += prior.nc1Std * np.random.randn()
+    model_new.nc1 = np.clip(model_new.nc1, eps, 1)
+    model_new.nc2 += prior.nc2Std * np.random.randn()
+    # Return
+    return model_new, True
+
+def update_sig(model, prior):
+    # Copy model
+    model_new = copy.deepcopy(model)
+    # Update
+    eps = np.finfo(float).eps
+    model_new.sig = np.maximum(eps, model_new.sig + prior.sigStd * np.random.randn() * prior.stdU)
+    # Return
+    return model_new, True
+
 def update_dist(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
@@ -223,6 +285,24 @@ def update_wvtype(model, prior):
     # Success, return
     return model_new, True
 
+def choose_actions(locDiff, fitNoise, actionsPerStep):
+    actionPool = [0, 1, 2, 3, 4]
+    if locDiff:
+        actionPool.extend([7, 8])
+    if fitNoise:
+        actionPool.extend([5, 6])
+
+    actionPool = np.array(actionPool)
+
+    if 5 in actionPool:
+        base_actions = actionPool[actionPool != 5]
+        base_weight = 0.99 / len(base_actions)
+        weights = np.array([0.01 if a == 5 else base_weight for a in actionPool])
+    else:
+        weights = np.full(len(actionPool), 1.0 / len(actionPool))
+
+    return np.random.choice(actionPool, size=actionsPerStep, replace=True, p=weights)
+
 def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel, Prior
@@ -237,7 +317,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
     locDiff = bookkeeping.locDiff
-    Temp = bookkeeping.Temp
+    fitNoise = bookkeeping.fitNoise
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -249,14 +329,22 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     #     )
     
     # Start from an empty model
-    model = VespaModel.create_empty(Ntrace=n_traces)
+    model = VespaModel.create_empty(Ntrace=n_traces, prior=prior)
 
     trace_shape = (trace_len, n_traces)
     samples = []
     logL_trace = []
 
     U_model = np.zeros(trace_shape)
-    logL = compute_log_likelihood(U_obs, U_model)
+
+    if fitNoise:
+        change_corr = True
+        R_LT = R_UT = R_P = LogDetR = T_fast = None
+        logL, R_LT, R_UT, R_P, LogDetR, T_fast = compute_log_likelihood_with_noise(
+            U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=True, R_LT=R_LT, R_UT=R_UT, R_P=R_P, LogDetR=LogDetR, T_fast=T_fast
+            )
+    else:
+        logL = compute_log_likelihood(U_obs, U_model)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -266,7 +354,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = np.random.choice(7 if locDiff else 5, size=actionsPerStep, replace=True)
+            actions = choose_actions(locDiff, fitNoise, actionsPerStep)
         
         model_new = model
 
@@ -286,18 +374,35 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
             elif iAction == 4:
                 model_new, _ = update_amp(model_new, prior)
             elif iAction == 5:
-                model_new, _ = update_dist(model_new, prior)
+                model_new, change_corr = update_nc(model_new, prior)
             elif iAction == 6:
+                model_new, _ = update_sig(model_new, prior)
+            elif iAction == 7:
+                model_new, _ = update_dist(model_new, prior)
+            elif iAction == 8:
                 model_new, _ = update_baz(model_new, prior)
 
         U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
-        new_logL = compute_log_likelihood(U_obs, U_model_new)
+
+        if fitNoise:
+            if change_corr:
+                new_logL, new_R_LT, new_R_UT, new_R_P, new_LogDetR, new_T_fast = compute_log_likelihood_with_noise(
+                    U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=True
+                    )
+            else:
+                new_logL, _, _, _, _, _ = compute_log_likelihood_with_noise(
+                    U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=False, R_LT=R_LT, R_UT=R_UT, R_P=R_P, LogDetR=LogDetR, T_fast=T_fast
+                    )
+        else:
+            new_logL = compute_log_likelihood(U_obs, U_model_new)
 
         log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
             logL = new_logL
+            if fitNoise and change_corr:
+                R_LT, R_UT, R_P, LogDetR, T_fast = new_R_LT, new_R_UT, new_R_P, new_LogDetR, new_T_fast
 
         logL_trace.append(logL)
 
@@ -322,6 +427,9 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
+        # Reset change_corr
+        change_corr = False
+
     return samples, logL_trace
 
 def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
@@ -338,7 +446,6 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
     locDiff = bookkeeping.locDiff
-    Temp = bookkeeping.Temp
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -428,7 +535,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
-        log_accept_ratio = (new_logL - logL)/Temp  # assume log_alpha is 0
+        log_accept_ratio = (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new

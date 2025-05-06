@@ -9,7 +9,7 @@ class Bookkeeping:
     nSaveModels:    int = 100
     actionsPerStep: int = 2
     locDiff:        bool = False
-    Temp:           float = 1.
+    fitNoise:       bool = False
 
     def __post_init__(self):
         if self.burnInSteps is None:
@@ -24,6 +24,8 @@ class Prior:
     srcLon: float
     timeRange: tuple
 
+    stdU: float = 0.1
+
     maxN: int = 5
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
@@ -36,6 +38,9 @@ class Prior:
     ampStd: float = None
     distStd: float = None
     bazStd: float = None
+    nc1Std: float = 0.000125
+    nc2Std: float = 0.0125
+    sigStd: float = 0.0025
 
     sourceArray: bool = False
 
@@ -63,17 +68,21 @@ class VespaModel:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
+    nc1: float
+    nc2: float
+    sig: float
     distDiff: np.ndarray
     bazDiff: np.ndarray
 
     @classmethod
-    def create_empty(cls, Ntrace: int):
+    def create_empty(cls, Ntrace: int, prior: Prior):
         return cls(
             Nphase=0,
             Ntrace=Ntrace,
             arr=np.array([]),
             slw=np.array([]),
             amp=np.array([]),
+            nc1=0.25, nc2=1.40, sig=prior.stdU,
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )
@@ -90,6 +99,7 @@ class VespaModel:
             arr=arr,
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
+            nc1=0.25, nc2=1.40, sig=prior.stdU,
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )

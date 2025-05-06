@@ -63,7 +63,7 @@ bookkeeping = Bookkeeping(
     nSaveModels=nSaveModels,
     actionsPerStep=actionsPerStep,
     locDiff=locDiff,
-    Temp=Temp
+    fitNoise=fitNoise
 )
 
 # ---- Run RJMCMC ----
