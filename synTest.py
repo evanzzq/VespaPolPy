@@ -44,12 +44,12 @@ else:
     refLat, refLon, refBaz = calc_array_center(metadata, srcLat, srcLon)
     if is3c:
         prior = Prior3c(
-            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid,
+            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid, maxN=maxN,
             timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
             )
     else:
         prior = Prior(
-            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid,
+            refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid, maxN=maxN,
             timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
             )
     with open(os.path.join(datadir, modname, "Prior.pkl"), "wb") as f:

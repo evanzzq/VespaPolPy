@@ -3,13 +3,7 @@ from vespainv.utils import prep_data
 import pickle, os
 import numpy as np
 import matplotlib.pyplot as plt
-from parameter_setup import isbp, freqs
-
-isSyn = False
-is3c = False
-comp = "Z"
-modname = "201111221848"
-runname = "run8_Z"
+from parameter_setup import *
 
 datadir = "./SynData/" if isSyn else "./RealData/"
 resdir = "./runs/syn/" if isSyn else "./runs/data/"

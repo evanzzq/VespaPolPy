@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.1):
+def compute_log_likelihood(U_obs, U_model, sigma=0.08):
     residual = U_obs - U_model
     return -0.5 * np.sum((residual / sigma)**2)
 
@@ -349,7 +349,12 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
 
+    maxN = prior.maxN
+
     for iStep in range(totalSteps):
+
+        # dynamically change allowed max phase number
+        prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
 
         if model.Nphase == 0:
             actions = [0]

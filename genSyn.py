@@ -7,7 +7,7 @@ from vespainv.utils import dest_point
 
 # Parameter setup
 modname = "model3"
-Nphase = 3
+Nphase = 4
 is3c = True
 ampRange = (-1, 1)
 slwRange = (0, 2)

@@ -33,7 +33,7 @@ class Prior:
     distRange: tuple = (-5, 5)
     bazRange: tuple = (-5, 5)
 
-    arrStd: float = 1.0
+    arrStd: float = 0.15
     slwStd: float = None
     ampStd: float = None
     distStd: float = None
