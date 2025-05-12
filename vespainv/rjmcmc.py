@@ -351,6 +351,8 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     maxN = prior.maxN
 
+    s2 = s3 = s4 = a2 = a3 = a4 = 0
+
     for iStep in range(totalSteps):
 
         # dynamically change allowed max phase number
@@ -373,11 +375,17 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
                     if actions[i+1] in [2, 3, 4]:
                         actions[i+1] = 0
             elif iAction == 2:
-                model_new, _ = update_arr(model_new, prior)
+                model_new, sucess = update_arr(model_new, prior)
+                s2 += 1 if sucess else 0
+                a2 += 1
             elif iAction == 3:
-                model_new, _ = update_slw(model_new, prior)
+                model_new, sucess = update_slw(model_new, prior)
+                s3 += 1 if sucess else 0
+                a3 += 1
             elif iAction == 4:
-                model_new, _ = update_amp(model_new, prior)
+                model_new, sucess = update_amp(model_new, prior)
+                s4 += 1 if sucess else 0
+                a4 += 1
             elif iAction == 5:
                 model_new, change_corr = update_nc(model_new, prior)
             elif iAction == 6:
@@ -434,6 +442,9 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
         # Reset change_corr
         change_corr = False
+
+    with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
+        f.write(f"Acceptance rates: arr {s2/a2*100:.2f}%, slw {s3/a3*100:.2f}%, amp {s4/a4*100:.2f}%\n")
 
     return samples, logL_trace
 

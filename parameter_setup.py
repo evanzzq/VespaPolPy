@@ -1,10 +1,12 @@
 # ---- Parameter setup ----
+filedir = "H:\My Drive\Research\VespaPolPy"
+
 isSyn = False
 is3c = False # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run10_Z"
+runname = "run11_Z"
 totalSteps = int(5e5)
 
 burnInSteps = int(4e5)

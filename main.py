@@ -2,7 +2,7 @@ import pickle, time, os
 import numpy as np
 from vespainv.model import Bookkeeping, Prior, Prior3c
 from vespainv.rjmcmc import rjmcmc_run, rjmcmc_run3c
-from vespainv.utils import calc_array_center, bandpass, create_stf, est_stf_wid, est_dom_freq, prep_data
+from vespainv.utils import calc_array_center, create_stf, est_stf_wid, est_dom_freq, prep_data
 from parameter_setup import *
 
 # ---- Parameter setup ----
@@ -11,11 +11,11 @@ from parameter_setup import *
 # ---- NO EDITS NEEDED BELOW ----
 # ---- Define and make directories ----
 if isSyn:
-    datadir = "./SynData"
-    saveDir = os.path.join("./runs/syn/", modname, runname)
+    datadir = os.path.join(filedir, "SynData")
+    saveDir = os.path.join(filedir, "runs/syn/", modname, runname)
 else:
-    datadir = "./RealData"
-    saveDir = os.path.join("./runs/data/", modname, runname)
+    datadir = os.path.join(filedir, "RealData")
+    saveDir = os.path.join(filedir, "runs/data/", modname, runname)
 
 os.makedirs(saveDir, exist_ok=True)
 

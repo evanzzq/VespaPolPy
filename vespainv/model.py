@@ -46,13 +46,13 @@ class Prior:
 
     def __post_init__(self):
         if self.slwStd is None:
-            self.slwStd = 0.1 * (self.slwRange[1] - self.slwRange[0])
+            self.slwStd = 0.2 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
-            self.ampStd = 0.1 * (self.ampRange[1] - self.ampRange[0])
+            self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
         if self.distStd is None:
-            self.distStd = 0.1 * (self.distRange[1] - self.distRange[0])
+            self.distStd = 0.2 * (self.distRange[1] - self.distRange[0])
         if self.bazStd is None:
-            self.bazStd = 0.1 * (self.bazRange[1] - self.bazRange[0])
+            self.bazStd = 0.2 * (self.bazRange[1] - self.bazRange[0])
     
     @classmethod
     def example(cls, **kwargs):
