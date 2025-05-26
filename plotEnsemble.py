@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from parameter_setup import *
 
-datadir = "./SynData/" if isSyn else "./RealData/"
-resdir = "./runs/syn/" if isSyn else "./runs/data/"
+datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
+resdir = os.path.join(filedir, "runs/syn") if isSyn else os.path.join(filedir, "runs/data")
 
 with open(os.path.join(resdir, modname, runname, "ensemble.pkl"), "rb") as f:
     ensemble = pickle.load(f)

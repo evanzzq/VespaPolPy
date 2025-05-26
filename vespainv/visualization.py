@@ -74,7 +74,7 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
         U_model = np.zeros_like(U)
         for model in ensemble:
             U_model += (
-                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1]) 
+                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1], False) # tmp fix!!! 
                 if is3c 
                 else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1])
                 )
@@ -99,6 +99,7 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
     else:
         plt.figure(figsize=(10, 8))
         for i in range(n_traces):
+            dist, baz = metadata[i,:]
             trace = U[:, i]
             trace /= np.max(np.abs(trace))
             plt.plot(time, trace + i * offset, color='black')
@@ -106,6 +107,7 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
                 trace_model = U_model[:, i]
                 trace_model /= np.max(np.abs(trace_model))
                 plt.plot(time, trace_model + i * offset, color='red')
+            plt.text(time[-1] + 0.5, i * offset, f"{dist:.2f}°, {baz:.2f}°", va='center', fontsize=8)
         plt.xlabel("Time (s)")
         plt.ylabel("Trace Index")
         plt.title("Input Seismogram")

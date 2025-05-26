@@ -1,19 +1,20 @@
 # ---- Parameter setup ----
-filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 isSyn = False
-is3c = False # for synthetic this will be overriden
+is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run11_Z"
-totalSteps = int(5e5)
+runname = "run16_3c_4D"
+totalSteps = int(1e3)
 
-burnInSteps = int(4e5)
+burnInSteps = int(6e2)
 nSaveModels = 100
 actionsPerStep = 2
 
-maxN = 1
+maxN = 4
 
 ampRange = (-1., 1.) # only applies to real data
 slwRange = (0., 8.) # only applies to real data
@@ -27,3 +28,4 @@ distRange = (-5., -5.)
 bazRange = (-5., -5.)
 
 fitNoise = False
+fitAtts = False

@@ -4,13 +4,14 @@ import matplotlib.pyplot as plt
 from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c
 from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c, create_U_from_model_3c_freqdomain
 from vespainv.utils import dest_point
+from parameter_setup import filedir
 
 # Parameter setup
-modname = "model3"
-Nphase = 4
-is3c = True
+modname = "model4"
+Nphase = 3
+is3c = False
 ampRange = (-1, 1)
-slwRange = (0, 2)
+slwRange = (0, 1)
 
 # Parameter setup: stf
 f0 = 0.5
@@ -24,7 +25,7 @@ srcLat = 0.0
 srcLon = 0.0
 base_dist = 35.0
 base_baz = 30.0
-Ntrace = 50
+Ntrace = 25
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
 
 # Parameter setup: location perturbation
@@ -34,9 +35,9 @@ bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([20, 40, 60, 80])
-slw = np.array([0.2, 0.4, 0.6, 0.])
-amp = np.array([1, 1, 1, 1])
+arr = np.array([25, 50, 75])
+slw = np.array([0.2, 0.4, 0.6])
+amp = np.array([1, 0.8, 0.6])
 dip = np.array([20, 45, 90, 50])
 azi = np.array([0, 0, 90, 45])
 ph_hh = np.array([10, 20, 30, 40])
@@ -45,7 +46,7 @@ atts = np.array([1, 1, 1, 1])
 svfac = np.array([0, 1, 0, 0.5])
 wvtype = np.array([1, 0, 0, 0])
 
-synDir = os.path.join("./SynData/", modname)
+synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)
 
 # Create stf
@@ -163,6 +164,9 @@ else:
     offset = 1.2 * np.max(np.abs(U))  # spacing between traces
     for i in range(n_traces):
         plt.plot(time, U[:, i] + i * offset, color="black")
+        dist, baz = station_metadata[i,:]
+        plt.text(time[-1] + 0.5, i * offset, f"{dist:.1f}°, {baz:.0f}°", 
+             va='center', fontsize=8)
     plt.xlabel("Time (s)")
     plt.ylabel("Amplitude (offset by trace index)")
     plt.title("Synthetic Seismograms")

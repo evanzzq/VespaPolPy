@@ -3,6 +3,7 @@ from scipy.fft import fft, ifft, fftfreq
 from scipy.interpolate import interp1d
 from vespainv.model import VespaModel, Prior
 from vespainv.utils import dest_point, apply_constant_phase_shift
+from obspy.geodetics.base import locations2degrees, gps2dist_azimuth
 
 
 def create_U_from_model(
@@ -36,9 +37,11 @@ def create_U_from_model(
 
     refLat = prior.refLat
     refLon = prior.refLon
-    refBaz = prior.refBaz
     srcLat = prior.srcLat
     srcLon = prior.srcLon
+
+    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     for itrace in range(n_traces):
         
@@ -46,10 +49,8 @@ def create_U_from_model(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
-
-        dx = (trLon - refLon) * np.cos(np.radians(refLat))
-        dy = trLat - refLat
+        dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+        dy = (trDist - refDist) * np.cos(np.radians(trBaz))
 
         trace = np.zeros(len(time))
 
@@ -81,10 +82,8 @@ def create_U_from_model_3c(
     metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
     time: np.ndarray,
     stf_time: np.ndarray,
-    stf: np.ndarray,
-    P_wvlt: np.ndarray = None,
-    S_wvlt: np.ndarray = None
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    stf: np.ndarray
+):
     """
     Forward model a synthetic seismogram from the VespaModel.
 
@@ -110,9 +109,11 @@ def create_U_from_model_3c(
 
     refLat = prior.refLat
     refLon = prior.refLon
-    refBaz = prior.refBaz
     srcLat = prior.srcLat
     srcLon = prior.srcLon
+
+    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     for itrace in range(n_traces):
         
@@ -120,10 +121,8 @@ def create_U_from_model_3c(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
-
-        dx = (trLon - refLon) * np.cos(np.radians(refLat))
-        dy = trLat - refLat
+        dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+        dy = (trDist - refDist) * np.cos(np.radians(trBaz))
 
         traceZ = np.zeros(len(time))
         traceR = np.zeros(len(time))
@@ -187,7 +186,12 @@ def create_U_from_model_3c(
         U_model[:, itrace, 1] = traceR
         U_model[:, itrace, 2] = traceT
 
-    return U_model, P_wvlt, S_wvlt
+    return U_model
+
+from joblib import Parallel, delayed
+import numpy as np
+from scipy.fft import fft, ifft, fftfreq
+from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
 
 def create_U_from_model_3c_freqdomain(
     model: VespaModel,
@@ -196,9 +200,8 @@ def create_U_from_model_3c_freqdomain(
     time: np.ndarray,
     stf_time: np.ndarray,
     stf: np.ndarray,
-    P_wvlt_W: np.ndarray = None,
-    S_wvlt_W: np.ndarray = None
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    fitAtts: bool
+):
     """
     Forward model a synthetic seismogram from the VespaModel.
 
@@ -221,9 +224,11 @@ def create_U_from_model_3c_freqdomain(
 
     refLat = prior.refLat
     refLon = prior.refLon
-    refBaz = prior.refBaz
     srcLat = prior.srcLat
     srcLon = prior.srcLon
+
+    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
@@ -236,14 +241,17 @@ def create_U_from_model_3c_freqdomain(
         trDist += model.distDiff[itrace]
         trBaz += model.bazDiff[itrace]
 
-        trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
+        dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+        dy = (trDist - refDist) * np.cos(np.radians(trBaz))
 
-        dx = (trLon - refLon) * np.cos(np.radians(refLat))
-        dy = trLat - refLat
+        # traceZ = np.zeros(len(time))
+        # traceR = np.zeros(len(time))
+        # traceT = np.zeros(len(time))
 
-        traceZ = np.zeros(len(time))
-        traceR = np.zeros(len(time))
-        traceT = np.zeros(len(time))
+        traceZ_W = np.zeros(len(time), dtype=complex)
+        traceR_W = np.zeros(len(time), dtype=complex)
+        traceT_W = np.zeros(len(time), dtype=complex)
+
 
         for iph in range(model.Nphase):
             
@@ -253,8 +261,128 @@ def create_U_from_model_3c_freqdomain(
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
-            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25)
-            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph])
+            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
+            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
+
+            P_shifted_W = P_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
+            S_shifted_W = S_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
+
+            if model.wvtype[iph] == 1:
+                P_W = model.amp[iph] * P_shifted_W
+                SV_W = np.zeros_like(P_W)
+                SH_W = np.zeros_like(P_W)
+            else:
+                SV_W = model.amp[iph] * model.svfac[iph] * S_shifted_W
+                SH_W = model.amp[iph] * (1 - model.svfac[iph]) * S_shifted_W
+                P_W = np.zeros_like(SV_W)
+            
+            Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
+
+            Z_W *= np.cos(np.radians(model.dip[iph]))
+            
+            sin_inc = np.sin(np.radians(model.dip[iph]))
+            sin_azi = np.sin(np.radians(model.azi[iph]))
+            cos_azi = np.cos(np.radians(model.azi[iph]))
+
+            R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))
+            T_W = apply_constant_phase_shift(T_W, (np.radians(model.ph_hh[iph]) + np.radians(model.ph_vh[iph])))
+
+            R_W *= sin_inc * cos_azi
+            T_W *= sin_inc * sin_azi
+
+            traceZ_W += Z_W
+            traceR_W += R_W
+            traceT_W += T_W
+
+            # Z = np.real(ifft(Z_W))
+            # R = np.real(ifft(R_W))
+            # T = np.real(ifft(T_W))
+
+            # traceZ += Z
+            # traceR += R
+            # traceT += T
+
+        traceZ = np.real(ifft(traceZ_W))
+        traceR = np.real(ifft(traceR_W))
+        traceT = np.real(ifft(traceT_W))
+
+        U_model[:, itrace, 0] = traceZ
+        U_model[:, itrace, 1] = traceR
+        U_model[:, itrace, 2] = traceT
+
+    return U_model
+
+def create_U_from_model_3c_freqdomain_new(
+    model: VespaModel,
+    prior: Prior,
+    U_4D: np.ndarray, # shape: (len(time), n_traces, n_phases, 3 comp)
+    metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
+    time: np.ndarray,
+    stf_time: np.ndarray,
+    stf: np.ndarray,
+    fitAtts: bool,
+    idx_all: list = None, # for phase
+    idx_loc_all: list = None # for locDiff
+):
+    """
+    Forward model a synthetic seismogram from the VespaModel.
+
+    Parameters:
+    - model: VespaModel3c with arr, slw, amp, dip, azi, ph_hh, ph_vh, atts, svfac, wvtype, distDiff, bazDiff
+    - prior: Prior object with refLat, refLon, refBaz
+    - metadata: np.ndarray of shape (n_traces, 2), where each row is [dist, baz]
+    - time: np.ndarray, time vector for synthetic seismograms
+    - stf_time: np.ndarray, time vector for the source time function
+    - stf: np.ndarray, source time function values
+
+    Returns:
+    - U_model: np.ndarray of shape (n_traces, len(time), 3), synthetic seismograms
+    """
+    if idx_all is None:
+        idx_all = list(range(model.Nphase))
+
+    n_traces = metadata.shape[0]
+
+    refLat = prior.refLat
+    refLon = prior.refLon
+    srcLat = prior.srcLat
+    srcLon = prior.srcLon
+
+    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
+
+    stf_shift = stf_time[-1]
+    stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
+    stf_W = fft(stf)
+    stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
+
+    for itrace in range(n_traces):
+        
+        trDist, trBaz = metadata[itrace]
+        trDist += model.distDiff[itrace]
+        trBaz += model.bazDiff[itrace]
+
+        dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+        dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+
+        traceZ = np.zeros(len(time))
+        traceR = np.zeros(len(time))
+        traceT = np.zeros(len(time))
+
+        for iph in range(model.Nphase):
+
+            # Only do the ones that have changed
+            if iph not in idx_all:
+                continue
+            
+            slow = model.slw[iph]
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
+
+            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
+            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
 
             P_shifted_W = P_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
             S_shifted_W = S_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
@@ -290,11 +418,11 @@ def create_U_from_model_3c_freqdomain(
             traceR += R
             traceT += T
 
-        U_model[:, itrace, 0] = traceZ
-        U_model[:, itrace, 1] = traceR
-        U_model[:, itrace, 2] = traceT
+        U_4D[:, itrace, iph, 0] = traceZ
+        U_4D[:, itrace, iph, 1] = traceR
+        U_4D[:, itrace, iph, 2] = traceT
 
-    return U_model, P_wvlt_W, S_wvlt_W
+    return U_4D
 
 def tstar_conv(wvfm, time, t_star):
     dt = time[1] - time[0]

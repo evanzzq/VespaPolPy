@@ -1,4 +1,4 @@
-import copy, time, os, datetime
+import copy, time, os, datetime, tracemalloc
 import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
@@ -79,10 +79,9 @@ def birth3c(model, prior):
         model_new.atts = np.append(model_new.atts, np.random.uniform(prior.attsRange[0], prior.attsRange[1]))
         model_new.svfac = np.append(model_new.svfac, np.random.uniform(prior.svfacRange[0], prior.svfacRange[1]))
         model_new.wvtype = np.append(model_new.wvtype, np.random.randint(2))
-        success = True
+        return model_new, model_new.Nphase
     else:
-        success = False
-    return model_new, success
+        return model_new, None
 
 
 def death(model, prior):
@@ -100,6 +99,7 @@ def death(model, prior):
 
 def death3c(model, prior):
     model_new = copy.deepcopy(model)
+    idx = None
     if model_new.Nphase > 0:
         model_new.Nphase -= 1
         idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
@@ -113,10 +113,7 @@ def death3c(model, prior):
         model_new.atts = np.delete(model_new.atts, idx)
         model_new.svfac = np.delete(model_new.svfac, idx)
         model_new.wvtype = np.delete(model_new.wvtype, idx)
-        success = True
-    else:
-        success = False
-    return model_new, success
+    return model_new, idx
 
 
 def update_arr(model, prior):
@@ -127,13 +124,13 @@ def update_arr(model, prior):
     model_new.arr[idx] += prior.arrStd * np.random.randn()
     # Check range
     if not (prior.timeRange[0] <= model_new.arr[idx] <= prior.timeRange[1]):
-        return model, False
+        return model, None
     # Check spacing with all other phases
     arr_others = np.delete(model_new.arr, idx)
     if np.any(np.abs(arr_others - model_new.arr[idx]) < prior.minSpace):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 
 def update_slw(model, prior):
@@ -144,9 +141,9 @@ def update_slw(model, prior):
     model_new.slw[idx] += prior.slwStd * np.random.randn()
     # Check range
     if not (prior.slwRange[0] <= model_new.slw[idx] <= prior.slwRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_amp(model, prior):
     # Copy model
@@ -156,9 +153,9 @@ def update_amp(model, prior):
     model_new.amp[idx] += prior.ampStd * np.random.randn()
     # Check range
     if not (prior.ampRange[0] <= model_new.amp[idx] <= prior.ampRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_nc(model, prior):
     # Copy model
@@ -188,9 +185,9 @@ def update_dist(model, prior):
     model_new.distDiff[idx] += prior.distStd * np.random.randn()
     # Check range
     if not (prior.distRange[0] <= model_new.distDiff[idx] <= prior.distRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_baz(model, prior):
     # Copy model
@@ -200,9 +197,9 @@ def update_baz(model, prior):
     model_new.bazDiff[idx] += prior.bazStd * np.random.randn()
     # Check range
     if not (prior.bazRange[0] <= model_new.bazDiff[idx] <= prior.bazRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_dip(model, prior):
     # Copy model
@@ -212,9 +209,9 @@ def update_dip(model, prior):
     model_new.dip[idx] += prior.dipStd * np.random.randn()
     # Check range
     if not (prior.dipRange[0] <= model_new.dip[idx] <= prior.dipRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_azi(model, prior):
     # Copy model
@@ -224,9 +221,9 @@ def update_azi(model, prior):
     model_new.azi[idx] += prior.aziStd * np.random.randn()
     # Check range
     if not (prior.aziRange[0] <= model_new.azi[idx] <= prior.aziRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_ph_hh(model, prior):
     # Copy model
@@ -236,9 +233,9 @@ def update_ph_hh(model, prior):
     model_new.ph_hh[idx] += prior.ph_hhStd * np.random.randn()
     # Check range
     if not (prior.ph_hhRange[0] <= model_new.ph_hh[idx] <= prior.ph_hhRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_ph_vh(model, prior):
     # Copy model
@@ -248,9 +245,9 @@ def update_ph_vh(model, prior):
     model_new.ph_vh[idx] += prior.ph_vhStd * np.random.randn()
     # Check range
     if not (prior.ph_vhRange[0] <= model_new.ph_vh[idx] <= prior.ph_vhRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_atts(model, prior):
     # Copy model
@@ -260,9 +257,9 @@ def update_atts(model, prior):
     model_new.atts[idx] += prior.attsStd * np.random.randn()
     # Check range
     if not (prior.attsRange[0] <= model_new.atts[idx] <= prior.attsRange[1]):
-        return model, False
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_svfac(model, prior):
     # Copy model
@@ -270,11 +267,11 @@ def update_svfac(model, prior):
     # Select a trace and update
     idx = np.random.randint(model_new.Nphase)
     model_new.svfac[idx] += prior.svfacStd * np.random.randn()
-    # Check range
-    if not (prior.svfacRange[0] <= model_new.svfac[idx] <= prior.svfacRange[1]):
-        return model, False
+    # Check range and wave type
+    if not (prior.svfacRange[0] <= model_new.svfac[idx] <= prior.svfacRange[1]) or model_new.wvtype[idx] == 1:
+        return model, None
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def update_wvtype(model, prior):
     # Copy model
@@ -283,7 +280,7 @@ def update_wvtype(model, prior):
     idx = np.random.randint(model_new.Nphase)
     model_new.wvtype[idx] = np.abs(model_new.wvtype[idx] - 1)
     # Success, return
-    return model_new, True
+    return model_new, idx
 
 def choose_actions(locDiff, fitNoise, actionsPerStep):
     actionPool = [0, 1, 2, 3, 4]
@@ -351,7 +348,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     maxN = prior.maxN
 
-    s2 = s3 = s4 = a2 = a3 = a4 = 0
+    s2 = s3 = s4 = a2 = a3 = a4 = 0 # for logging success rates: s(uccess) and a(ll)
 
     for iStep in range(totalSteps):
 
@@ -366,7 +363,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         model_new = model
 
         for i in range(len(actions)):
-            iAction = actions[i]
+            iAction = actions[i] if not model_new.Nphase > 0 else 0
             if iAction == 0:
                 model_new, _ = birth(model_new, prior)
             elif iAction == 1:
@@ -451,7 +448,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel3c, Prior3c
-    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
+    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain, create_U_from_model_3c_freqdomain_new
 
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -462,6 +459,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
     locDiff = bookkeeping.locDiff
+    fitAtts = bookkeeping.fitAtts
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -471,83 +469,97 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     model = VespaModel3c.create_random(
         Nphase=1, Ntrace=n_traces, time=Utime, prior=prior
         )
-    
-    # # Start from an empty model
-    # model = VespaModel3c.create_empty(Ntrace=n_traces)
 
-    trace_shape = (trace_len, n_traces, 3)
     samples = []
     logL_trace = []
 
-    # U_model = np.zeros(trace_shape)
-    U_model, _, _ = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data)
+    # Option 1:
+    # U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, fitAtts)
+
+    # Option 2:
+    U_4D = np.zeros((trace_len, n_traces, model.Nphase, 3))
+    U_4D = create_U_from_model_3c_freqdomain_new(model, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts)
+    U_model = np.sum(U_4D, axis=2)
+
     logL = compute_log_likelihood(U_obs, U_model)
 
+    tracemalloc.start()
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
-
-    P_wvlt, S_wvlt = None, None
 
     for iStep in range(totalSteps):
 
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = np.random.choice(14 if locDiff else 12, size=actionsPerStep, replace=False)
+            actionPool = np.arange(11)
+            if fitAtts: actionPool = np.append(actionPool, [11])
+            if locDiff: actionPool = np.append(actionPool, [12, 13])
+            actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
         
         model_new = model
-        successAll = False
-        attChange = False
+        idx_all = []
+        idx_loc_all = []
 
         for iAction in actions:
+            if  model_new.Nphase == 0: iAction = 0
             if iAction == 0:
-                model_new, success = birth3c(model_new, prior)
-                successAll |= success
+                model_new, idx = birth3c(model_new, prior)
+                idx is not None and idx_all.append(idx) # only append whtn idx is not None
+                # need to add a new phase in U_4D
+                tmp = np.zeros((trace_len, n_traces, 1, 3))
+                U_4D = np.concatenate((U_4D, tmp), axis=2)
             elif iAction == 1:
-                model_new, success = death3c(model_new, prior)
-                successAll |= success
+                model_new, idx = death3c(model_new, prior)
+                U_4D = np.delete(U_4D, idx, axis=2)
+                # need to adjust idx pool
+                if idx_all: idx_all = [i - 1 if i > idx else i for i in idx_all if i != idx]
             elif iAction == 2:
-                model_new, success = update_arr(model_new, prior)
-                successAll |= success
+                model_new, idx = update_arr(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 3:
-                model_new, success = update_slw(model_new, prior)
-                successAll |= success
+                model_new, idx = update_slw(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 4:
-                model_new, success = update_amp(model_new, prior)
-                successAll |= success
+                model_new, idx = update_amp(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 5:
-                model_new, success = update_dip(model_new, prior)
-                successAll |= success
+                model_new, idx = update_dip(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 6:
-                model_new, success = update_azi(model_new, prior)
-                successAll |= success
+                model_new, idx = update_azi(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 7:
-                model_new, success = update_ph_hh(model_new, prior)
-                successAll |= success
+                model_new, idx = update_ph_hh(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 8:
-                model_new, success = update_ph_vh(model_new, prior)
-                successAll |= success
+                model_new, idx = update_ph_vh(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 9:
-                model_new, success = update_atts(model_new, prior)
-                successAll |= success
-                attChange = success
+                model_new, idx = update_svfac(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 10:
-                model_new, success = update_svfac(model_new, prior)
-                successAll |= success
+                model_new, idx = update_wvtype(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 11:
-                model_new, success = update_wvtype(model_new, prior)
-                successAll |= success
+                model_new, idx = update_atts(model_new, prior)
+                idx is not None and idx_all.append(idx)
             elif iAction == 12:
-                model_new, success = update_dist(model_new, prior)
-                successAll |= success
+                model_new, idx = update_dist(model_new, prior)
+                idx is not None and idx_loc_all.append(idx)
             elif iAction == 13:
-                model_new, success = update_baz(model_new, prior)
-                successAll |= success
+                model_new, idx = update_baz(model_new, prior)
+                idx is not None and idx_loc_all.append(idx)
+        # If model_new has no phase after actions, do a birth to avoid that
+        if  model_new.Nphase == 0:
+            model_new, idx = birth3c(model_new, prior)
+            idx is not None and idx_all.append(idx)
 
-        if attChange:
-            U_model_new, P_wvlt, S_wvlt = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data)
-        else:
-            U_model_new, P_wvlt, S_wvlt = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, P_wvlt, S_wvlt)
+        # Option 1
+        # U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
+        # Option 2
+        U_4D_new = create_U_from_model_3c_freqdomain_new(model_new, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts, idx_all)
+        U_model_new = np.sum(U_4D_new, axis=2)
         
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
@@ -555,6 +567,7 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
+            # U_4D = U_4D_new
             logL = new_logL
 
         logL_trace.append(logL)
@@ -576,8 +589,9 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
             # Overwrite progress log
             elapsed = time.time() - start_time
+            _, peak = tracemalloc.get_traced_memory()
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-                f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
+                f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec, Peak mem: {peak/1e6:.2f} MB\n")
 
     return samples, logL_trace

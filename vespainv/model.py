@@ -10,6 +10,7 @@ class Bookkeeping:
     actionsPerStep: int = 2
     locDiff:        bool = False
     fitNoise:       bool = False
+    fitAtts:        bool = False
 
     def __post_init__(self):
         if self.burnInSteps is None:
@@ -68,9 +69,9 @@ class VespaModel:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
-    nc1: float
-    nc2: float
-    sig: float
+    nc1: float=0.25
+    nc2: float=1.40
+    sig: float=0.1
     distDiff: np.ndarray = None
     bazDiff: np.ndarray = None
 

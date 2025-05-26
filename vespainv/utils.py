@@ -60,7 +60,7 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, output_dir):
+def prepare_inputs_from_sac(data_dir, noise_dir = None, output_dir = None):
 
     import os
     from obspy import read
@@ -72,9 +72,12 @@ def prepare_inputs_from_sac(data_dir, output_dir):
     # Match files
     sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
     stations = {}
+    stations_noise = {}
     traces = {"UZ": [], "UR": [], "UT": []}
     dists = []
     bazs = []
+    stlas = []
+    stlos = []
 
     for f in sac_files:
         tr = read(f)[0]
@@ -85,7 +88,20 @@ def prepare_inputs_from_sac(data_dir, output_dir):
 
         if key not in stations:
             stations[key] = {"Z": None, "R": None, "T": None}
+            stations_noise[key] = {"Z": None, "R": None, "T": None}
         stations[key][ch] = tr
+
+        # Attempt to read corresponding noise file: *.sac -> *.noise.sac in noise_dir
+        if noise_dir is not None:
+            fname = os.path.basename(f)
+            fbase, fext = os.path.splitext(fname)
+            fnoise = os.path.join(noise_dir, fbase + ".noise" + fext)
+            if os.path.exists(fnoise):
+                tr_noise = read(fnoise)[0]
+                stations_noise[key][ch] = tr_noise
+            else:
+                print(f"Missing noise file for {f}")
+
 
     for sta, comps in stations.items():
         trZ, trR, trT = comps["Z"], comps["R"], comps["T"]
@@ -118,6 +134,8 @@ def prepare_inputs_from_sac(data_dir, output_dir):
         _, baz, _ = gps2dist_azimuth(evla, evlo, stla, stlo)
         dists.append(dist_deg)
         bazs.append(baz)
+        stlas.append(stla)
+        stlos.append(stlo)
     
     # Sort all data by increasing distance
     idx = np.argsort(dists)
@@ -125,19 +143,45 @@ def prepare_inputs_from_sac(data_dir, output_dir):
         traces[comp] = [traces[comp][i] for i in idx]
     dists = [dists[i] for i in idx]
     bazs = [bazs[i] for i in idx]
+    stlas = [stlas[i] for i in idx]
+    stlos = [stlos[i] for i in idx]
 
-    # Save component matrices
+    # Create noise matrices
+    traces_noise = {"UZ": [], "UR": [], "UT": []}
+    for comp in ["Z", "R", "T"]:
+        for i in idx:
+            sta = list(stations.keys())[i]
+            tr_noise = stations_noise[sta][comp]
+            if tr_noise is None:
+                raise ValueError(f"Missing noise for {sta} component {comp}")
+            traces_noise[f"U{comp}"].append(tr_noise.data)
+
+    # Save component matrices and compute noise covariance
     for comp in ["UZ", "UR", "UT"]:
-        arr = np.column_stack(traces[comp])
+        # Signal data
+        arr = np.column_stack(traces[comp])  # shape (T, N)
         np.savetxt(os.path.join(output_dir, f"{comp}.csv"), arr, delimiter=",")
 
+        # Noise data
+        arr_noise = np.column_stack(traces_noise[comp])  # shape (T, N)
+
+        # Normalize noise traces by corresponding signal max (optional)
+        for i in range(arr_noise.shape[1]):
+            norm_factor = np.max(np.abs(arr[:, i]))
+            if norm_factor > 0:
+                arr_noise[:, i] /= norm_factor
+
+        # Compute noise covariance across traces
+        C_D = np.cov(arr_noise, rowvar=False)  # shape (N, N)
+        np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), C_D, delimiter=",")
+    
     # Save station metadata
     metadata = np.column_stack([dists, bazs])
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"), metadata, delimiter=",", header="dist_deg,baz", comments='')
+    metadata_lalo = np.column_stack([stlas, stlos])
+    np.savetxt(os.path.join(output_dir, "station_metadata_lalo.csv"), metadata_lalo, delimiter=",", header="lat,lon", comments='')
     evinfo = np.column_stack([evla, evlo])
     np.savetxt(os.path.join(output_dir, "eventinfo.csv"), evinfo, delimiter=",", header="evla,evlo", comments='')
-
-    print(f"Saved data to: {output_dir}")
 
 def make_vespagram(
     U: np.ndarray,                   # shape (n_time, n_traces)
