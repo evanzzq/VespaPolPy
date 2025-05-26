@@ -19,7 +19,7 @@ if isSyn:
 U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
-plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=model if isSyn else None)
+plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=model if isSyn else None, is3c=is3c)
 plot_seismogram_compare(U=U_obs, time=Utime, offset=1.5, ensemble=ensemble, prior=prior, metadata=metadata, stf=stf)
 plot_seismogram_compare(U=U_obs, time=Utime, offset=1.5, ensemble=[ensemble[-1]], prior=prior, metadata=metadata, stf=stf)
 plt.show()

@@ -7,9 +7,9 @@ from vespainv.utils import dest_point
 from parameter_setup import filedir
 
 # Parameter setup
-modname = "model4"
+modname = "model5"
 Nphase = 3
-is3c = False
+is3c = True
 ampRange = (-1, 1)
 slwRange = (0, 1)
 
@@ -141,7 +141,7 @@ with open(os.path.join(synDir, "Prior.pkl"), "wb") as f2:
 
 # Generate U, plot, and save
 if is3c:
-    U, _, _ = create_U_from_model_3c_freqdomain(model, prior, station_metadata, time, stf_time, stf)
+    U = create_U_from_model_3c_freqdomain(model, prior, station_metadata, time, stf_time, stf)
 else:
     U = create_U_from_model(model, prior, station_metadata, time, stf_time, stf)
 

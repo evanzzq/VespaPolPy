@@ -188,7 +188,6 @@ def create_U_from_model_3c(
 
     return U_model
 
-from joblib import Parallel, delayed
 import numpy as np
 from scipy.fft import fft, ifft, fftfreq
 from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
@@ -200,7 +199,7 @@ def create_U_from_model_3c_freqdomain(
     time: np.ndarray,
     stf_time: np.ndarray,
     stf: np.ndarray,
-    fitAtts: bool
+    fitAtts: bool = False
 ):
     """
     Forward model a synthetic seismogram from the VespaModel.

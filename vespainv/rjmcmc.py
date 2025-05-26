@@ -1,4 +1,4 @@
-import copy, time, os, datetime, tracemalloc
+import copy, time, os, datetime
 import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
@@ -474,16 +474,15 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     logL_trace = []
 
     # Option 1:
-    # U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, fitAtts)
+    U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, fitAtts)
 
     # Option 2:
-    U_4D = np.zeros((trace_len, n_traces, model.Nphase, 3))
-    U_4D = create_U_from_model_3c_freqdomain_new(model, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts)
-    U_model = np.sum(U_4D, axis=2)
+    # U_4D = np.zeros((trace_len, n_traces, model.Nphase, 3))
+    # U_4D = create_U_from_model_3c_freqdomain_new(model, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts)
+    # U_model = np.sum(U_4D, axis=2)
 
     logL = compute_log_likelihood(U_obs, U_model)
 
-    tracemalloc.start()
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
 
@@ -507,11 +506,11 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
                 model_new, idx = birth3c(model_new, prior)
                 idx is not None and idx_all.append(idx) # only append whtn idx is not None
                 # need to add a new phase in U_4D
-                tmp = np.zeros((trace_len, n_traces, 1, 3))
-                U_4D = np.concatenate((U_4D, tmp), axis=2)
+                # tmp = np.zeros((trace_len, n_traces, 1, 3))
+                # U_4D = np.concatenate((U_4D, tmp), axis=2)
             elif iAction == 1:
                 model_new, idx = death3c(model_new, prior)
-                U_4D = np.delete(U_4D, idx, axis=2)
+                # U_4D = np.delete(U_4D, idx, axis=2)
                 # need to adjust idx pool
                 if idx_all: idx_all = [i - 1 if i > idx else i for i in idx_all if i != idx]
             elif iAction == 2:
@@ -556,10 +555,10 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
             idx is not None and idx_all.append(idx)
 
         # Option 1
-        # U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
+        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
         # Option 2
-        U_4D_new = create_U_from_model_3c_freqdomain_new(model_new, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts, idx_all)
-        U_model_new = np.sum(U_4D_new, axis=2)
+        # U_4D_new = create_U_from_model_3c_freqdomain_new(model_new, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts, idx_all)
+        # U_model_new = np.sum(U_4D_new, axis=2)
         
         new_logL = compute_log_likelihood(U_obs, U_model_new)
 
@@ -589,9 +588,8 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
             # Overwrite progress log
             elapsed = time.time() - start_time
-            _, peak = tracemalloc.get_traced_memory()
             now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-                f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec, Peak mem: {peak/1e6:.2f} MB\n")
+                f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
     return samples, logL_trace
