@@ -485,8 +485,12 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
+    maxN = prior.maxN
 
     for iStep in range(totalSteps):
+
+        # dynamically change allowed max phase number
+        prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
 
         if model.Nphase == 0:
             actions = [0]

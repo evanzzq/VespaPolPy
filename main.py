@@ -22,6 +22,7 @@ os.makedirs(saveDir, exist_ok=True)
 start = time.time()
 
 # ---- Load and prepare data ----
+if isSyn: isbp = False
 U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs)
 dt = Utime[1] - Utime[0]
 
