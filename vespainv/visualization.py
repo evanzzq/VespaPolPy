@@ -16,10 +16,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
         attsAll = np.concatenate([m.atts for m in ensemble])
         SVfacAll = np.concatenate([m.svfac for m in ensemble])
-        isP_All = np.concatenate([
-            np.array([1 if m.wvtype[i] == 'P' else 0 for i in range(m.Nphase)])
-            for m in ensemble
-        ])
+        isP_All = np.concatenate([m.wvtype for m in ensemble])
 
     valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll)
     arrAll, slwAll, ampAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll,isP_All = (

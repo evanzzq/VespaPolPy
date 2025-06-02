@@ -23,7 +23,7 @@ start = time.time()
 
 # ---- Load and prepare data ----
 if isSyn: isbp = False
-U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs)
+U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
 dt = Utime[1] - Utime[0]
 
 # ---- Load (for synthetic) or prepare and save (for data) stf ----

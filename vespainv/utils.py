@@ -409,7 +409,7 @@ def est_dom_freq(data, fs):
     print(f"Dominant frequency: {f0: .2f} Hz")
     return f0
 
-def prep_data(datadir, modname, is3c, comp, isbp, freqs):
+def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None):
     import os
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
@@ -436,6 +436,12 @@ def prep_data(datadir, modname, is3c, comp, isbp, freqs):
 
     if isbp:
         U_obs = bandpass(U_obs, 1/dt, freqs[0], freqs[1])
+
+    if isds:
+        factor = int((1/dt) / isds)
+        U_obs = U_obs[::factor]
+        Utime = Utime[::factor]
+        dt = Utime[1] - Utime[0]
     
     U_obs /= np.max(np.abs(U_obs)) # normalize
     

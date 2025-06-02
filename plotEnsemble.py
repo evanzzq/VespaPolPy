@@ -16,7 +16,7 @@ if isSyn:
     with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f:
         model = pickle.load(f)
 
-U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs)
+U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
 plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=model if isSyn else None, is3c=is3c)
