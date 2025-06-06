@@ -7,7 +7,7 @@ is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run19_3c"
+runname = "run21_3c"
 totalSteps = int(2e5)
 
 burnInSteps = int(1.5e5)

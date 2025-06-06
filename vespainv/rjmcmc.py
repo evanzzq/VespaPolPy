@@ -3,51 +3,50 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.utils import generate_arr
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.08):
+import numpy as np
+
+def compute_log_likelihood(U_obs, U_model, sigma=0.08, CDinv=None):
+    """
+    Compute log-likelihood for 1- or 3-component seismic data.
+    
+    Parameters:
+        U_obs : ndarray
+            Observed data. Shape (T, N) for 1-comp, (T, N, 3) for 3-comp.
+        U_model : ndarray
+            Modeled data. Same shape as U_obs.
+        sigma : float
+            Noise standard deviation for diagonal covariance case.
+        CDinv : None or ndarray or list of ndarray
+            - If None: use diagonal covariance with sigma.
+            - If 1-comp: 2D ndarray (N, N)
+            - If 3-comp: list of 3 ndarrays, each (N, N)
+    
+    Returns:
+        log_likelihood : float
+    """
     residual = U_obs - U_model
-    return -0.5 * np.sum((residual / sigma)**2)
 
-def compute_log_likelihood_with_noise(U_obs, U_model, model, dt, CdInv,
-                                      R_LT=None, R_UT=None, R_P=None,
-                                      LogDetR=None, T_fast=None):
-    from scipy.linalg import toeplitz, lu, cholesky, solve_triangular
+    if CDinv is None:
+        return -0.5 * np.sum((residual / sigma)**2)
 
-    # Build R matrix and decompositions if needed
-    if CdInv and (R_LT is None or R_UT is None or R_P is None or LogDetR is None):
-        Rrow = np.exp(-model.nc1 * np.arange(U_obs.shape[0]) * dt) * \
-               np.cos(model.nc2 * np.pi * model.nc1 * np.arange(U_obs.shape[0]) * dt)
-        R = toeplitz(Rrow)
-        L = cholesky(R, lower=True)
-        LogDetR = 2 * np.sum(np.log(np.diag(L)))
-        R_P, R_LT, R_UT = lu(R)
+    # One-component case
+    if residual.ndim == 2:
+        # residual: (T, N), CDinv: (N, N)
+        term = residual @ CDinv @ residual.T  # shape: (T, T)
+        return -0.5 * np.trace(term)
 
-    # Precompute fast transformation matrix if not given
-    if CdInv and T_fast is None:
-        # Compute T = inv(R_UT) @ inv(R_LT) @ R_P
-        I = np.eye(R_UT.shape[0])
-        inv_RUT = solve_triangular(R_UT, I, lower=False)
-        inv_RLT = solve_triangular(R_LT, I, lower=True)
-        T_fast = inv_RUT @ inv_RLT @ R_P
+    # Three-component case
+    elif residual.ndim == 3:
+        log_like = 0.0
+        for i in range(3):  # loop over components
+            r_i = residual[:, :, i]  # shape: (T, N)
+            CDinv_i = CDinv[i]       # shape: (N, N)
+            term = r_i @ CDinv_i @ r_i.T  # shape: (T, T)
+            log_like += -0.5 * np.trace(term)
+        return log_like
 
-    # Dimension check
-    if U_model.ndim == 2:
-        U_model = U_model[:, :, np.newaxis]
-        U_obs = U_obs[:, :, np.newaxis]
-
-    logL = 0
-    for icomp in range(U_obs.shape[2]):
-        residual = U_model[:, :, icomp] - U_obs[:, :, icomp]
-        if CdInv:
-            y = T_fast @ residual  # much faster than 2 triangular solves
-            MahalDist = np.sum(residual * y, axis=0) / (model.sig**2)
-            LogCdDet = residual.shape[0] * np.log(model.sig) + 0.5 * LogDetR
-        else:
-            MahalDist = np.sum((residual / model.sig)**2, axis=0)
-            LogCdDet = residual.shape[0] * np.log(model.sig)
-        logL += np.sum(-LogCdDet - MahalDist / 2)
-
-    return logL, R_LT, R_UT, R_P, LogDetR, T_fast
-
+    else:
+        raise ValueError("U_obs must be 2D or 3D array.")
 
 def birth(model, prior):
     model_new = copy.deepcopy(model)
@@ -300,7 +299,7 @@ def choose_actions(locDiff, fitNoise, actionsPerStep):
 
     return np.random.choice(actionPool, size=actionsPerStep, replace=True, p=weights)
 
-def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
+def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel, Prior
     from vespainv.waveformBuilder import create_U_from_model
@@ -333,15 +332,7 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     logL_trace = []
 
     U_model = np.zeros(trace_shape)
-
-    if fitNoise:
-        change_corr = True
-        R_LT = R_UT = R_P = LogDetR = T_fast = None
-        logL, R_LT, R_UT, R_P, LogDetR, T_fast = compute_log_likelihood_with_noise(
-            U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=True, R_LT=R_LT, R_UT=R_UT, R_P=R_P, LogDetR=LogDetR, T_fast=T_fast
-            )
-    else:
-        logL = compute_log_likelihood(U_obs, U_model)
+    logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -393,26 +384,13 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
                 model_new, _ = update_baz(model_new, prior)
 
         U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
-
-        if fitNoise:
-            if change_corr:
-                new_logL, new_R_LT, new_R_UT, new_R_P, new_LogDetR, new_T_fast = compute_log_likelihood_with_noise(
-                    U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=True
-                    )
-            else:
-                new_logL, _, _, _, _, _ = compute_log_likelihood_with_noise(
-                    U_obs, U_model, model, dt=Utime[1]-Utime[0], CdInv=False, R_LT=R_LT, R_UT=R_UT, R_P=R_P, LogDetR=LogDetR, T_fast=T_fast
-                    )
-        else:
-            new_logL = compute_log_likelihood(U_obs, U_model_new)
+        new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
             logL = new_logL
-            if fitNoise and change_corr:
-                R_LT, R_UT, R_P, LogDetR, T_fast = new_R_LT, new_R_UT, new_R_P, new_LogDetR, new_T_fast
 
         logL_trace.append(logL)
 
@@ -437,15 +415,12 @@ def rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-        # Reset change_corr
-        change_corr = False
-
     with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
         f.write(f"Acceptance rates: arr {s2/a2*100:.2f}%, slw {s3/a3*100:.2f}%, amp {s4/a4*100:.2f}%\n")
 
     return samples, logL_trace
 
-def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
+def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel3c, Prior3c
     from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain, create_U_from_model_3c_freqdomain_new
@@ -473,15 +448,8 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
     samples = []
     logL_trace = []
 
-    # Option 1:
     U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, fitAtts)
-
-    # Option 2:
-    # U_4D = np.zeros((trace_len, n_traces, model.Nphase, 3))
-    # U_4D = create_U_from_model_3c_freqdomain_new(model, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts)
-    # U_model = np.sum(U_4D, axis=2)
-
-    logL = compute_log_likelihood(U_obs, U_model)
+    logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -553,19 +521,13 @@ def rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir):
             model_new, idx = birth3c(model_new, prior)
             idx is not None and idx_all.append(idx)
 
-        # Option 1
         U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
-        # Option 2
-        # U_4D_new = create_U_from_model_3c_freqdomain_new(model_new, prior, U_4D, metadata, Utime, stf_time, stf_data, fitAtts, idx_all)
-        # U_model_new = np.sum(U_4D_new, axis=2)
-        
-        new_logL = compute_log_likelihood(U_obs, U_model_new)
+        new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
-            # U_4D = U_4D_new
             logL = new_logL
 
         logL_trace.append(logL)

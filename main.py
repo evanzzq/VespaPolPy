@@ -23,7 +23,7 @@ start = time.time()
 
 # ---- Load and prepare data ----
 if isSyn: isbp = False
-U_obs, Utime, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
+U_obs, Utime, CDinv, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
 dt = Utime[1] - Utime[0]
 
 # ---- Load (for synthetic) or prepare and save (for data) stf ----
@@ -70,9 +70,9 @@ bookkeeping = Bookkeeping(
 
 # ---- Run RJMCMC ----
 if is3c:
-    samples, logL_trace = rjmcmc_run3c(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir)
+    samples, logL_trace = rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir)
 else:
-    samples, logL_trace = rjmcmc_run(U_obs, metadata, Utime, stf, prior, bookkeeping, saveDir)
+    samples, logL_trace = rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir)
 
 # ---- Save output ----
 with open(os.path.join(saveDir, "ensemble.pkl"), "wb") as f:

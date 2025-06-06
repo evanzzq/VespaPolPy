@@ -60,84 +60,97 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, noise_dir = None, output_dir = None):
-
+def prepare_inputs_from_sac(data_dir, isbp=False, freqs=None, noise_dir=None, output_dir=None):
     import os
+    import numpy as np
     from obspy import read
     from obspy.geodetics import gps2dist_azimuth
     from glob import glob
 
     os.makedirs(output_dir, exist_ok=True)
 
-    # Match files
     sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
-    stations = {}
-    stations_noise = {}
     traces = {"UZ": [], "UR": [], "UT": []}
-    dists = []
-    bazs = []
-    stlas = []
-    stlos = []
+    traces_noise = {"UZ": [], "UR": [], "UT": []} if noise_dir else None
+    dists, bazs, stlas, stlos = [], [], [], []
+
+    stations = {}
+    evla = evlo = None
 
     for f in sac_files:
         tr = read(f)[0]
-        ch = tr.stats.channel[-1]  # Z, R, or T
-        net = tr.stats.network
-        sta = tr.stats.station
+        ch = tr.stats.channel[-1]  # Z/R/T
+        net, sta = tr.stats.network, tr.stats.station
         key = f"{net}.{sta}"
 
         if key not in stations:
-            stations[key] = {"Z": None, "R": None, "T": None}
-            stations_noise[key] = {"Z": None, "R": None, "T": None}
+            stations[key] = {"Z": None, "R": None, "T": None, "norm": None}
+
+        if isbp and freqs:
+            tr.filter("bandpass", freqmin=freqs[0], freqmax=freqs[1], corners=2, zerophase=True)
         stations[key][ch] = tr
 
-        # Attempt to read corresponding noise file: *.sac -> *.noise.sac in noise_dir
-        if noise_dir is not None:
-            fname = os.path.basename(f)
-            fbase, fext = os.path.splitext(fname)
+        # Load matching noise file if provided
+        if noise_dir:
+            fbase, fext = os.path.splitext(os.path.basename(f))
             fnoise = os.path.join(noise_dir, fbase + ".noise" + fext)
             if os.path.exists(fnoise):
                 tr_noise = read(fnoise)[0]
-                stations_noise[key][ch] = tr_noise
+                if isbp and freqs:
+                    tr_noise.filter("bandpass", freqmin=freqs[0], freqmax=freqs[1], corners=2, zerophase=True)
+                stations[key][f"{ch}_noise"] = tr_noise
             else:
                 print(f"Missing noise file for {f}")
 
-
-    for sta, comps in stations.items():
+    for key, comps in stations.items():
         trZ, trR, trT = comps["Z"], comps["R"], comps["T"]
-        if trZ is None or trR is None or trT is None:
-            print(f"Skipping incomplete station {sta}")
+        if None in (trZ, trR, trT):
+            print(f"Skipping incomplete station {key}")
             continue
 
         # Check consistency
-        if len(trZ.data) != len(trR.data) or len(trZ.data) != len(trT.data):
-            print(f"Skipping inconsistent trace lengths for {sta}")
+        if not (len(trZ.data) == len(trR.data) == len(trT.data)):
+            print(f"Skipping inconsistent trace lengths for {key}")
             continue
 
-        # Time vector (just grab from one trace)
+        # Normalize traces
+        norm = max(np.max(np.abs(trZ.data)), np.max(np.abs(trR.data)), np.max(np.abs(trT.data)))
+        for tr in [trZ, trR, trT]:
+            tr.data /= norm
+        comps["norm"] = norm
+
         if len(traces["UZ"]) == 0:
+            # Initialize time vector and event info
             npts = len(trZ.data)
             dt = trZ.stats.delta
             time = np.arange(0, npts * dt, dt)
-            evla = trZ.stats.sac.evla
-            evlo = trZ.stats.sac.evlo
+            evla, evlo = trZ.stats.sac.evla, trZ.stats.sac.evlo
             np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
 
+        # Store traces
         traces["UZ"].append(trZ.data)
         traces["UR"].append(trR.data)
         traces["UT"].append(trT.data)
 
-        # Metadata
+        # Store metadata
         stla = trZ.stats.sac.stla
         stlo = trZ.stats.sac.stlo
         dist_deg = trZ.stats.sac.gcarc
         _, baz, _ = gps2dist_azimuth(evla, evlo, stla, stlo)
-        dists.append(dist_deg)
-        bazs.append(baz)
         stlas.append(stla)
         stlos.append(stlo)
-    
-    # Sort all data by increasing distance
+        dists.append(dist_deg)
+        bazs.append(baz)
+
+        if noise_dir:
+            for ch, comp in zip(["Z", "R", "T"], ["UZ", "UR", "UT"]):
+                tr_noise = comps.get(f"{ch}_noise")
+                if tr_noise is None:
+                    raise ValueError(f"Missing noise for {key} component {ch}")
+                tr_noise.data /= norm
+                traces_noise[comp].append(tr_noise.data)
+
+    # Sort by distance
     idx = np.argsort(dists)
     for comp in ["UZ", "UR", "UT"]:
         traces[comp] = [traces[comp][i] for i in idx]
@@ -145,43 +158,24 @@ def prepare_inputs_from_sac(data_dir, noise_dir = None, output_dir = None):
     bazs = [bazs[i] for i in idx]
     stlas = [stlas[i] for i in idx]
     stlos = [stlos[i] for i in idx]
+    if noise_dir:
+        for comp in ["UZ", "UR", "UT"]:
+            traces_noise[comp] = [traces_noise[comp][i] for i in idx]
 
-    # Create noise matrices
-    traces_noise = {"UZ": [], "UR": [], "UT": []}
-    for comp in ["Z", "R", "T"]:
-        for i in idx:
-            sta = list(stations.keys())[i]
-            tr_noise = stations_noise[sta][comp]
-            if tr_noise is None:
-                raise ValueError(f"Missing noise for {sta} component {comp}")
-            traces_noise[f"U{comp}"].append(tr_noise.data)
-
-    # Save component matrices and compute noise covariance
+    # Save output
     for comp in ["UZ", "UR", "UT"]:
-        # Signal data
-        arr = np.column_stack(traces[comp])  # shape (T, N)
-        np.savetxt(os.path.join(output_dir, f"{comp}.csv"), arr, delimiter=",")
+        np.savetxt(os.path.join(output_dir, f"{comp}.csv"), np.column_stack(traces[comp]), delimiter=",")
+        if noise_dir:
+            noise_stack = np.column_stack(traces_noise[comp])
+            np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack, rowvar=False), delimiter=",")
 
-        # Noise data
-        arr_noise = np.column_stack(traces_noise[comp])  # shape (T, N)
+    np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
+               np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
+    np.savetxt(os.path.join(output_dir, "station_metadata_lalo.csv"),
+               np.column_stack([stlas, stlos]), delimiter=",", header="lat,lon", comments='')
+    np.savetxt(os.path.join(output_dir, "eventinfo.csv"),
+               np.column_stack([evla, evlo]), delimiter=",", header="evla,evlo", comments='')
 
-        # Normalize noise traces by corresponding signal max (optional)
-        for i in range(arr_noise.shape[1]):
-            norm_factor = np.max(np.abs(arr[:, i]))
-            if norm_factor > 0:
-                arr_noise[:, i] /= norm_factor
-
-        # Compute noise covariance across traces
-        C_D = np.cov(arr_noise, rowvar=False)  # shape (N, N)
-        np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), C_D, delimiter=",")
-    
-    # Save station metadata
-    metadata = np.column_stack([dists, bazs])
-    np.savetxt(os.path.join(output_dir, "station_metadata.csv"), metadata, delimiter=",", header="dist_deg,baz", comments='')
-    metadata_lalo = np.column_stack([stlas, stlos])
-    np.savetxt(os.path.join(output_dir, "station_metadata_lalo.csv"), metadata_lalo, delimiter=",", header="lat,lon", comments='')
-    evinfo = np.column_stack([evla, evlo])
-    np.savetxt(os.path.join(output_dir, "eventinfo.csv"), evinfo, delimiter=",", header="evla,evlo", comments='')
 
 def make_vespagram(
     U: np.ndarray,                   # shape (n_time, n_traces)
@@ -409,7 +403,7 @@ def est_dom_freq(data, fs):
     print(f"Dominant frequency: {f0: .2f} Hz")
     return f0
 
-def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None):
+def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None, isnorm=False):
     import os
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
@@ -429,6 +423,18 @@ def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None):
         else:
             Uname = "U"+comp+".csv"
             U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
+    
+    CDinv = None
+    if os.path.isfile(os.path.join(datadir, modname, "CD_Z.csv")):
+        if is3c:
+            CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_Z.csv"), delimiter=",")  # columns: data
+            CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_R.csv"), delimiter=",")  # columns: data
+            CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_T.csv"), delimiter=",")  # columns: data
+            CDinv = [np.linalg.inv(CD_Z), np.linalg.inv(CD_R), np.linalg.inv(CD_T)]
+        else:
+            CDname = "CD_"+comp+".csv"
+            CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
+            CDinv = np.linalg.inv(CD)
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
@@ -443,6 +449,6 @@ def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None):
         Utime = Utime[::factor]
         dt = Utime[1] - Utime[0]
     
-    U_obs /= np.max(np.abs(U_obs)) # normalize
+    if isnorm: U_obs /= np.max(np.abs(U_obs)) # normalize
     
-    return U_obs, Utime, metadata, is3c
+    return U_obs, Utime, CDinv, metadata, is3c
