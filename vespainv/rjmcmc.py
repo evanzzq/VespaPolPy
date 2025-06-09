@@ -476,37 +476,37 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             if  model_new.Nphase == 0: iAction = 0
             if iAction == 0:
                 model_new, idx = birth3c(model_new, prior)
-                print("accepted 0" if idx else "rejected 0")
+                # print("accepted 0" if idx else "rejected 0")
             elif iAction == 1:
                 model_new, idx = death3c(model_new, prior)
-                print("accepted 1" if idx else "rejected 1")
+                # print("accepted 1" if idx else "rejected 1")
             elif iAction == 2:
                 model_new, idx = update_arr(model_new, prior)
-                print("accepted 2" if idx else "rejected 2")
+                # print("accepted 2" if idx else "rejected 2")
             elif iAction == 3:
                 model_new, idx = update_slw(model_new, prior)
-                print("accepted 3" if idx else "rejected 3")
+                # print("accepted 3" if idx else "rejected 3")
             elif iAction == 4:
                 model_new, idx = update_amp(model_new, prior)
-                print("accepted 4" if idx else "rejected 4")
+                # print("accepted 4" if idx else "rejected 4")
             elif iAction == 5:
                 model_new, idx = update_dip(model_new, prior)
-                print("accepted 5" if idx else "rejected 5")
+                # print("accepted 5" if idx else "rejected 5")
             elif iAction == 6:
                 model_new, idx = update_azi(model_new, prior)
-                print("accepted 6" if idx else "rejected 6")
+                # print("accepted 6" if idx else "rejected 6")
             elif iAction == 7:
                 model_new, idx = update_ph_hh(model_new, prior)
-                print("accepted 7" if idx else "rejected 7")
+                # print("accepted 7" if idx else "rejected 7")
             elif iAction == 8:
                 model_new, idx = update_ph_vh(model_new, prior)
-                print("accepted 8" if idx else "rejected 8")
+                # print("accepted 8" if idx else "rejected 8")
             elif iAction == 9:
                 model_new, idx = update_svfac(model_new, prior)
-                print("accepted 9" if idx else "rejected 9")
+                # print("accepted 9" if idx else "rejected 9")
             elif iAction == 10:
                 model_new, idx = update_wvtype(model_new, prior)
-                print("accepted 10" if idx else "rejected 10")
+                # print("accepted 10" if idx else "rejected 10")
             elif iAction == 11:
                 model_new, idx = update_atts(model_new, prior)
                 idx is not None and idx_all.append(idx)

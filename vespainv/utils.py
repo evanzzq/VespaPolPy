@@ -60,7 +60,7 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, isbp=False, freqs=None, noise_dir=None, output_dir=None):
+def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None):
     import os
     import numpy as np
     from obspy import read
@@ -125,8 +125,19 @@ def prepare_inputs_from_sac(data_dir, isbp=False, freqs=None, noise_dir=None, ou
             dt = trZ.stats.delta
             time = np.arange(0, npts * dt, dt)
             evla, evlo = trZ.stats.sac.evla, trZ.stats.sac.evlo
+
+            # Downsample time axis
+            if isds:
+                factor = int(round((1 / dt) / isds))
+            if factor > 1:
+                time = time[::factor]
+                dt = time[1] - time[0]
             np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
 
+        # Downsample data
+        trZ.data = trZ.data[::factor]
+        trR.data = trR.data[::factor]
+        trT.data = trT.data[::factor]
         # Store traces
         traces["UZ"].append(trZ.data)
         traces["UR"].append(trR.data)
@@ -148,6 +159,9 @@ def prepare_inputs_from_sac(data_dir, isbp=False, freqs=None, noise_dir=None, ou
                 if tr_noise is None:
                     raise ValueError(f"Missing noise for {key} component {ch}")
                 tr_noise.data /= norm
+                # Downsample noise
+                if isds and factor > 1:
+                    tr_noise.data = tr_noise.data[::factor]
                 traces_noise[comp].append(tr_noise.data)
 
     # Sort by distance

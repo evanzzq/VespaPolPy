@@ -7,7 +7,7 @@ is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run21_3c"
+runname = "run22_3c"
 totalSteps = int(2e5)
 
 burnInSteps = int(1.5e5)
@@ -20,9 +20,9 @@ ampRange = (-1., 1.) # only applies to real data
 slwRange = (0., 8.) # only applies to real data
 minSpace = 1.0
 
-isbp = True
+isbp = False
 freqs = (0.02, 1.0)
-isds = 3
+isds = False
 
 locDiff = False
 distRange = (-5., -5.)
