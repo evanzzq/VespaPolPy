@@ -1,6 +1,7 @@
 import copy, time, os, datetime
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import deque
 from vespainv.utils import generate_arr
 
 import numpy as np
@@ -455,6 +456,17 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     checkpoint_interval = totalSteps // 100
     maxN = prior.maxN
 
+    # --- Sliding window setup ---
+    window_size = 1000
+    n_actions = 14
+
+    # Track recent attempts and successes
+    action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
+    action_success = {i: deque(maxlen=window_size) for i in range(n_actions)}
+
+    # Track time-series of acceptance ratios
+    acceptance_ratios = {i: [] for i in range(n_actions)}
+
     for iStep in range(totalSteps):
 
         # dynamically change allowed max phase number
@@ -469,57 +481,73 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
         
         model_new = model
-        idx_all = []
-        idx_loc_all = []
 
         for iAction in actions:
             if  model_new.Nphase == 0: iAction = 0
             if iAction == 0:
-                model_new, idx = birth3c(model_new, prior)
-                # print("accepted 0" if idx else "rejected 0")
+                model_new, success = birth3c(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
+                if success: print("action 0 accepted")
             elif iAction == 1:
-                model_new, idx = death3c(model_new, prior)
-                # print("accepted 1" if idx else "rejected 1")
+                model_new, success = death3c(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
+                if success: print("action 1 accepted")
             elif iAction == 2:
-                model_new, idx = update_arr(model_new, prior)
-                # print("accepted 2" if idx else "rejected 2")
+                model_new, success = update_arr(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
+                if success: print("action 2 accepted")
             elif iAction == 3:
-                model_new, idx = update_slw(model_new, prior)
-                # print("accepted 3" if idx else "rejected 3")
+                model_new, success = update_slw(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 4:
-                model_new, idx = update_amp(model_new, prior)
-                # print("accepted 4" if idx else "rejected 4")
+                model_new, success = update_amp(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 5:
-                model_new, idx = update_dip(model_new, prior)
-                # print("accepted 5" if idx else "rejected 5")
+                model_new, success = update_dip(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 6:
-                model_new, idx = update_azi(model_new, prior)
-                # print("accepted 6" if idx else "rejected 6")
+                model_new, success = update_azi(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 7:
-                model_new, idx = update_ph_hh(model_new, prior)
-                # print("accepted 7" if idx else "rejected 7")
+                model_new, success = update_ph_hh(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 8:
-                model_new, idx = update_ph_vh(model_new, prior)
-                # print("accepted 8" if idx else "rejected 8")
+                model_new, success = update_ph_vh(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 9:
-                model_new, idx = update_svfac(model_new, prior)
-                # print("accepted 9" if idx else "rejected 9")
+                model_new, success = update_svfac(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 10:
-                model_new, idx = update_wvtype(model_new, prior)
-                # print("accepted 10" if idx else "rejected 10")
+                model_new, success = update_wvtype(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 11:
-                model_new, idx = update_atts(model_new, prior)
-                idx is not None and idx_all.append(idx)
+                model_new, success = update_atts(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 12:
-                model_new, idx = update_dist(model_new, prior)
-                idx is not None and idx_loc_all.append(idx)
+                model_new, success = update_dist(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
             elif iAction == 13:
-                model_new, idx = update_baz(model_new, prior)
-                idx is not None and idx_loc_all.append(idx)
-        # If model_new has no phase after actions, do a birth to avoid that
-        if  model_new.Nphase == 0:
-            model_new, idx = birth3c(model_new, prior)
-            idx is not None and idx_all.append(idx)
+                model_new, success = update_baz(model_new, prior)
+                action_counts[iAction].append(1)
+                action_success[iAction].append(1 if success else 0)
+        # # If model_new has no phase after actions, do a birth to avoid that
+        # if  model_new.Nphase == 0:
+        #     model_new, success = birth3c(model_new, prior)
+        #     action_counts[0].append(1)
+        #     action_success[0].append(1 if success else 0)
 
         U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
         new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
@@ -531,6 +559,15 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             logL = new_logL
 
         logL_trace.append(logL)
+
+        # Compute sliding-window acceptance ratios
+        if iStep >= window_size:
+            for i in range(n_actions):
+                attempts = sum(action_counts[i])
+                successes = sum(action_success[i])
+                ratio = successes / attempts if attempts > 0 else 0.0
+                acceptance_ratios[i].append(ratio)
+
 
         # Save only selected models after burn-in
         if iStep >= burnInSteps and (iStep - burnInSteps) % save_interval == 0:
@@ -545,6 +582,20 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             ax.set_ylabel("log Likelihood")
             fig.tight_layout()
             fig.savefig(os.path.join(saveDir, "logL.png"))  # overwrites each time
+            plt.close(fig)
+
+            # Save acceptance ratio plot
+            fig, ax = plt.subplots(figsize=(10, 6))
+            for i in range(n_actions):
+                if acceptance_ratios[i]:  # avoid empty lists
+                    ax.plot(acceptance_ratios[i], label=f"Action {i}")
+            ax.set_xlabel("Step index")
+            ax.set_ylabel("Acceptance ratio")
+            ax.set_title("Sliding-window Acceptance Ratios (Window = 1000 steps)")
+            ax.legend(loc="upper right", fontsize='small', ncol=2)
+            ax.grid(True)
+            fig.tight_layout()
+            fig.savefig(os.path.join(saveDir, "acceptance_ratios.png"))
             plt.close(fig)
 
             # Overwrite progress log
