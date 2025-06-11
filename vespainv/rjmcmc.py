@@ -456,6 +456,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
     maxN = prior.maxN
+    Nphase = []
 
     # --- Sliding window setup ---
     window_size = 1000
@@ -471,7 +472,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     for iStep in range(totalSteps):
 
         # dynamically change allowed max phase number
-        prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
+        # prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
 
         if model.Nphase == 0:
             actions = [0]
@@ -539,6 +540,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
                 action_success[iAction].append(0)
 
         logL_trace.append(logL)
+        Nphase.append(model.Nphase)
 
         # Compute sliding-window acceptance ratios
         if iStep >= window_size:
@@ -555,12 +557,23 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
         # Checkpoint log/plot every 1%
         if (iStep + 1) % checkpoint_interval == 0:
             # Save (overwrite) log-likelihood plot
-            fig, ax = plt.subplots()
-            ax.plot(logL_trace, 'k-')
-            ax.set_xlabel("Step")
-            ax.set_ylabel("log Likelihood")
+            fig, ax1 = plt.subplots()
+            # Plot log-likelihood on left y-axis
+            ax1.plot(logL_trace, 'k-', label='logL')
+            ax1.set_xlabel("Step")
+            ax1.set_ylabel("log Likelihood", color='k')
+            ax1.tick_params(axis='y', labelcolor='k')
+            # Create second y-axis for Nphase
+            ax2 = ax1.twinx()
+            ax2.plot(Nphase, 'b--', label='Nphase')
+            ax2.set_ylabel("Nphase", color='b')
+            ax2.tick_params(axis='y', labelcolor='b')
+            # Optional: combined legend
+            lines, labels = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
             fig.tight_layout()
-            fig.savefig(os.path.join(saveDir, "logL.png"))  # overwrites each time
+            fig.savefig(os.path.join(saveDir, "logL_nphase.png"))
             plt.close(fig)
 
             # Setup: number of rows/columns
