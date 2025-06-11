@@ -79,9 +79,9 @@ def birth3c(model, prior):
         model_new.atts = np.append(model_new.atts, np.random.uniform(prior.attsRange[0], prior.attsRange[1]))
         model_new.svfac = np.append(model_new.svfac, np.random.uniform(prior.svfacRange[0], prior.svfacRange[1]))
         model_new.wvtype = np.append(model_new.wvtype, np.random.randint(2))
-        return model_new, model_new.Nphase
+        return model_new, True
     else:
-        return model_new, None
+        return model_new, False
 
 
 def death(model, prior):
@@ -99,9 +99,10 @@ def death(model, prior):
 
 def death3c(model, prior):
     model_new = copy.deepcopy(model)
-    idx = None
+    success = False
     if model_new.Nphase > 0:
         model_new.Nphase -= 1
+        success = True
         idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
@@ -113,7 +114,7 @@ def death3c(model, prior):
         model_new.atts = np.delete(model_new.atts, idx)
         model_new.svfac = np.delete(model_new.svfac, idx)
         model_new.wvtype = np.delete(model_new.wvtype, idx)
-    return model_new, idx
+    return model_new, success
 
 
 def update_arr(model, prior):
@@ -124,13 +125,13 @@ def update_arr(model, prior):
     model_new.arr[idx] += prior.arrStd * np.random.randn()
     # Check range
     if not (prior.timeRange[0] <= model_new.arr[idx] <= prior.timeRange[1]):
-        return model, None
+        return model, False
     # Check spacing with all other phases
     arr_others = np.delete(model_new.arr, idx)
     if np.any(np.abs(arr_others - model_new.arr[idx]) < prior.minSpace):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 
 def update_slw(model, prior):
@@ -141,9 +142,9 @@ def update_slw(model, prior):
     model_new.slw[idx] += prior.slwStd * np.random.randn()
     # Check range
     if not (prior.slwRange[0] <= model_new.slw[idx] <= prior.slwRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_amp(model, prior):
     # Copy model
@@ -153,9 +154,9 @@ def update_amp(model, prior):
     model_new.amp[idx] += prior.ampStd * np.random.randn()
     # Check range
     if not (prior.ampRange[0] <= model_new.amp[idx] <= prior.ampRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_nc(model, prior):
     # Copy model
@@ -185,9 +186,9 @@ def update_dist(model, prior):
     model_new.distDiff[idx] += prior.distStd * np.random.randn()
     # Check range
     if not (prior.distRange[0] <= model_new.distDiff[idx] <= prior.distRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_baz(model, prior):
     # Copy model
@@ -197,9 +198,9 @@ def update_baz(model, prior):
     model_new.bazDiff[idx] += prior.bazStd * np.random.randn()
     # Check range
     if not (prior.bazRange[0] <= model_new.bazDiff[idx] <= prior.bazRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_dip(model, prior):
     # Copy model
@@ -209,9 +210,9 @@ def update_dip(model, prior):
     model_new.dip[idx] += prior.dipStd * np.random.randn()
     # Check range
     if not (prior.dipRange[0] <= model_new.dip[idx] <= prior.dipRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_azi(model, prior):
     # Copy model
@@ -221,9 +222,9 @@ def update_azi(model, prior):
     model_new.azi[idx] += prior.aziStd * np.random.randn()
     # Check range
     if not (prior.aziRange[0] <= model_new.azi[idx] <= prior.aziRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_ph_hh(model, prior):
     # Copy model
@@ -233,9 +234,9 @@ def update_ph_hh(model, prior):
     model_new.ph_hh[idx] += prior.ph_hhStd * np.random.randn()
     # Check range
     if not (prior.ph_hhRange[0] <= model_new.ph_hh[idx] <= prior.ph_hhRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_ph_vh(model, prior):
     # Copy model
@@ -245,9 +246,9 @@ def update_ph_vh(model, prior):
     model_new.ph_vh[idx] += prior.ph_vhStd * np.random.randn()
     # Check range
     if not (prior.ph_vhRange[0] <= model_new.ph_vh[idx] <= prior.ph_vhRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_atts(model, prior):
     # Copy model
@@ -257,9 +258,9 @@ def update_atts(model, prior):
     model_new.atts[idx] += prior.attsStd * np.random.randn()
     # Check range
     if not (prior.attsRange[0] <= model_new.atts[idx] <= prior.attsRange[1]):
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_svfac(model, prior):
     # Copy model
@@ -269,9 +270,9 @@ def update_svfac(model, prior):
     model_new.svfac[idx] += prior.svfacStd * np.random.randn()
     # Check range and wave type
     if not (prior.svfacRange[0] <= model_new.svfac[idx] <= prior.svfacRange[1]) or model_new.wvtype[idx] == 1:
-        return model, None
+        return model, False
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def update_wvtype(model, prior):
     # Copy model
@@ -280,7 +281,7 @@ def update_wvtype(model, prior):
     idx = np.random.randint(model_new.Nphase)
     model_new.wvtype[idx] = np.abs(model_new.wvtype[idx] - 1)
     # Success, return
-    return model_new, idx
+    return model_new, True
 
 def choose_actions(locDiff, fitNoise, actionsPerStep):
     actionPool = [0, 1, 2, 3, 4]
@@ -479,77 +480,51 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             if fitAtts: actionPool = np.append(actionPool, [11])
             if locDiff: actionPool = np.append(actionPool, [12, 13])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
-        
+
         model_new = model
+        applied_actions = []  # Track successful actions (not yet accepted)
 
         for iAction in actions:
-            if  model_new.Nphase == 0: iAction = 0
+            if model_new.Nphase == 0:
+                iAction = 0  # force birth if no phases
+
+            success = False
+
             if iAction == 0:
                 model_new, success = birth3c(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
-                if success: print("action 0 accepted")
             elif iAction == 1:
                 model_new, success = death3c(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
-                if success: print("action 1 accepted")
             elif iAction == 2:
                 model_new, success = update_arr(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
-                if success: print("action 2 accepted")
             elif iAction == 3:
                 model_new, success = update_slw(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 4:
                 model_new, success = update_amp(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 5:
                 model_new, success = update_dip(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 6:
                 model_new, success = update_azi(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 7:
                 model_new, success = update_ph_hh(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 8:
                 model_new, success = update_ph_vh(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 9:
                 model_new, success = update_svfac(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 10:
                 model_new, success = update_wvtype(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 11:
                 model_new, success = update_atts(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 12:
                 model_new, success = update_dist(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
             elif iAction == 13:
                 model_new, success = update_baz(model_new, prior)
-                action_counts[iAction].append(1)
-                action_success[iAction].append(1 if success else 0)
-        # # If model_new has no phase after actions, do a birth to avoid that
-        # if  model_new.Nphase == 0:
-        #     model_new, success = birth3c(model_new, prior)
-        #     action_counts[0].append(1)
-        #     action_success[0].append(1 if success else 0)
 
-        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)       
+            if success:
+                applied_actions.append(iAction)
+                action_counts[iAction].append(1)  # always count attempt
+
+        # Evaluate proposed model
+        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)
         new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = (new_logL - logL)
@@ -557,6 +532,11 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             model = model_new
             U_model = U_model_new
             logL = new_logL
+            for iAction in applied_actions:
+                action_success[iAction].append(1)
+        else:
+            for iAction in applied_actions:
+                action_success[iAction].append(0)
 
         logL_trace.append(logL)
 
@@ -567,7 +547,6 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
                 successes = sum(action_success[i])
                 ratio = successes / attempts if attempts > 0 else 0.0
                 acceptance_ratios[i].append(ratio)
-
 
         # Save only selected models after burn-in
         if iStep >= burnInSteps and (iStep - burnInSteps) % save_interval == 0:
@@ -584,17 +563,29 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             fig.savefig(os.path.join(saveDir, "logL.png"))  # overwrites each time
             plt.close(fig)
 
-            # Save acceptance ratio plot
-            fig, ax = plt.subplots(figsize=(10, 6))
+            # Setup: number of rows/columns
+            ncols = 2
+            nrows = int(np.ceil(n_actions / ncols))
+
+            fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(12, 2.5 * nrows), sharex=True)
+
             for i in range(n_actions):
-                if acceptance_ratios[i]:  # avoid empty lists
-                    ax.plot(acceptance_ratios[i], label=f"Action {i}")
-            ax.set_xlabel("Step index")
-            ax.set_ylabel("Acceptance ratio")
-            ax.set_title("Sliding-window Acceptance Ratios (Window = 1000 steps)")
-            ax.legend(loc="upper right", fontsize='small', ncol=2)
-            ax.grid(True)
-            fig.tight_layout()
+                row = i // ncols
+                col = i % ncols
+                ax = axes[row, col] if nrows > 1 else axes[col]  # handle 1-row case
+                if acceptance_ratios[i]:  # avoid empty
+                    ax.plot(acceptance_ratios[i], color='tab:blue')
+                # ax.set_ylim(-0.05, 1.05)
+                ax.set_title(f"Action {i}", fontsize=10)
+                ax.set_ylabel("Acc. Ratio", fontsize=9)
+                ax.grid(True)
+
+            # Set common x-label
+            for ax in axes[-1, :] if nrows > 1 else [axes[-1]]:
+                ax.set_xlabel("Step index", fontsize=10)
+
+            fig.suptitle("Sliding-window Acceptance Ratios (Window = 1000 steps)", fontsize=12)
+            fig.tight_layout(rect=[0, 0, 1, 0.96])  # leave space for suptitle
             fig.savefig(os.path.join(saveDir, "acceptance_ratios.png"))
             plt.close(fig)
 
