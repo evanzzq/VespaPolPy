@@ -1,13 +1,13 @@
 # ---- Parameter setup ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run24_3c"
+runname = "run28_3c"
 totalSteps = int(1e6)
 
 burnInSteps = int(8e5)

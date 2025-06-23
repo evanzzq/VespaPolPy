@@ -181,7 +181,7 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         np.savetxt(os.path.join(output_dir, f"{comp}.csv"), np.column_stack(traces[comp]), delimiter=",")
         if noise_dir:
             noise_stack = np.column_stack(traces_noise[comp])
-            np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack, rowvar=False), delimiter=",")
+            np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack), delimiter=",")
 
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
                np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')

@@ -32,8 +32,8 @@ def compute_log_likelihood(U_obs, U_model, sigma=0.08, CDinv=None):
 
     # One-component case
     if residual.ndim == 2:
-        # residual: (T, N), CDinv: (N, N)
-        term = residual @ CDinv @ residual.T  # shape: (T, T)
+        # residual: (T, N), CDinv: (T, T)
+        term = residual.T @ CDinv @ residual  # shape: (N, N)
         return -0.5 * np.trace(term)
 
     # Three-component case
@@ -41,8 +41,8 @@ def compute_log_likelihood(U_obs, U_model, sigma=0.08, CDinv=None):
         log_like = 0.0
         for i in range(3):  # loop over components
             r_i = residual[:, :, i]  # shape: (T, N)
-            CDinv_i = CDinv[i]       # shape: (N, N)
-            term = r_i @ CDinv_i @ r_i.T  # shape: (T, T)
+            CDinv_i = CDinv[i]       # shape: (T, T)
+            term = r_i.T @ CDinv_i @ r_i  # shape: (N, N)
             log_like += -0.5 * np.trace(term)
         return log_like
 
