@@ -6,19 +6,19 @@ isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "201111221848"
-runname = "run28_3c"
-totalSteps = int(1e6)
+modname = "201111221848_S"
+runname = "run1_3c"
+totalSteps = int(5e5)
 
-burnInSteps = int(8e5)
+burnInSteps = int(4e5)
 nSaveModels = 1000
 actionsPerStep = 2
 
 maxN = 10
 
 ampRange = (-1., 1.) # only applies to real data
-slwRange = (0., 8.) # only applies to real data
-minSpace = 1.0
+slwRange = (0., 15.) # only applies to real data
+minSpace = 5.0
 
 isbp = False
 freqs = (0.02, 1.0)

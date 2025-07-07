@@ -43,8 +43,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     alphaData = np.where(histCounts > 0, 1.0, 0.0)
 
     plt.figure(figsize=(8, 6))
+    vmax = np.nanmax(np.abs(histCounts))
     h = plt.imshow(histCounts.T, extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
-                   origin='lower', aspect='auto', cmap='hot_r')
+                origin='lower', aspect='auto', cmap='seismic', vmin=-vmax, vmax=vmax)
+
     h.set_alpha(alphaData.T)  # Transparency map must match the shape and dtype
     plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
     plt.xlabel("Arrival Time (s)")
@@ -162,11 +164,11 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             ax = axs[comp]
             for i in range(n_traces):
                 trace = U[:, i, comp]
-                trace /= np.max(np.abs(trace))
+                # trace /= np.max(np.abs(trace))
                 ax.plot(time, trace + i * offset, color='black')
                 if U_model is not None:
                     trace_model = U_model[:, i, comp]
-                    trace_model /= np.max(np.abs(trace_model))
+                    # trace_model /= np.max(np.abs(trace_model))
                     ax.plot(time, trace_model + i * offset, color='red')
             ax.set_title(f"Component {comp_labels[comp]}")
             ax.set_xlabel("Time (s)")
@@ -180,7 +182,7 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             plt.plot(time, trace + i * offset, color='black')
             if U_model is not None:
                 trace_model = U_model[:, i]
-                trace_model /= np.max(np.abs(trace_model))
+                # trace_model /= np.max(np.abs(trace_model))
                 plt.plot(time, trace_model + i * offset, color='red')
             plt.text(time[-1] + 0.5, i * offset, f"{dist:.2f}°, {baz:.2f}°", va='center', fontsize=8)
         plt.xlabel("Time (s)")
