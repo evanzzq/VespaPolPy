@@ -23,7 +23,7 @@ start = time.time()
 
 # ---- Load and prepare data ----
 if isSyn: isbp = False
-U_obs, Utime, CDinv, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
+U_obs, Utime, CDinv, metadata, is3c = prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds)
 dt = Utime[1] - Utime[0]
 
 # ---- Load (for synthetic) or prepare and save (for data) stf ----
@@ -46,12 +46,12 @@ else:
     if is3c:
         prior = Prior3c(
             refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid, maxN=maxN,
-            timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
+            timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
             )
     else:
         prior = Prior(
             refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon, minSpace=stf_wid, maxN=maxN,
-            timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, distRange=distRange, bazRange=bazRange
+            timeRange=(Utime[0],Utime[-1]), ampRange=ampRange, slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
             )
     with open(os.path.join(datadir, modname, "Prior.pkl"), "wb") as f:
         pickle.dump(prior, f)
@@ -63,8 +63,8 @@ bookkeeping = Bookkeeping(
     burnInSteps=burnInSteps,
     nSaveModels=nSaveModels,
     actionsPerStep=actionsPerStep,
+    phaseBaz=phaseBaz,
     locDiff=locDiff,
-    fitNoise=fitNoise,
     fitAtts=fitAtts
 )
 

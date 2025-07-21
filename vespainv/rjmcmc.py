@@ -58,6 +58,8 @@ def birth(model, prior):
             )
         model_new.slw = np.append(model_new.slw, np.random.uniform(prior.slwRange[0], prior.slwRange[1]))
         model_new.amp = np.append(model_new.amp, np.random.uniform(prior.ampRange[0], prior.ampRange[1]))
+        model_new.baz = np.append(model_new.baz, np.random.uniform(prior.bazRange[0], prior.bazRange[1]))
+        model_new.atts = np.append(model_new.atts, np.random.uniform(prior.attsRange[0], prior.attsRange[1]))
         success = True
     else:
         success = False
@@ -72,6 +74,7 @@ def birth3c(model, prior):
             )
         model_new.slw = np.append(model_new.slw, np.random.uniform(prior.slwRange[0], prior.slwRange[1]))
         model_new.amp = np.append(model_new.amp, np.random.uniform(prior.ampRange[0], prior.ampRange[1]))
+        model_new.baz = np.append(model_new.baz, np.random.uniform(prior.bazRange[0], prior.bazRange[1]))
         model_new.dip = np.append(model_new.dip, np.random.uniform(prior.dipRange[0], prior.dipRange[1]))
         model_new.azi = np.append(model_new.azi, np.random.uniform(prior.aziRange[0], prior.aziRange[1]))
         model_new.ph_hh = np.append(model_new.ph_hh, np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1]))
@@ -92,6 +95,8 @@ def death(model, prior):
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
+        model_new.baz = np.delete(model_new.baz, idx)
+        model_new.atts = np.delete(model_new.atts, idx)
         success = True
     else:
         success = False
@@ -107,6 +112,7 @@ def death3c(model, prior):
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
+        model_new.baz = np.delete(model_new.baz, idx)
         model_new.dip = np.delete(model_new.dip, idx)
         model_new.azi = np.delete(model_new.azi, idx)
         model_new.ph_hh = np.delete(model_new.ph_hh, idx)
@@ -158,6 +164,18 @@ def update_amp(model, prior):
     # Success, return
     return model_new, True
 
+def update_phaseBaz(model, prior):
+    # Copy model
+    model_new = copy.deepcopy(model)
+    # Select a trace and update
+    idx = np.random.randint(model_new.Nphase)
+    model_new.baz[idx] += prior.bazStd * np.random.randn()
+    # Check range
+    if not (prior.bazRange[0] <= model_new.baz[idx] <= prior.bazRange[1]):
+        return model, False
+    # Success, return
+    return model_new, True
+
 def update_nc(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
@@ -178,26 +196,26 @@ def update_sig(model, prior):
     # Return
     return model_new, True
 
-def update_dist(model, prior):
+def update_distDiff(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
     # Select a trace and update
     idx = np.random.randint(model_new.Ntrace)
-    model_new.distDiff[idx] += prior.distStd * np.random.randn()
+    model_new.distDiff[idx] += prior.distDiffStd * np.random.randn()
     # Check range
-    if not (prior.distRange[0] <= model_new.distDiff[idx] <= prior.distRange[1]):
+    if not (prior.distDiffRange[0] <= model_new.distDiff[idx] <= prior.distDiffRange[1]):
         return model, False
     # Success, return
     return model_new, True
 
-def update_baz(model, prior):
+def update_bazDiff(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
     # Select a trace and update
     idx = np.random.randint(model_new.Ntrace)
-    model_new.bazDiff[idx] += prior.bazStd * np.random.randn()
+    model_new.bazDiff[idx] += prior.bazDiffStd * np.random.randn()
     # Check range
-    if not (prior.bazRange[0] <= model_new.bazDiff[idx] <= prior.bazRange[1]):
+    if not (prior.bazDiffRange[0] <= model_new.bazDiff[idx] <= prior.bazDiffRange[1]):
         return model, False
     # Success, return
     return model_new, True
@@ -283,28 +301,10 @@ def update_wvtype(model, prior):
     # Success, return
     return model_new, True
 
-def choose_actions(locDiff, fitNoise, actionsPerStep):
-    actionPool = [0, 1, 2, 3, 4]
-    if locDiff:
-        actionPool.extend([7, 8])
-    if fitNoise:
-        actionPool.extend([5, 6])
-
-    actionPool = np.array(actionPool)
-
-    if 5 in actionPool:
-        base_actions = actionPool[actionPool != 5]
-        base_weight = 0.99 / len(base_actions)
-        weights = np.array([0.01 if a == 5 else base_weight for a in actionPool])
-    else:
-        weights = np.full(len(actionPool), 1.0 / len(actionPool))
-
-    return np.random.choice(actionPool, size=actionsPerStep, replace=True, p=weights)
-
 def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel, Prior
-    from vespainv.waveformBuilder import create_U_from_model
+    from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_freqdomain
 
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -314,8 +314,9 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
+    phaseBaz = bookkeeping.phaseBaz
+    fitAtts = bookkeeping.fitAtts
     locDiff = bookkeeping.locDiff
-    fitNoise = bookkeeping.fitNoise
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -340,8 +341,16 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
     checkpoint_interval = totalSteps // 100
 
     maxN = prior.maxN
+    Nphase = []
 
-    s2 = s3 = s4 = a2 = a3 = a4 = 0 # for logging success rates: s(uccess) and a(ll)
+    # --- Sliding window setup ---
+    window_size = 1000
+    n_actions = 9
+    # Track recent attempts and successes
+    action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
+    action_success = {i: deque(maxlen=window_size) for i in range(n_actions)}
+    # Track time-series of acceptance ratios
+    acceptance_ratios = {i: [] for i in range(n_actions)}
 
     for iStep in range(totalSteps):
 
@@ -351,41 +360,45 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
         if model.Nphase == 0:
             actions = [0]
         else:
-            actions = choose_actions(locDiff, fitNoise, actionsPerStep)
-        
+            actionPool = np.arange(5)
+            if phaseBaz: actionPool = np.append(actionPool, [5])
+            if fitAtts: actionPool = np.append(actionPool, [6])
+            if locDiff: actionPool = np.append(actionPool, [7, 8])
+            actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
+
         model_new = model
+        applied_actions = []  # Track successful actions (not yet accepted)
 
         for i in range(len(actions)):
-            iAction = actions[i] if not model_new.Nphase > 0 else 0
+
+            if model_new.Nphase == 0:
+                iAction = 0  # force birth if no phases
+            success = False
+
             if iAction == 0:
                 model_new, _ = birth(model_new, prior)
             elif iAction == 1:
                 model_new, _ = death(model_new, prior)
-                if model_new.Nphase == 0 and i+1 < len(actions):
-                    if actions[i+1] in [2, 3, 4]:
-                        actions[i+1] = 0
             elif iAction == 2:
-                model_new, sucess = update_arr(model_new, prior)
-                s2 += 1 if sucess else 0
-                a2 += 1
+                model_new, success = update_arr(model_new, prior)
             elif iAction == 3:
-                model_new, sucess = update_slw(model_new, prior)
-                s3 += 1 if sucess else 0
-                a3 += 1
+                model_new, success = update_slw(model_new, prior)
             elif iAction == 4:
-                model_new, sucess = update_amp(model_new, prior)
-                s4 += 1 if sucess else 0
-                a4 += 1
+                model_new, success = update_amp(model_new, prior)
             elif iAction == 5:
-                model_new, change_corr = update_nc(model_new, prior)
+                model_new, success = update_phaseBaz(model_new, prior)
             elif iAction == 6:
-                model_new, _ = update_sig(model_new, prior)
+                model_new, success = update_atts(model_new, prior)
             elif iAction == 7:
-                model_new, _ = update_dist(model_new, prior)
+                model_new, _ = update_distDiff(model_new, prior)
             elif iAction == 8:
-                model_new, _ = update_baz(model_new, prior)
+                model_new, _ = update_bazDiff(model_new, prior)
+            
+            if success:
+                applied_actions.append(iAction)
+                action_counts[iAction].append(1)  # always count attempt
 
-        U_model_new = create_U_from_model(model_new, prior, metadata, Utime, stf_time, stf_data)
+        U_model_new = create_U_from_model_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
         new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
@@ -395,6 +408,15 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
             logL = new_logL
 
         logL_trace.append(logL)
+        Nphase.append(model.Nphase)
+
+        # Compute sliding-window acceptance ratios
+        if iStep >= window_size:
+            for i in range(n_actions):
+                attempts = sum(action_counts[i])
+                successes = sum(action_success[i])
+                ratio = successes / attempts if attempts > 0 else 0.0
+                acceptance_ratios[i].append(ratio)
 
         # Save only selected models after burn-in
         if iStep >= burnInSteps and (iStep - burnInSteps) % save_interval == 0:
@@ -403,12 +425,49 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
         # Checkpoint log/plot every 1%
         if (iStep + 1) % checkpoint_interval == 0:
             # Save (overwrite) log-likelihood plot
-            fig, ax = plt.subplots()
-            ax.plot(logL_trace, 'k-')
-            ax.set_xlabel("Step")
-            ax.set_ylabel("log Likelihood")
+            fig, ax1 = plt.subplots()
+            # Plot log-likelihood on left y-axis
+            ax1.plot(logL_trace, 'k-', label='logL')
+            ax1.set_xlabel("Step")
+            ax1.set_ylabel("log Likelihood", color='k')
+            ax1.tick_params(axis='y', labelcolor='k')
+            # Create second y-axis for Nphase
+            ax2 = ax1.twinx()
+            ax2.plot(Nphase, 'b--', label='Nphase')
+            ax2.set_ylabel("Nphase", color='b')
+            ax2.tick_params(axis='y', labelcolor='b')
+            # Optional: combined legend
+            lines, labels = ax1.get_legend_handles_labels()
+            lines2, labels2 = ax2.get_legend_handles_labels()
+            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
             fig.tight_layout()
-            fig.savefig(os.path.join(saveDir, "logL.png"))  # overwrites each time
+            fig.savefig(os.path.join(saveDir, "logL_nphase.png"))
+            plt.close(fig)
+
+            # Plot acceptance ratio
+            ncols = 2
+            nrows = int(np.ceil(n_actions / ncols))
+
+            fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(12, 2.5 * nrows), sharex=True)
+
+            for i in range(n_actions):
+                row = i // ncols
+                col = i % ncols
+                ax = axes[row, col] if nrows > 1 else axes[col]  # handle 1-row case
+                if acceptance_ratios[i]:  # avoid empty
+                    ax.plot(acceptance_ratios[i], color='tab:blue')
+                # ax.set_ylim(-0.05, 1.05)
+                ax.set_title(f"Action {i}", fontsize=10)
+                ax.set_ylabel("Acc. Ratio", fontsize=9)
+                ax.grid(True)
+
+            # Set common x-label
+            for ax in axes[-1, :] if nrows > 1 else [axes[-1]]:
+                ax.set_xlabel("Step index", fontsize=10)
+
+            fig.suptitle("Sliding-window Acceptance Ratios (Window = 1000 steps)", fontsize=12)
+            fig.tight_layout(rect=[0, 0, 1, 0.96])  # leave space for suptitle
+            fig.savefig(os.path.join(saveDir, "acceptance_ratios.png"))
             plt.close(fig)
 
             # Overwrite progress log
@@ -417,17 +476,12 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-    with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-        f.write(f"Acceptance rates: arr {s2/a2*100:.2f}%, slw {s3/a3*100:.2f}%, amp {s4/a4*100:.2f}%\n")
-
     return samples, logL_trace
 
 def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
-    from vespainv.model import VespaModel3c, Prior3c
-    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain, create_U_from_model_3c_freqdomain_new
-
-    trace_len = U_obs.shape[0]
+    from vespainv.model import VespaModel3c
+    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
     n_traces = U_obs.shape[1]
 
     totalSteps = bookkeeping.totalSteps
@@ -435,6 +489,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
+    phaseBaz = bookkeeping.phaseBaz
     locDiff = bookkeeping.locDiff
     fitAtts = bookkeeping.fitAtts
 
@@ -450,7 +505,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     samples = []
     logL_trace = []
 
-    U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, fitAtts)
+    U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
     logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
@@ -460,7 +515,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
 
     # --- Sliding window setup ---
     window_size = 1000
-    n_actions = 14
+    n_actions = 15
 
     # Track recent attempts and successes
     action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
@@ -478,8 +533,9 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             actions = [0]
         else:
             actionPool = np.arange(11)
-            if fitAtts: actionPool = np.append(actionPool, [11])
-            if locDiff: actionPool = np.append(actionPool, [12, 13])
+            if phaseBaz: actionPool = np.append(actionPool, [11])
+            if fitAtts: actionPool = np.append(actionPool, [12])
+            if locDiff: actionPool = np.append(actionPool, [13, 14])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -514,18 +570,20 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             elif iAction == 10:
                 model_new, success = update_wvtype(model_new, prior)
             elif iAction == 11:
-                model_new, success = update_atts(model_new, prior)
+                model_new, success = update_phaseBaz(model_new, prior)
             elif iAction == 12:
-                model_new, success = update_dist(model_new, prior)
+                model_new, success = update_atts(model_new, prior)
             elif iAction == 13:
-                model_new, success = update_baz(model_new, prior)
+                model_new, success = update_distDiff(model_new, prior)
+            elif iAction == 14:
+                model_new, success = update_bazDiff(model_new, prior)
 
             if success:
                 applied_actions.append(iAction)
                 action_counts[iAction].append(1)  # always count attempt
 
         # Evaluate proposed model
-        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, fitAtts)
+        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
         new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = (new_logL - logL)
@@ -609,3 +667,24 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
     return samples, logL_trace
+
+# Archive #
+def choose_actions(phaseBaz, locDiff, fitNoise, actionsPerStep):
+    actionPool = [0, 1, 2, 3, 4]
+    if phaseBaz:
+        actionPool.extend([5])
+    if fitNoise:
+        actionPool.extend([6, 7])
+    if locDiff:
+        actionPool.extend([8, 9])
+
+    actionPool = np.array(actionPool)
+
+    if 6 in actionPool:
+        base_actions = actionPool[actionPool != 5]
+        base_weight = 0.99 / len(base_actions)
+        weights = np.array([0.01 if a == 5 else base_weight for a in actionPool])
+    else:
+        weights = np.full(len(actionPool), 1.0 / len(actionPool))
+
+    return np.random.choice(actionPool, size=actionsPerStep, replace=True, p=weights)

@@ -16,10 +16,10 @@ if isSyn:
     with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f:
         model = pickle.load(f)
 
-U_obs, Utime, _, metadata, is3c = prep_data(datadir, modname, is3c, comp, isbp, freqs, isds)
+U_obs, Utime, _, metadata, is3c = prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
 plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=True, true_model=model if isSyn else None, is3c=is3c)
-plot_seismogram_compare(U=U_obs, time=Utime, offset=1.5, ensemble=ensemble, prior=prior, metadata=metadata, stf=stf)
+plot_seismogram_compare(U=U_obs, time=Utime, offset=1.5, ensemble=ensemble, prior=prior, metadata=metadata, stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz)
 plot_seismogram_compare(U=U_obs, time=Utime, offset=1.5, ensemble=[ensemble[-1]], prior=prior, metadata=metadata, stf=stf)
 plt.show()

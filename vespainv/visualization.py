@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from vespainv.model import VespaModel, Prior
+from vespainv.model import Bookkeeping
 from scipy.stats import gaussian_kde
 
 def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False):
@@ -9,18 +9,26 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     arrAll = np.concatenate([m.arr for m in ensemble])
     slwAll = np.concatenate([m.slw for m in ensemble])
     ampAll = np.concatenate([m.amp for m in ensemble])
+    bazAll = np.concatenate([m.baz for m in ensemble])
+    attsAll = np.concatenate([m.atts for m in ensemble])
+    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll) & ~np.isnan(bazAll) #& ~np.isnan(attsAll)
+
     if is3c:
         aziAll = np.concatenate([m.azi for m in ensemble])
         dipAll = np.concatenate([m.dip for m in ensemble])
         ph_hhAll = np.concatenate([m.ph_hh for m in ensemble])
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
-        attsAll = np.concatenate([m.atts for m in ensemble])
         SVfacAll = np.concatenate([m.svfac for m in ensemble])
         isP_All = np.concatenate([m.wvtype for m in ensemble])
 
-    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll)
-    arrAll, slwAll, ampAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll,isP_All = (
-        arrAll[valid], slwAll[valid], ampAll[valid], aziAll[valid], dipAll[valid], ph_hhAll[valid], ph_vhAll[valid], attsAll[valid], SVfacAll[valid], isP_All[valid])
+        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll,isP_All = (
+            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], aziAll[valid], dipAll[valid], ph_hhAll[valid], ph_vhAll[valid], attsAll[valid], SVfacAll[valid], isP_All[valid])
+    # else:
+    #     arrAll, slwAll, ampAll, bazAll, attsAll = (
+    #         arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], attsAll[valid])
+    else: #### tmp fix!!!!!!!!!!!!! atts dim issue
+        arrAll, slwAll, ampAll, bazAll = (
+            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid])
     
     # Define bins
     xRange = [np.min(Utime), np.max(Utime)]
@@ -65,24 +73,55 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     plt.tight_layout()
 
-    if is3c:
-        print("Click to define a box: first lower-left, then upper-right")
-        pts = plt.ginput(2)
-        plt.close()
-        (tmin, pmin), (tmax, pmax) = sorted(pts)
+    print("Click to define a box: first lower-left, then upper-right")
+    pts = plt.ginput(2)
+    plt.close()
+    (tmin, pmin), (tmax, pmax) = sorted(pts)
 
-        # Get indices inside the selected box
-        mask_box = (arrAll >= tmin) & (arrAll <= tmax) & (slwAll >= pmin) & (slwAll <= pmax)
-        if np.sum(mask_box) == 0:
-            print("No data points selected.")
+    # Get indices inside the selected box
+    mask_box = (arrAll >= tmin) & (arrAll <= tmax) & (slwAll >= pmin) & (slwAll <= pmax)
+    if np.sum(mask_box) == 0:
+        print("No data points selected.")
+        return
+
+    def plot_kde(ax, data, label, range_, true_value=None):
+        data = data[mask_box]
+        data = data[~np.isnan(data)]
+        ax.set_title(label)
+
+        if true_value is not None:
+            for val in np.atleast_1d(true_value):
+                ax.axvline(val, color='red', linestyle='--', linewidth=1.5)
+
+        num_unique = len(np.unique(data))
+        if len(data) < 5 or num_unique < 2:
+            ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
+            ax.text(0.5, 0.9, 'Insufficient variance\n(showing histogram)', ha='center',
+                    va='top', transform=ax.transAxes, fontsize=9, color='darkred')
+            ax.set_xlim(range_)
             return
-        
+
+        try:
+            kde = gaussian_kde(data)
+            x = np.linspace(*range_, 100)
+            ax.plot(x, kde(x), label='KDE')
+            ax.set_xlim(range_)
+            ax.legend()
+        except np.linalg.LinAlgError:
+            ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
+            ax.text(0.5, 0.9, 'KDE failed\n(showing histogram)', ha='center',
+                    va='top', transform=ax.transAxes, fontsize=9, color='darkred')
+            ax.set_xlim(range_)
+
+
+    if is3c:    
         # True model phases within click range
         if true_model:
             idx = np.where((true_model.arr >= tmin) & (true_model.arr <= tmax))[0]
             arrTrue = true_model.arr[idx]
             slwTrue = true_model.slw[idx]
             ampTrue = true_model.amp[idx]
+            bazTrue = true_model.baz[idx]
             aziTrue = true_model.azi[idx]
             dipTrue = true_model.dip[idx]
             ph_hhTrue = true_model.ph_hh[idx]
@@ -91,69 +130,68 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             svfacTrue = true_model.svfac[idx]
 
         # Plot KDEs
-        def plot_kde(ax, data, label, range_, true_value=None):
-            data = data[mask_box]
-            data = data[~np.isnan(data)]
-            ax.set_title(label)
-
-            if true_value is not None:
-                for val in np.atleast_1d(true_value):
-                    ax.axvline(val, color='red', linestyle='--', linewidth=1.5)
-
-            if len(data) < 2 or np.std(data) < 1e-6:
-                ax.text(0.5, 0.5, 'Insufficient or constant data', ha='center', va='center')
-                return
-
-            try:
-                kde = gaussian_kde(data)
-                x = np.linspace(*range_, 100)
-                ax.plot(x, kde(x), label='KDE')
-            except np.linalg.LinAlgError:
-                ax.hist(data, bins=30, range=range_, density=True, color='gray', alpha=0.7, label='Histogram')
-
-            ax.set_xlim(range_)
-            ax.legend()
-
-        fig, axs = plt.subplots(2, 5, figsize=(16, 6))
+        fig, axs = plt.subplots(2, 3, figsize=(10, 6))
         axs = axs.flatten()
 
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
-        plot_kde(axs[3], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None)
-        plot_kde(axs[4], dipAll, 'Pol. Dip.', prior.dipRange, true_value=dipTrue if true_model else None)
-        plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None)
-        plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None)
-        plot_kde(axs[7], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
-        plot_kde(axs[8], SVfacAll, 'SV/SH Ratio', prior.svfacRange, true_value=svfacTrue if true_model else None)
+        plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
+        plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None)
+        plot_kde(axs[5], dipAll, 'Pol. Dip.', prior.dipRange, true_value=dipTrue if true_model else None)
+        plot_kde(axs[6], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None)
+        plot_kde(axs[7], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None)
+        plot_kde(axs[8], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
+        plot_kde(axs[9], SVfacAll, 'SV/SH Ratio', prior.svfacRange, true_value=svfacTrue if true_model else None)
 
         # P/S histogram
         ps_vals = isP_All[mask_box]
-        axs[9].hist(ps_vals, bins=[-0.5, 0.5, 1.5])
-        axs[9].set_xticks([0, 1])
-        axs[9].set_xticklabels(['S', 'P'])
-        axs[9].set_title('P or S')
-
-        # SV/SH Ratio
+        axs[10].hist(ps_vals, bins=[-0.5, 0.5, 1.5])
+        axs[10].set_xticks([0, 1])
+        axs[10].set_xticklabels(['S', 'P'])
+        axs[10].set_title('P or S')
         
+        plt.tight_layout()
+        plt.show()
+    else:
+        # True model phases within click range
+        if true_model:
+            idx = np.where((true_model.arr >= tmin) & (true_model.arr <= tmax))[0]
+            arrTrue = true_model.arr[idx]
+            slwTrue = true_model.slw[idx]
+            ampTrue = true_model.amp[idx]
+            bazTrue = true_model.baz[idx]
+            attsTrue = true_model.atts[idx]
 
+        # Plot KDEs
+        fig, axs = plt.subplots(2, 3, figsize=(16, 6))
+        axs = axs.flatten()
+
+        plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
+        plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
+        plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
+        plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
+        # plot_kde(axs[4], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None) ############ tmp fix!!!!!!!!!
+        
         plt.tight_layout()
         plt.show()
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False):
 
     from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
 
     is3c = True if U.ndim == 3 else False
     n_traces = U.shape[1]
 
+    bk_tmp = Bookkeeping(fitAtts=fitAtts, phaseBaz=phaseBaz)
+
     if ensemble is not None:
         U_model = np.zeros_like(U)
         for model in ensemble:
             U_model += (
-                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1], False) # tmp fix!!! 
+                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1], bk_tmp) # tmp fix!!! 
                 if is3c 
-                else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1])
+                else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1], bk_tmp)
                 )
         U_model /= len(ensemble)
 

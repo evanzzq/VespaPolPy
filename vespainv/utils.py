@@ -60,12 +60,14 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None):
+def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, outliers_manual=None):
     import os
     import numpy as np
     from obspy import read
     from obspy.geodetics import gps2dist_azimuth
     from glob import glob
+    from sklearn.covariance import MinCovDet
+    from scipy.linalg import toeplitz
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -176,6 +178,55 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         for comp in ["UZ", "UR", "UT"]:
             traces_noise[comp] = [traces_noise[comp][i] for i in idx]
 
+    # === REMOVE HIGH AMPLITUDE NOISE TRACES ===
+    if noise_dir:
+        outlier_indices = set()
+        for comp in ["UZ", "UR", "UT"]:
+            noise_matrix = np.column_stack(traces_noise[comp])
+            max_amps = np.max(np.abs(noise_matrix), axis=0)
+            threshold = np.median(max_amps) + 5 * np.std(max_amps)
+            bad = np.where(max_amps > threshold)[0]
+            print(f"[{comp}] High-amplitude noise traces: {bad}")
+            outlier_indices.update(bad.tolist())
+
+        if outliers_manual: outlier_indices.update(outliers_manual)
+        print(f"\n>>> Removing {len(outlier_indices)} outlier trace(s):", outlier_indices)
+
+        # --- SNR-based outlier detection ---
+        print(f"\n>>> Applying SNR threshold: {snr_threshold} (component: {snr_component})")
+
+        n_traces = len(traces["UZ"])
+        for i in range(n_traces):
+            snr_vals = {}
+            for comp in ["UZ", "UR", "UT"]:
+                signal = traces[comp][i]
+                noise = traces_noise[comp][i]
+                signal_rms = np.sqrt(np.mean(signal ** 2))
+                noise_rms = np.sqrt(np.mean(noise ** 2)) + 1e-10  # avoid div-by-zero
+                snr = signal_rms / noise_rms
+                snr_vals[comp] = snr
+
+            # Determine the SNR to threshold on
+            if snr_component.lower() == "min":
+                snr_check = min(snr_vals.values())
+            else:
+                snr_check = snr_vals[snr_component.upper()]
+
+            if snr_check < snr_threshold:
+                outlier_indices.add(i)
+                print(f"Trace {i}: SNRs={snr_vals} → flagged (used {snr_check:.2f})")
+        
+        # Remove bad traces
+        for comp in ["UZ", "UR", "UT"]:
+            traces[comp] = [tr for i, tr in enumerate(traces[comp]) if i not in outlier_indices]
+            traces_noise[comp] = [tr for i, tr in enumerate(traces_noise[comp]) if i not in outlier_indices]
+
+        dists = [d for i, d in enumerate(dists) if i not in outlier_indices]
+        bazs = [b for i, b in enumerate(bazs) if i not in outlier_indices]
+        stlas = [s for i, s in enumerate(stlas) if i not in outlier_indices]
+        stlos = [s for i, s in enumerate(stlos) if i not in outlier_indices]
+
+
     # Save output
     for comp in ["UZ", "UR", "UT"]:
         np.savetxt(os.path.join(output_dir, f"{comp}.csv"), np.column_stack(traces[comp]), delimiter=",")
@@ -183,6 +234,18 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             noise_stack = np.column_stack(traces_noise[comp])
             np.savetxt(os.path.join(output_dir, f"{comp}_noise.csv"), np.column_stack(traces_noise[comp]), delimiter=",")
             np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack), delimiter=",")
+            # Robust covariance matrix 1: truncated version
+            n_samples = len(traces[comp][0])
+            n_seconds_noise_for_cov = 50
+            n_samples_noise_for_cov = int(n_seconds_noise_for_cov / dt)
+            noise_stack_for_cov = noise_stack[:n_samples_noise_for_cov, :].T
+            cov_mcd = MinCovDet(support_fraction=0.75).fit(noise_stack_for_cov).covariance_
+            # Estimate autocovariance from diagonals
+            avg_autocov = [np.mean(np.diag(cov_mcd, k=lag)) for lag in range(cov_mcd.shape[0])]
+            pad_width = n_samples - len(avg_autocov)
+            avg_autocov_padded = np.pad(avg_autocov, (0, pad_width), mode='constant')
+            CD_robust = toeplitz(avg_autocov_padded)
+            np.savetxt(os.path.join(output_dir, f"CD_{comp}_robust.csv"), CD_robust, delimiter=",")
 
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
                np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
@@ -418,7 +481,7 @@ def est_dom_freq(data, fs):
     print(f"Dominant frequency: {f0: .2f} Hz")
     return f0
 
-def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None, isnorm=False):
+def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=None, isnorm=False):
     import os
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
@@ -439,15 +502,18 @@ def prep_data(datadir, modname, is3c, comp, isbp, freqs, isds=None, isnorm=False
             Uname = "U"+comp+".csv"
             U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
     
-    CDinv = None
-    if os.path.isfile(os.path.join(datadir, modname, "CD_Z.csv")):
+    CDinv = None # CDopt: 0 - False, 1 - CD, 2- CD_robust
+    if CDopt:
+        if CDopt == 1: robust_handle = ''
+        elif CDopt == 2: robust_handle = '_robust'
+        else: raise ValueError(f"Invalid CDopt value: {CDopt}. Must be 0 (False), 1 (Empirical), or 2 (Robust).")
         if is3c:
-            CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_Z.csv"), delimiter=",")  # columns: data
-            CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_R.csv"), delimiter=",")  # columns: data
-            CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_T.csv"), delimiter=",")  # columns: data
+            CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ"+robust_handle+".csv"), delimiter=",")  # columns: data
+            CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
+            CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
             CDinv = [np.linalg.inv(CD_Z), np.linalg.inv(CD_R), np.linalg.inv(CD_T)]
         else:
-            CDname = "CD_"+comp+".csv"
+            CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
             CDinv = np.linalg.inv(CD)
 

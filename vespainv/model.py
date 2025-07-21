@@ -8,8 +8,8 @@ class Bookkeeping:
     burnInSteps:    int = None
     nSaveModels:    int = 100
     actionsPerStep: int = 2
+    phaseBaz:       bool = False
     locDiff:        bool = False
-    fitNoise:       bool = False
     fitAtts:        bool = False
 
     def __post_init__(self):
@@ -25,23 +25,22 @@ class Prior:
     srcLon: float
     timeRange: tuple
 
-    stdU: float = 0.1
-
     maxN: int = 5
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    distRange: tuple = (-5, 5)
-    bazRange: tuple = (-5, 5)
+    bazRange: tuple = (-50, 50)
+    attsRange: tuple = (0, 4)
+    distDiffRange: tuple = (-5, 5)
+    bazDiffRange: tuple = (-5, 5)
 
     arrStd: float = 0.15
     slwStd: float = None
     ampStd: float = None
-    distStd: float = None
     bazStd: float = None
-    nc1Std: float = 0.000125
-    nc2Std: float = 0.0125
-    sigStd: float = 0.0025
+    attsStd: float = None
+    distDiffStd: float = None
+    bazDiffStd: float = None
 
     sourceArray: bool = False
 
@@ -50,10 +49,14 @@ class Prior:
             self.slwStd = 0.2 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
             self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
-        if self.distStd is None:
-            self.distStd = 0.2 * (self.distRange[1] - self.distRange[0])
         if self.bazStd is None:
             self.bazStd = 0.2 * (self.bazRange[1] - self.bazRange[0])
+        if self.attsStd is None:
+            self.attsStd = 0.1 * (self.attsRange[1] - self.attsRange[0])
+        if self.distDiffStd is None:
+            self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
+        if self.bazDiffStd is None:
+            self.bazDiffStd = 0.2 * (self.bazDiffRange[1] - self.bazDiffRange[0])
     
     @classmethod
     def example(cls, **kwargs):
@@ -69,9 +72,8 @@ class VespaModel:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
-    nc1: float=0.25
-    nc2: float=1.40
-    sig: float=0.1
+    baz: np.ndarray
+    atts: np.ndarray
     distDiff: np.ndarray = None
     bazDiff: np.ndarray = None
 
@@ -89,7 +91,8 @@ class VespaModel:
             arr=np.array([]),
             slw=np.array([]),
             amp=np.array([]),
-            nc1=0.25, nc2=1.40, sig=prior.stdU,
+            baz=np.array([]),
+            atts=np.array([]),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )
@@ -106,7 +109,8 @@ class VespaModel:
             arr=arr,
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
-            nc1=0.25, nc2=1.40, sig=prior.stdU,
+            baz=np.zeros(Nphase),
+            atts=np.random.uniform(prior.attsRange[0], prior.attsRange[1], Nphase),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )
@@ -124,7 +128,6 @@ class Prior3c:
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    distRange: tuple = (-1, 1)
     bazRange: tuple = (-10, 10)
     dipRange: tuple = (0, 90)
     aziRange: tuple = (-180, 180)
@@ -132,11 +135,12 @@ class Prior3c:
     ph_vhRange: tuple = (-90, 90)
     attsRange: tuple = (0, 4)
     svfacRange: tuple = (0, 1)
+    distDiffRange: tuple = (-1, 1)
+    bazDiffRange: tuple = (-10, 10)
 
     arrStd: float = 1.0
     slwStd: float = None
     ampStd: float = None
-    distStd: float = None
     bazStd: float = None
     dipStd: float = None
     aziStd: float = None
@@ -144,6 +148,8 @@ class Prior3c:
     ph_vhStd: float = None
     attsStd: float = None
     svfacStd: float = None
+    distDiffStd: float = None
+    bazDiffStd: float = None
 
     sourceArray: bool = False
 
@@ -152,8 +158,6 @@ class Prior3c:
             self.slwStd = 0.1 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
             self.ampStd = 0.1 * (self.ampRange[1] - self.ampRange[0])
-        if self.distStd is None:
-            self.distStd = 0.1 * (self.distRange[1] - self.distRange[0])
         if self.bazStd is None:
             self.bazStd = 0.1 * (self.bazRange[1] - self.bazRange[0])
         if self.dipStd is None:
@@ -168,6 +172,10 @@ class Prior3c:
             self.attsStd = 0.1 * (self.attsRange[1] - self.attsRange[0])
         if self.svfacStd is None:
             self.svfacStd = 0.1 * (self.svfacRange[1] - self.svfacRange[0])
+        if self.distDiffStd is None:
+            self.distDiffStd = 0.1 * (self.distDiffRange[1] - self.distDiffRange[0])
+        if self.bazDiffStd is None:
+            self.bazDiffStd = 0.1 * (self.bazDiffRange[1] - self.bazDiffRange[0])
     
     @classmethod
     def example(cls, **kwargs):
@@ -180,9 +188,11 @@ class VespaModel3c:
     # Core parameters
     Nphase: int
     Ntrace: int
+    # Below are for each phase
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
+    baz: np.ndarray
     dip: np.ndarray
     azi: np.ndarray
     ph_hh: np.ndarray
@@ -190,6 +200,7 @@ class VespaModel3c:
     atts: np.ndarray
     svfac: np.ndarray
     wvtype: np.ndarray
+    # Below are for each trace/station/marsquake
     distDiff: np.ndarray = None
     bazDiff: np.ndarray = None
     def __post_init__(self):
@@ -206,6 +217,7 @@ class VespaModel3c:
             arr=np.array([]),
             slw=np.array([]),
             amp=np.array([]),
+            baz=np.array([]),
             dip=np.array([]),
             azi=np.array([]),
             ph_hh=np.array([]),
@@ -229,6 +241,7 @@ class VespaModel3c:
             arr=arr,
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
+            baz=np.zeros(Nphase),
             dip=np.random.uniform(prior.dipRange[0], prior.dipRange[1], Nphase),
             azi=np.random.uniform(prior.aziRange[0], prior.aziRange[1], Nphase),
             ph_hh=np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1], Nphase),
