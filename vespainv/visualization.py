@@ -130,7 +130,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             svfacTrue = true_model.svfac[idx]
 
         # Plot KDEs
-        fig, axs = plt.subplots(2, 3, figsize=(10, 6))
+        fig, axs = plt.subplots(3, 4, figsize=(10, 6))
         axs = axs.flatten()
 
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)

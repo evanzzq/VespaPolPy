@@ -3,11 +3,11 @@
 filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 isSyn = False
-is3c = False # for synthetic this will be overriden
+is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "200812021231"
-runname = "run2_Z_CD_robust"
+modname = "200703080503"
+runname = "run3_3c_Z_CD_robust"
 totalSteps = int(1e5)
 
 burnInSteps = int(5e4)

@@ -481,6 +481,41 @@ def est_dom_freq(data, fs):
     print(f"Dominant frequency: {f0: .2f} Hz")
     return f0
 
+import numpy as np
+from scipy.linalg import toeplitz
+
+def compute_toeplitz_CDinv(CD, eps=1e-6):
+    """
+    From a full empirical covariance matrix CD, compute the inverse of the
+    nearest PSD Toeplitz matrix formed by averaging diagonals and zeroing
+    negative eigenvalues.
+    
+    Parameters:
+        CD (ndarray): (N x N) covariance matrix (empirical or robust).
+        eps (float): Minimum eigenvalue after clipping (default: 0).
+    
+    Returns:
+        CDinv (ndarray): Inverse of the PSD Toeplitz matrix.
+    """
+    # Step 1: Average along diagonals
+    n = CD.shape[0]
+    diag_avg = [np.mean(np.diag(CD, k=i)) for i in range(n)]
+    
+    # Step 2: Construct symmetric Toeplitz matrix
+    CD_toep = toeplitz(diag_avg)
+    CD_toep = (CD_toep + CD_toep.T) / 2  # enforce symmetry just in case
+
+    # Step 3: Project to PSD (zero negative eigenvalues)
+    eigvals, eigvecs = np.linalg.eigh(CD_toep)
+    eigvals_clipped = np.clip(eigvals, a_min=eps, a_max=None)
+    CD_toep_psd = eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
+    CD_toep_psd = (CD_toep_psd + CD_toep_psd.T) / 2  # re-symmetrize
+
+    # Step 4: Invert
+    CDinv = np.linalg.inv(CD_toep_psd)
+
+    return CDinv
+
 def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=None, isnorm=False):
     import os
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
@@ -511,11 +546,11 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=None, isnor
             CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ"+robust_handle+".csv"), delimiter=",")  # columns: data
             CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
             CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
-            CDinv = [np.linalg.inv(CD_Z), np.linalg.inv(CD_R), np.linalg.inv(CD_T)]
+            CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
         else:
             CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
-            CDinv = np.linalg.inv(CD)
+            CDinv = compute_toeplitz_CDinv(CD)
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
