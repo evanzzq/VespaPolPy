@@ -505,14 +505,30 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
     CD_toep = toeplitz(diag_avg)
     CD_toep = (CD_toep + CD_toep.T) / 2  # enforce symmetry just in case
 
-    # Step 3: Project to PSD (zero negative eigenvalues)
+    # Step 3: Eigenvalue decomposition
     eigvals, eigvecs = np.linalg.eigh(CD_toep)
     eigvals_clipped = np.clip(eigvals, a_min=eps, a_max=None)
-    CD_toep_psd = eigvecs @ np.diag(eigvals_clipped) @ eigvecs.T
-    CD_toep_psd = (CD_toep_psd + CD_toep_psd.T) / 2  # re-symmetrize
 
-    # Step 4: Invert
-    CDinv = np.linalg.inv(CD_toep_psd)
+    # Step 3: Compute total energy and sort eigenvalues in descending order of energy contribution
+    total_energy = np.sum(eigvals_clipped ** 2)
+    sorted_indices = np.argsort(eigvals_clipped)[::-1]
+    eigvals_sorted = eigvals_clipped[sorted_indices]
+    eigvecs_sorted = eigvecs[:, sorted_indices]
+
+    # Step 5: Cumulative energy ratio
+    cumulative_energy = np.cumsum(eigvals_sorted ** 2)
+    energy_ratio = cumulative_energy / total_energy
+
+    # Step 6: Find n such that 99.9% of energy is preserved
+    n = np.searchsorted(energy_ratio, 0.999) + 1
+
+    # Step 7: Build selective inverse of eigenvalues
+    eigvals_inv = np.zeros_like(eigvals_sorted)
+    eigvals_inv[:n] = 1.0 / eigvals_sorted[:n]
+
+    # Step 8: Reconstruct inverse matrix using truncated eigenvalues
+    D_inv_trunc = np.diag(eigvals_inv)
+    CDinv = eigvecs_sorted @ D_inv_trunc @ eigvecs_sorted.T
 
     return CDinv
 
