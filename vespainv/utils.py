@@ -63,11 +63,14 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, outliers_manual=None):
     import os
     import numpy as np
+    import matplotlib.pyplot as plt
     from obspy import read
     from obspy.geodetics import gps2dist_azimuth
     from glob import glob
     from sklearn.covariance import MinCovDet
+    from scipy.signal import correlate
     from scipy.linalg import toeplitz
+    from scipy.optimize import curve_fit
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -234,7 +237,9 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             noise_stack = np.column_stack(traces_noise[comp])
             np.savetxt(os.path.join(output_dir, f"{comp}_noise.csv"), np.column_stack(traces_noise[comp]), delimiter=",")
             np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack), delimiter=",")
-            # Robust covariance matrix 1: truncated version
+
+            ### Robust covariance matrix: truncated version
+            # RCM from MinCovDet
             n_samples = len(traces[comp][0])
             n_seconds_noise_for_cov = 50
             n_samples_noise_for_cov = int(n_seconds_noise_for_cov / dt)
@@ -244,8 +249,54 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             avg_autocov = [np.mean(np.diag(cov_mcd, k=lag)) for lag in range(cov_mcd.shape[0])]
             pad_width = n_samples - len(avg_autocov)
             avg_autocov_padded = np.pad(avg_autocov, (0, pad_width), mode='constant')
+            # Build using toeplitz and save
             CD_robust = toeplitz(avg_autocov_padded)
             np.savetxt(os.path.join(output_dir, f"CD_{comp}_robust.csv"), CD_robust, delimiter=",")
+
+            ### Noise parameterization 3 from Kolb and Lekic (2014)
+            # Parameters
+            n_samples, n_traces = noise_stack.shape
+            max_lag_seconds = 50
+            max_lag = int(max_lag_seconds / dt)
+            # Zero-mean each trace
+            noise_stack = noise_stack - np.mean(noise_stack, axis=0)
+            # Compute autocorrelation per trace (non-negative lags only)
+            acovs = []
+            for i in range(n_traces):
+                trace = noise_stack[:, i]
+                acorr = correlate(trace, trace, mode="full")
+                acorr = acorr[n_samples - 1:]  # non-negative lags
+                acorr = acorr[:max_lag]
+                acorr /= n_samples
+                acovs.append(acorr)
+            # Average autocorrelations
+            avg_autocov = np.mean(acovs, axis=0)
+            lags = np.arange(len(avg_autocov)) * dt
+            # Normalize for stable fitting
+            avg_autocov_norm = avg_autocov / avg_autocov[0]
+            # Model: a * exp(-λτ) * cos(λω₀τ)
+            def model(tau, a, lambd, omega0):
+                return a * np.exp(-lambd * tau) * np.cos(lambd * omega0 * tau)
+            # Fit normalized data (keep original guess)
+            try:
+                popt, _ = curve_fit(
+                    model,
+                    lags,
+                    avg_autocov_norm,
+                    p0=(1.0, 0.1, 2 * np.pi * 0.2),
+                    maxfev=10000
+                )
+                a_fit_norm, lambda_fit, omega0_fit = popt
+                a_fit = a_fit_norm * avg_autocov[0]  # rescale amplitude to original scale
+            except RuntimeError as e:
+                print(f"[WARN] Fit failed for {comp}: {e}")
+                continue
+            # Generate full fitted autocovariance
+            full_lags = np.arange(n_samples) * dt
+            acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
+            # Toeplitz covariance matrix
+            CD_fit = toeplitz(acov_fit)
+            np.savetxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), CD_fit, delimiter=",")
 
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
                np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
@@ -530,9 +581,24 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
     D_inv_trunc = np.diag(eigvals_inv)
     CDinv = eigvecs_sorted @ D_inv_trunc @ eigvecs_sorted.T
 
+    # # ======= Plotting =======
+    # import matplotlib.pyplot as plt
+    # fig, axs = plt.subplots(1, 2, figsize=(10, 4))
+    # im0 = axs[0].imshow(CD_toep, cmap='viridis')
+    # axs[0].set_title("Toeplitz Covariance")
+    # plt.colorbar(im0, ax=axs[0], fraction=0.046, pad=0.04)
+
+    # im1 = axs[1].imshow(CDinv, cmap='viridis')
+    # axs[1].set_title("Inverse Covariance")
+    # plt.colorbar(im1, ax=axs[1], fraction=0.046, pad=0.04)
+
+    # plt.tight_layout()
+    # plt.show()
+    # # =========================
+
     return CDinv
 
-def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=None, isnorm=False):
+def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isnorm=False):
     import os
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
@@ -553,10 +619,11 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=None, isnor
             Uname = "U"+comp+".csv"
             U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
     
-    CDinv = None # CDopt: 0 - False, 1 - CD, 2- CD_robust
+    CDinv = None # CDopt: 0 - False, 1 - CD, 2- CD_robust, 3- CD_fit
     if CDopt:
         if CDopt == 1: robust_handle = ''
         elif CDopt == 2: robust_handle = '_robust'
+        elif CDopt == 3: robust_handle = "_fit"
         else: raise ValueError(f"Invalid CDopt value: {CDopt}. Must be 0 (False), 1 (Empirical), or 2 (Robust).")
         if is3c:
             CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ"+robust_handle+".csv"), delimiter=",")  # columns: data

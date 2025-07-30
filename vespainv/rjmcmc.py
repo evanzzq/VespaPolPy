@@ -6,7 +6,7 @@ from vespainv.utils import generate_arr
 
 import numpy as np
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.08, CDinv=None):
+def compute_log_likelihood(U_obs, U_model, sigma=0.03, CDinv=None):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
     
@@ -90,13 +90,13 @@ def birth3c(model, prior):
 def death(model, prior):
     model_new = copy.deepcopy(model)
     if model_new.Nphase > 0:
-        model_new.Nphase -= 1
         idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
         model_new.baz = np.delete(model_new.baz, idx)
         model_new.atts = np.delete(model_new.atts, idx)
+        model_new.Nphase -= 1
         success = True
     else:
         success = False
@@ -106,8 +106,6 @@ def death3c(model, prior):
     model_new = copy.deepcopy(model)
     success = False
     if model_new.Nphase > 0:
-        model_new.Nphase -= 1
-        success = True
         idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
@@ -120,6 +118,8 @@ def death3c(model, prior):
         model_new.atts = np.delete(model_new.atts, idx)
         model_new.svfac = np.delete(model_new.svfac, idx)
         model_new.wvtype = np.delete(model_new.wvtype, idx)
+        model_new.Nphase -= 1
+        success = True
     return model_new, success
 
 
