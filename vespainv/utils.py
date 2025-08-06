@@ -60,7 +60,7 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, outliers_manual=None):
+def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, outliers_manual=None, twin=None):
     import os
     import numpy as np
     import matplotlib.pyplot as plt
@@ -84,6 +84,8 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
 
     for f in sac_files:
         tr = read(f)[0]
+        if twin is not None:
+            tr.trim(tr.stats.starttime + twin[0], tr.stats.starttime + twin[1], pad=True, fill_value=0)
         ch = tr.stats.channel[-1]  # Z/R/T
         net, sta = tr.stats.network, tr.stats.station
         key = f"{net}.{sta}"
@@ -101,6 +103,8 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             fnoise = os.path.join(noise_dir, fbase + ".noise" + fext)
             if os.path.exists(fnoise):
                 tr_noise = read(fnoise)[0]
+                if twin is not None:
+                    tr_noise.trim(tr_noise.stats.starttime + twin[0], tr_noise.stats.starttime + twin[1], pad=True, fill_value=0)
                 if isbp and freqs:
                     tr_noise.filter("bandpass", freqmin=freqs[0], freqmax=freqs[1], corners=2, zerophase=True)
                 stations[key][f"{ch}_noise"] = tr_noise

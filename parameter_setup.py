@@ -6,8 +6,8 @@ isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "200703080503"
-runname = "run4_3c_Z_CD_0_smaller_sigma"
+modname = "201111221848"
+runname = "run31_3c_CD_fit"
 totalSteps = int(5e4)
 
 burnInSteps = int(4e4)
@@ -17,7 +17,7 @@ actionsPerStep = 2
 maxN = 5
 
 ampRange = (-1., 1.) # only applies to real data
-slwRange = (3., 10.) # only applies to real data
+slwRange = (2., 8.) # only applies to real data
 minSpace = 1.0
 
 CDopt = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
@@ -32,5 +32,5 @@ locDiff = False
 distDiffRange = (-5., -5.)
 bazDiffRange = (-5., -5.)
 
-phaseBaz = True
+phaseBaz = False
 fitAtts = False

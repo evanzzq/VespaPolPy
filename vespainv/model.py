@@ -155,27 +155,27 @@ class Prior3c:
 
     def __post_init__(self):
         if self.slwStd is None:
-            self.slwStd = 0.1 * (self.slwRange[1] - self.slwRange[0])
+            self.slwStd = 0.2 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
-            self.ampStd = 0.1 * (self.ampRange[1] - self.ampRange[0])
+            self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
         if self.bazStd is None:
-            self.bazStd = 0.1 * (self.bazRange[1] - self.bazRange[0])
+            self.bazStd = 0.2 * (self.bazRange[1] - self.bazRange[0])
         if self.dipStd is None:
-            self.dipStd = 0.1 * (self.dipRange[1] - self.dipRange[0])
+            self.dipStd = 0.2 * (self.dipRange[1] - self.dipRange[0])
         if self.aziStd is None:
-            self.aziStd = 0.1 * (self.aziRange[1] - self.aziRange[0])
+            self.aziStd = 0.2 * (self.aziRange[1] - self.aziRange[0])
         if self.ph_hhStd is None:
-            self.ph_hhStd = 0.1 * (self.ph_hhRange[1] - self.ph_hhRange[0])
+            self.ph_hhStd = 0.2 * (self.ph_hhRange[1] - self.ph_hhRange[0])
         if self.ph_vhStd is None:
-            self.ph_vhStd = 0.1 * (self.ph_vhRange[1] - self.ph_vhRange[0])
+            self.ph_vhStd = 0.2 * (self.ph_vhRange[1] - self.ph_vhRange[0])
         if self.attsStd is None:
-            self.attsStd = 0.1 * (self.attsRange[1] - self.attsRange[0])
+            self.attsStd = 0.2 * (self.attsRange[1] - self.attsRange[0])
         if self.svfacStd is None:
-            self.svfacStd = 0.1 * (self.svfacRange[1] - self.svfacRange[0])
+            self.svfacStd = 0.2 * (self.svfacRange[1] - self.svfacRange[0])
         if self.distDiffStd is None:
-            self.distDiffStd = 0.1 * (self.distDiffRange[1] - self.distDiffRange[0])
+            self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
         if self.bazDiffStd is None:
-            self.bazDiffStd = 0.1 * (self.bazDiffRange[1] - self.bazDiffRange[0])
+            self.bazDiffStd = 0.2 * (self.bazDiffRange[1] - self.bazDiffRange[0])
     
     @classmethod
     def example(cls, **kwargs):
