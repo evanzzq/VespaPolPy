@@ -118,6 +118,7 @@ def create_U_from_model_3c_freqdomain(
 
     fitAtts = bookkeeping.fitAtts
     phaseBaz = bookkeeping.phaseBaz
+    fitPhase = bookkeeping.fitPhase
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
@@ -188,8 +189,9 @@ def create_U_from_model_3c_freqdomain(
             sin_azi = np.sin(np.radians(model.azi[iph]))
             cos_azi = np.cos(np.radians(model.azi[iph]))
 
-            R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))
-            T_W = apply_constant_phase_shift(T_W, (np.radians(model.ph_hh[iph]) + np.radians(model.ph_vh[iph])))
+            if fitPhase:
+                R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))
+                T_W = apply_constant_phase_shift(T_W, (np.radians(model.ph_hh[iph]) + np.radians(model.ph_vh[iph])))
 
             R_W *= sin_inc * cos_azi
             T_W *= sin_inc * sin_azi

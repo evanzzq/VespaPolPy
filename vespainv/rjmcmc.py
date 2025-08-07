@@ -492,6 +492,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     phaseBaz = bookkeeping.phaseBaz
     locDiff = bookkeeping.locDiff
     fitAtts = bookkeeping.fitAtts
+    fitPhase = bookkeeping.fitPhase
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -532,7 +533,8 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
         if model.Nphase == 0:
             actions = [0]
         else:
-            actionPool = np.arange(11)
+            actionPool = np.arange(9)
+            if fitPhase: actionPool = np.append(actionPool, [9, 10])
             if phaseBaz: actionPool = np.append(actionPool, [11])
             if fitAtts: actionPool = np.append(actionPool, [12])
             if locDiff: actionPool = np.append(actionPool, [13, 14])
@@ -562,13 +564,13 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
             elif iAction == 6:
                 model_new, success = update_azi(model_new, prior)
             elif iAction == 7:
-                model_new, success = update_ph_hh(model_new, prior)
-            elif iAction == 8:
-                model_new, success = update_ph_vh(model_new, prior)
-            elif iAction == 9:
                 model_new, success = update_svfac(model_new, prior)
-            elif iAction == 10:
+            elif iAction == 8:
                 model_new, success = update_wvtype(model_new, prior)
+            elif iAction == 9:
+                model_new, success = update_ph_hh(model_new, prior)
+            elif iAction == 10:
+                model_new, success = update_ph_vh(model_new, prior)
             elif iAction == 11:
                 model_new, success = update_phaseBaz(model_new, prior)
             elif iAction == 12:

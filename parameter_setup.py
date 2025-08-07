@@ -6,8 +6,8 @@ isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "201111221848"
-runname = "run31_3c_CD_fit"
+modname = "200812021231"
+runname = "run3_3c_CD_fit_no_phd"
 totalSteps = int(5e4)
 
 burnInSteps = int(4e4)
@@ -32,5 +32,6 @@ locDiff = False
 distDiffRange = (-5., -5.)
 bazDiffRange = (-5., -5.)
 
-phaseBaz = False
+phaseBaz = True
 fitAtts = False
+fitPhase = False

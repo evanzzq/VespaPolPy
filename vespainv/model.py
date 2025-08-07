@@ -11,6 +11,7 @@ class Bookkeeping:
     phaseBaz:       bool = False
     locDiff:        bool = False
     fitAtts:        bool = False
+    fitPhase:       bool = False
 
     def __post_init__(self):
         if self.burnInSteps is None:

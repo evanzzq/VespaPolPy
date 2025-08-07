@@ -65,7 +65,8 @@ bookkeeping = Bookkeeping(
     actionsPerStep=actionsPerStep,
     phaseBaz=phaseBaz,
     locDiff=locDiff,
-    fitAtts=fitAtts
+    fitAtts=fitAtts,
+    fitPhase=fitPhase
 )
 
 # ---- Run RJMCMC ----
