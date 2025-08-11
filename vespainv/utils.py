@@ -604,6 +604,7 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
 
 def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isnorm=False):
     import os
+    from scipy.linalg import fractional_matrix_power
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
             response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
@@ -634,10 +635,12 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
             CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
             CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
             CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
+            CD_sqrt_inv = [fractional_matrix_power(CD_Z, -0.5), fractional_matrix_power(CD_R, -0.5), fractional_matrix_power(CD_T, -0.5)]
         else:
             CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
             CDinv = compute_toeplitz_CDinv(CD)
+            CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
@@ -654,4 +657,4 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
     
     if isnorm: U_obs /= np.max(np.abs(U_obs)) # normalize
     
-    return U_obs, Utime, CDinv, metadata, is3c
+    return U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c

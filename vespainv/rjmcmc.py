@@ -49,6 +49,41 @@ def compute_log_likelihood(U_obs, U_model, sigma=0.03, CDinv=None):
     else:
         raise ValueError("U_obs must be 2D or 3D array.")
 
+def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None):
+    """
+    Compute L1 log-likelihood for 1- or 3-component seismic data with whitening.
+
+    Parameters
+    ----------
+    U_obs : ndarray
+        Observed data. Shape (T, N) for 1-comp, (T, N, 3) for 3-comp.
+    U_model : ndarray
+        Modeled data. Same shape as U_obs.
+    CD_sqrt_inv : None, ndarray, or list of ndarray
+        - If None: assumes identity whitening (no correlation).
+        - 1-comp: (T, T) array
+        - 3-comp: list of (T, T) arrays, one per component
+
+    Returns
+    -------
+    log_likelihood : float
+        L1 log-likelihood (up to additive constant).
+    """
+    residual = U_obs - U_model
+
+    if CD_sqrt_inv is None:
+        whitened = residual
+    elif residual.ndim == 2:
+        whitened = CD_sqrt_inv @ residual  # whiten time dimension
+    elif residual.ndim == 3:
+        whitened = np.empty_like(residual)
+        for i in range(3):
+            whitened[:, :, i] = CD_sqrt_inv[i] @ residual[:, :, i]
+    else:
+        raise ValueError("U_obs must be 2D or 3D array.")
+
+    return -np.sum(np.abs(whitened))
+
 def birth(model, prior):
     model_new = copy.deepcopy(model)
     if model_new.Nphase < prior.maxN:
@@ -478,7 +513,7 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     return samples, logL_trace
 
-def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
+def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel3c
     from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
@@ -493,6 +528,7 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     locDiff = bookkeeping.locDiff
     fitAtts = bookkeeping.fitAtts
     fitPhase = bookkeeping.fitPhase
+    normOpt = bookkeeping.normOpt
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -507,7 +543,8 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
     logL_trace = []
 
     U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
-    logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
+    if normOpt == 1: logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
+    if normOpt == 2: logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -586,199 +623,8 @@ def rjmcmc_run3c(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir
 
         # Evaluate proposed model
         U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
-        new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
-
-        log_accept_ratio = (new_logL - logL)
-        if np.log(np.random.rand()) < log_accept_ratio:
-            model = model_new
-            U_model = U_model_new
-            logL = new_logL
-            for iAction in applied_actions:
-                action_success[iAction].append(1)
-        else:
-            for iAction in applied_actions:
-                action_success[iAction].append(0)
-
-        logL_trace.append(logL)
-        Nphase.append(model.Nphase)
-
-        # Compute sliding-window acceptance ratios
-        if iStep >= window_size:
-            for i in range(n_actions):
-                attempts = sum(action_counts[i])
-                successes = sum(action_success[i])
-                ratio = successes / attempts if attempts > 0 else 0.0
-                acceptance_ratios[i].append(ratio)
-
-        # Save only selected models after burn-in
-        if iStep >= burnInSteps and (iStep - burnInSteps) % save_interval == 0:
-            samples.append(model)
-        
-        # Checkpoint log/plot every 1%
-        if (iStep + 1) % checkpoint_interval == 0:
-            # Save (overwrite) log-likelihood plot
-            fig, ax1 = plt.subplots()
-            # Plot log-likelihood on left y-axis
-            ax1.plot(logL_trace, 'k-', label='logL')
-            ax1.set_xlabel("Step")
-            ax1.set_ylabel("log Likelihood", color='k')
-            ax1.tick_params(axis='y', labelcolor='k')
-            # Create second y-axis for Nphase
-            ax2 = ax1.twinx()
-            ax2.plot(Nphase, 'b--', label='Nphase')
-            ax2.set_ylabel("Nphase", color='b')
-            ax2.tick_params(axis='y', labelcolor='b')
-            # Optional: combined legend
-            lines, labels = ax1.get_legend_handles_labels()
-            lines2, labels2 = ax2.get_legend_handles_labels()
-            ax1.legend(lines + lines2, labels + labels2, loc='upper left')
-            fig.tight_layout()
-            fig.savefig(os.path.join(saveDir, "logL_nphase.png"))
-            plt.close(fig)
-
-            # Setup: number of rows/columns
-            ncols = 2
-            nrows = int(np.ceil(n_actions / ncols))
-
-            fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(12, 2.5 * nrows), sharex=True)
-
-            for i in range(n_actions):
-                row = i // ncols
-                col = i % ncols
-                ax = axes[row, col] if nrows > 1 else axes[col]  # handle 1-row case
-                if acceptance_ratios[i]:  # avoid empty
-                    ax.plot(acceptance_ratios[i], color='tab:blue')
-                # ax.set_ylim(-0.05, 1.05)
-                ax.set_title(f"Action {i}", fontsize=10)
-                ax.set_ylabel("Acc. Ratio", fontsize=9)
-                ax.grid(True)
-
-            # Set common x-label
-            for ax in axes[-1, :] if nrows > 1 else [axes[-1]]:
-                ax.set_xlabel("Step index", fontsize=10)
-
-            fig.suptitle("Sliding-window Acceptance Ratios (Window = 1000 steps)", fontsize=12)
-            fig.tight_layout(rect=[0, 0, 1, 0.96])  # leave space for suptitle
-            fig.savefig(os.path.join(saveDir, "acceptance_ratios.png"))
-            plt.close(fig)
-
-            # Overwrite progress log
-            elapsed = time.time() - start_time
-            now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-                f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
-
-    return samples, logL_trace
-
-def rjmcmc_run3c_alt(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
-
-    from vespainv.model import VespaModel3c
-    from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain_alt
-    n_traces = U_obs.shape[1]
-
-    totalSteps = bookkeeping.totalSteps
-    burnInSteps = bookkeeping.burnInSteps
-    nSaveModels = bookkeeping.nSaveModels
-    save_interval = (totalSteps - burnInSteps) // nSaveModels
-    actionsPerStep = bookkeeping.actionsPerStep
-    phaseBaz = bookkeeping.phaseBaz
-    locDiff = bookkeeping.locDiff
-    fitAtts = bookkeeping.fitAtts
-    fitPhase = bookkeeping.fitPhase
-
-    # Extract stf and its time vectors
-    stf_time = stf[:, 0]
-    stf_data = stf[:, 1]
-
-    # Start from a random model with one phase
-    model = VespaModel3c.create_random(
-        Nphase=1, Ntrace=n_traces, time=Utime, prior=prior
-        )
-
-    samples = []
-    logL_trace = []
-
-    U_model = create_U_from_model_3c_freqdomain_alt(model, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
-    logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
-
-    start_time = time.time()
-    checkpoint_interval = totalSteps // 100
-    maxN = prior.maxN
-    Nphase = []
-
-    # --- Sliding window setup ---
-    window_size = 1000
-    n_actions = 15
-
-    # Track recent attempts and successes
-    action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
-    action_success = {i: deque(maxlen=window_size) for i in range(n_actions)}
-
-    # Track time-series of acceptance ratios
-    acceptance_ratios = {i: [] for i in range(n_actions)}
-
-    for iStep in range(totalSteps):
-
-        # dynamically change allowed max phase number
-        # prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
-
-        if model.Nphase == 0:
-            actions = [0]
-        else:
-            actionPool = np.arange(9)
-            if fitPhase: actionPool = np.append(actionPool, [9, 10])
-            if phaseBaz: actionPool = np.append(actionPool, [11])
-            if fitAtts: actionPool = np.append(actionPool, [12])
-            if locDiff: actionPool = np.append(actionPool, [13, 14])
-            actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
-
-        model_new = model
-        applied_actions = []  # Track successful actions (not yet accepted)
-
-        for iAction in actions:
-            if model_new.Nphase == 0:
-                iAction = 0  # force birth if no phases
-
-            success = False
-
-            if iAction == 0:
-                model_new, success = birth3c(model_new, prior)
-            elif iAction == 1:
-                model_new, success = death3c(model_new, prior)
-            elif iAction == 2:
-                model_new, success = update_arr(model_new, prior)
-            elif iAction == 3:
-                model_new, success = update_slw(model_new, prior)
-            elif iAction == 4:
-                model_new, success = update_amp(model_new, prior)
-            elif iAction == 5:
-                model_new, success = update_dip(model_new, prior)
-            elif iAction == 6:
-                model_new, success = update_azi(model_new, prior)
-            elif iAction == 7:
-                model_new, success = update_svfac(model_new, prior)
-            elif iAction == 8:
-                model_new, success = update_wvtype(model_new, prior)
-            elif iAction == 9:
-                model_new, success = update_ph_hh(model_new, prior)
-            elif iAction == 10:
-                model_new, success = update_ph_vh(model_new, prior)
-            elif iAction == 11:
-                model_new, success = update_phaseBaz(model_new, prior)
-            elif iAction == 12:
-                model_new, success = update_atts(model_new, prior)
-            elif iAction == 13:
-                model_new, success = update_distDiff(model_new, prior)
-            elif iAction == 14:
-                model_new, success = update_bazDiff(model_new, prior)
-
-            if success:
-                applied_actions.append(iAction)
-                action_counts[iAction].append(1)  # always count attempt
-
-        # Evaluate proposed model
-        U_model_new = create_U_from_model_3c_freqdomain_alt(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
-        new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
+        if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
+        if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:

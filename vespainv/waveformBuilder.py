@@ -180,123 +180,6 @@ def create_U_from_model_3c_freqdomain(
                 SH_W = model.amp[iph] * (1 - model.svfac[iph]) * S_shifted_W
                 P_W = np.zeros_like(SV_W)
             
-            Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
-
-            Z_W *= np.cos(np.radians(model.dip[iph]))
-            
-            sin_inc = np.sin(np.radians(model.dip[iph]))
-            sin_azi = np.sin(np.radians(model.azi[iph]))
-            cos_azi = np.cos(np.radians(model.azi[iph]))
-
-            if fitPhase:
-                R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))
-                T_W = apply_constant_phase_shift(T_W, (np.radians(model.ph_hh[iph]) + np.radians(model.ph_vh[iph])))
-
-            R_W *= sin_inc * cos_azi
-            T_W *= sin_inc * sin_azi
-
-            traceZ_W += Z_W
-            traceR_W += R_W
-            traceT_W += T_W
-
-        traceZ = np.real(ifft(traceZ_W))
-        traceR = np.real(ifft(traceR_W))
-        traceT = np.real(ifft(traceT_W))
-
-        U_model[:, itrace, 0] = traceZ
-        U_model[:, itrace, 1] = traceR
-        U_model[:, itrace, 2] = traceT
-
-    return U_model
-
-def create_U_from_model_3c_freqdomain_alt(
-    model: VespaModel,
-    prior: Prior,
-    metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
-    time: np.ndarray,
-    stf_time: np.ndarray,
-    stf: np.ndarray,
-    bookkeeping: Bookkeeping
-):
-    """
-    Forward model a synthetic seismogram from the VespaModel.
-
-    Parameters:
-    - model: VespaModel3c with arr, slw, amp, dip, azi, ph_hh, ph_vh, atts, svfac, wvtype, distDiff, bazDiff
-    - prior: Prior object with refLat, refLon, refBaz
-    - metadata: np.ndarray of shape (n_traces, 2), where each row is [dist, baz]
-    - time: np.ndarray, time vector for synthetic seismograms
-    - stf_time: np.ndarray, time vector for the source time function
-    - stf: np.ndarray, source time function values
-
-    Returns:
-    - U_model: np.ndarray of shape (n_traces, len(time), 3), synthetic seismograms
-    """
-
-    fitAtts = bookkeeping.fitAtts
-    phaseBaz = bookkeeping.phaseBaz
-    fitPhase = bookkeeping.fitPhase
-
-    n_traces = metadata.shape[0]
-    U_model = np.zeros((len(time), n_traces, 3))
-
-    if model.Nphase == 0:
-        return U_model
-
-    refLat = prior.refLat
-    refLon = prior.refLon
-    srcLat = prior.srcLat
-    srcLon = prior.srcLon
-
-    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
-    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
-
-    stf_shift = stf_time[-1]
-    stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
-    stf_W = fft(stf)
-    stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
-
-    for itrace in range(n_traces):
-        
-        trDist, trBaz = metadata[itrace]
-        trDist += model.distDiff[itrace]
-        trBaz += model.bazDiff[itrace]
-
-        if not phaseBaz:
-            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
-            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
-
-        traceZ_W = np.zeros(len(time), dtype=complex)
-        traceR_W = np.zeros(len(time), dtype=complex)
-        traceT_W = np.zeros(len(time), dtype=complex)
-
-        for iph in range(model.Nphase):
-            
-            slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
-            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
-
-            if phaseBaz:
-                dx = (trDist - refDist) * np.sin(np.radians(trBaz+model.baz[iph]))
-                dy = (trDist - refDist) * np.cos(np.radians(trBaz+model.baz[iph]))
-
-            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
-
-            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
-            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
-
-            P_shifted_W = P_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
-            S_shifted_W = S_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
-
-            if model.wvtype[iph] == 1:
-                P_W = model.amp[iph] * P_shifted_W
-                SV_W = np.zeros_like(P_W)
-                SH_W = np.zeros_like(P_W)
-            else:
-                SV_W = model.amp[iph] * model.svfac[iph] * S_shifted_W
-                SH_W = model.amp[iph] * (1 - model.svfac[iph]) * S_shifted_W
-                P_W = np.zeros_like(SV_W)
-            
             sin_inc = np.sin(np.radians(model.dip[iph]))
             sin_azi = np.sin(np.radians(model.azi[iph]))
             cos_azi = np.cos(np.radians(model.azi[iph]))
@@ -724,3 +607,120 @@ def create_U_from_model_3c_freqdomain_new(
         U_4D[:, itrace, iph, 2] = traceT
 
     return U_4D
+
+def create_U_from_model_3c_freqdomain_old_pol_angle_def(
+    model: VespaModel,
+    prior: Prior,
+    metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
+    time: np.ndarray,
+    stf_time: np.ndarray,
+    stf: np.ndarray,
+    bookkeeping: Bookkeeping
+):
+    """
+    Forward model a synthetic seismogram from the VespaModel.
+
+    Parameters:
+    - model: VespaModel3c with arr, slw, amp, dip, azi, ph_hh, ph_vh, atts, svfac, wvtype, distDiff, bazDiff
+    - prior: Prior object with refLat, refLon, refBaz
+    - metadata: np.ndarray of shape (n_traces, 2), where each row is [dist, baz]
+    - time: np.ndarray, time vector for synthetic seismograms
+    - stf_time: np.ndarray, time vector for the source time function
+    - stf: np.ndarray, source time function values
+
+    Returns:
+    - U_model: np.ndarray of shape (n_traces, len(time), 3), synthetic seismograms
+    """
+
+    fitAtts = bookkeeping.fitAtts
+    phaseBaz = bookkeeping.phaseBaz
+    fitPhase = bookkeeping.fitPhase
+
+    n_traces = metadata.shape[0]
+    U_model = np.zeros((len(time), n_traces, 3))
+
+    if model.Nphase == 0:
+        return U_model
+
+    refLat = prior.refLat
+    refLon = prior.refLon
+    srcLat = prior.srcLat
+    srcLon = prior.srcLon
+
+    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
+
+    stf_shift = stf_time[-1]
+    stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
+    stf_W = fft(stf)
+    stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
+
+    for itrace in range(n_traces):
+        
+        trDist, trBaz = metadata[itrace]
+        trDist += model.distDiff[itrace]
+        trBaz += model.bazDiff[itrace]
+
+        if not phaseBaz:
+            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+
+        traceZ_W = np.zeros(len(time), dtype=complex)
+        traceR_W = np.zeros(len(time), dtype=complex)
+        traceT_W = np.zeros(len(time), dtype=complex)
+
+        for iph in range(model.Nphase):
+            
+            slow = model.slw[iph]
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+
+            if phaseBaz:
+                dx = (trDist - refDist) * np.sin(np.radians(trBaz+model.baz[iph]))
+                dy = (trDist - refDist) * np.cos(np.radians(trBaz+model.baz[iph]))
+
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
+
+            P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
+            S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
+
+            P_shifted_W = P_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
+            S_shifted_W = S_wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
+
+            if model.wvtype[iph] == 1:
+                P_W = model.amp[iph] * P_shifted_W
+                SV_W = np.zeros_like(P_W)
+                SH_W = np.zeros_like(P_W)
+            else:
+                SV_W = model.amp[iph] * model.svfac[iph] * S_shifted_W
+                SH_W = model.amp[iph] * (1 - model.svfac[iph]) * S_shifted_W
+                P_W = np.zeros_like(SV_W)
+            
+            Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
+
+            Z_W *= np.cos(np.radians(model.dip[iph]))
+            
+            sin_inc = np.sin(np.radians(model.dip[iph]))
+            sin_azi = np.sin(np.radians(model.azi[iph]))
+            cos_azi = np.cos(np.radians(model.azi[iph]))
+
+            if fitPhase:
+                R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))
+                T_W = apply_constant_phase_shift(T_W, (np.radians(model.ph_hh[iph]) + np.radians(model.ph_vh[iph])))
+
+            R_W *= sin_inc * cos_azi
+            T_W *= sin_inc * sin_azi
+
+            traceZ_W += Z_W
+            traceR_W += R_W
+            traceT_W += T_W
+
+        traceZ = np.real(ifft(traceZ_W))
+        traceR = np.real(ifft(traceR_W))
+        traceT = np.real(ifft(traceT_W))
+
+        U_model[:, itrace, 0] = traceZ
+        U_model[:, itrace, 1] = traceR
+        U_model[:, itrace, 2] = traceT
+
+    return U_model

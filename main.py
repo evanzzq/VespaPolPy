@@ -17,7 +17,7 @@ start = time.time()
 # ---- Load static data once in parent ----
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
 
-U_obs, Utime, CDinv, metadata, is3c = prep_data(
+U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c = prep_data(
     datadir, modname, is3c, comp, CDopt, isbp, freqs, isds
 )
 dt = Utime[1] - Utime[0]
@@ -91,12 +91,12 @@ def run_chain(chain_id):
 
     if is3c:
         samples, logL_trace = rjmcmc_run3c(
-            U_obs, CDinv, metadata, Utime,
+            U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
             stf, prior, bookkeeping, save_dir
         )
     else:
         samples, logL_trace = rjmcmc_run(
-            U_obs, CDinv, metadata, Utime,
+            U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
             stf, prior, bookkeeping, save_dir
         )
 

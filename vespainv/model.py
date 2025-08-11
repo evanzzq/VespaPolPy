@@ -12,6 +12,7 @@ class Bookkeeping:
     locDiff:        bool = False
     fitAtts:        bool = False
     fitPhase:       bool = False
+    normOpt:        int = 2
 
     def __post_init__(self):
         if self.burnInSteps is None:

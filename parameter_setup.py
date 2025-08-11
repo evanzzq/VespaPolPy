@@ -7,10 +7,10 @@ is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run32_3c_CD_fit_multichain"
+runname = "run34_3c_CD_fit_multichain_L1"
 num_chains = 16
-totalSteps = int(5e4)
-burnInSteps = int(4e4)
+totalSteps = int(1e5)
+burnInSteps = int(6e4)
 nSaveModels = 200
 actionsPerStep = 2
 
@@ -35,3 +35,4 @@ bazDiffRange = (-5., -5.)
 phaseBaz = False
 fitAtts = False
 fitPhase = True
+normOpt = 1

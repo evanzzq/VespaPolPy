@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from parameter_setup import *  # has isSyn, modname, runname, etc.
 
 # -------- Selection options --------
-chains_to_plot = [0]           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+chains_to_plot = None           # Example: [0, 2] to select specific chains by index
+likelihood_threshold = -6.5e4 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 # ---- Paths ----
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
