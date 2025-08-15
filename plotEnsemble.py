@@ -94,7 +94,7 @@ if isSyn:
         model = pickle.load(f)
 
 # ---- Load observed data & STF ----
-U_obs, Utime, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds)
+U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
 # ---- Plot ----

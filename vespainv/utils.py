@@ -604,7 +604,7 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
 
 def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isnorm=False):
     import os
-    from scipy.linalg import fractional_matrix_power
+    from scipy.linalg import fractional_matrix_power, cholesky, inv
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
             response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
@@ -636,11 +636,16 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
             CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
             CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
             CD_sqrt_inv = [fractional_matrix_power(CD_Z, -0.5), fractional_matrix_power(CD_R, -0.5), fractional_matrix_power(CD_T, -0.5)]
+            CD_sqrt_inv2 = [inv(cholesky(CD_Z)), inv(cholesky(CD_R)), inv(cholesky(CD_T))]
+            # # tmp save for debug
+            # savename = os.path.join(datadir, modname, 'CD_inv_debug.npz')
+            # np.savez(savename, CD_Z=CD_Z, CDZ_inv=CDinv[0], CDZ_sqrt_inv=CD_sqrt_inv[0], CDZ_sqrt_inv2=CD_sqrt_inv2[0])
         else:
             CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
             CDinv = compute_toeplitz_CDinv(CD)
             CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
+            # CD_sqrt_inv = inv(cholesky(CD))
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz

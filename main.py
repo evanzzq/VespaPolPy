@@ -28,8 +28,8 @@ if isSyn:
 else:
     stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1/dt), dt)
     stf_path = os.path.join(datadir, modname, "stf.csv")
-    if not os.path.exists(stf_path):
-        np.savetxt(stf_path, stf, delimiter=",", header="time,stf", comments="")
+    # if not os.path.exists(stf_path): # let's always re-create stf when running a new inversion
+    np.savetxt(stf_path, stf, delimiter=",", header="time,stf", comments="")
 
 stf_wid = minSpace if minSpace is not None else est_stf_wid(stf)
 
