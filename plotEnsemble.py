@@ -7,7 +7,7 @@ from parameter_setup import *  # has isSyn, modname, runname, etc.
 
 # -------- Selection options --------
 chains_to_plot = None           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = -6.5e4 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 # ---- Paths ----
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
@@ -86,7 +86,7 @@ else:
 ensemble = sum(ensembles, [])
 
 # ---- Load prior and (if synthetic) true model ----
-with open(os.path.join(datadir, modname, "Prior.pkl"), "rb") as f:
+with open(os.path.join(run_path, "Prior.pkl"), "rb") as f:
     prior = pickle.load(f)
 model = None
 if isSyn:

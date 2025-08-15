@@ -55,7 +55,9 @@ else:
             timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
             slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
         )
-    prior_path = os.path.join(datadir, modname, "Prior.pkl")
+    save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)
+    os.makedirs(save_dir, exist_ok=True)
+    prior_path = os.path.join(save_dir, "Prior.pkl")
     if not os.path.exists(prior_path):
         with open(prior_path, "wb") as f:
             pickle.dump(prior, f)
