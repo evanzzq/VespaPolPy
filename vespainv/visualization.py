@@ -4,14 +4,13 @@ from vespainv.model import Bookkeeping
 from scipy.stats import gaussian_kde
 
 def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False):
-    arrSave, slwSave, ampSave = [], [], []
 
     arrAll = np.concatenate([m.arr for m in ensemble])
     slwAll = np.concatenate([m.slw for m in ensemble])
     ampAll = np.concatenate([m.amp for m in ensemble])
     bazAll = np.concatenate([m.baz for m in ensemble])
     attsAll = np.concatenate([m.atts for m in ensemble])
-    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll) & ~np.isnan(bazAll) #& ~np.isnan(attsAll)
+    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll) & ~np.isnan(bazAll)
 
     if is3c:
         aziAll = np.concatenate([m.azi for m in ensemble])
@@ -19,16 +18,33 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         ph_hhAll = np.concatenate([m.ph_hh for m in ensemble])
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
         SVfacAll = np.concatenate([m.svfac for m in ensemble])
-        isP_All = np.concatenate([m.wvtype for m in ensemble])
+        isP_All = np.concatenate([m.wvtype for m in ensemble])  # Assume 1=P, 0=S
 
-        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll,isP_All = (
-            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], aziAll[valid], dipAll[valid], ph_hhAll[valid], ph_vhAll[valid], attsAll[valid], SVfacAll[valid], isP_All[valid])
-    # else:
-    #     arrAll, slwAll, ampAll, bazAll, attsAll = (
-    #         arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], attsAll[valid])
-    else: #### tmp fix!!!!!!!!!!!!! atts dim issue
+        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll, isP_All = (
+            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], 
+            aziAll[valid], dipAll[valid], ph_hhAll[valid], ph_vhAll[valid], 
+            attsAll[valid], SVfacAll[valid], isP_All[valid]
+        )
+
+        # === NEW: filter by user input ===
+        wave_type = input("Select wave type to plot (P or S, otherwise all): ").strip().upper()
+        if wave_type == "P":
+            mask_wave = (isP_All == 1)
+        elif wave_type == "S":
+            mask_wave = (isP_All == 0)
+        else:
+            mask_wave = np.ones_like(isP_All, dtype=bool)
+
+        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll, isP_All = (
+            arrAll[mask_wave], slwAll[mask_wave], ampAll[mask_wave], bazAll[mask_wave], 
+            aziAll[mask_wave], dipAll[mask_wave], ph_hhAll[mask_wave], ph_vhAll[mask_wave], 
+            attsAll[mask_wave], SVfacAll[mask_wave], isP_All[mask_wave]
+        )
+
+    else:  # Non-3c case
         arrAll, slwAll, ampAll, bazAll = (
-            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid])
+            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid]
+        )
     
     # Define bins
     xRange = [np.min(Utime), np.max(Utime)]
@@ -75,7 +91,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     print("Click to define a box: first lower-left, then upper-right")
     pts = plt.ginput(2)
-    plt.close()
+    # plt.close()
     (tmin, pmin), (tmax, pmax) = sorted(pts)
 
     # Get indices inside the selected box

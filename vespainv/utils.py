@@ -602,9 +602,16 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
 
     return CDinv
 
+def inv_sqrt(C):
+    from scipy.linalg import eigh
+    # eigendecomposition for symmetric positive-definite matrix
+    eigvals, eigvecs = eigh(C)
+    D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
+    return eigvecs @ D_inv_sqrt @ eigvecs.T
+
 def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isnorm=False):
     import os
-    from scipy.linalg import fractional_matrix_power, cholesky, inv
+    from scipy.linalg import fractional_matrix_power, cholesky, inv, eigh
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
             response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
@@ -635,11 +642,12 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
             CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
             CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
             CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
-            CD_sqrt_inv = [fractional_matrix_power(CD_Z, -0.5), fractional_matrix_power(CD_R, -0.5), fractional_matrix_power(CD_T, -0.5)]
-            CD_sqrt_inv2 = [inv(cholesky(CD_Z)), inv(cholesky(CD_R)), inv(cholesky(CD_T))]
+            # CD_sqrt_inv = [fractional_matrix_power(CD_Z, -0.5), fractional_matrix_power(CD_R, -0.5), fractional_matrix_power(CD_T, -0.5)]
+            # CD_sqrt_inv2 = [inv(cholesky(CD_Z)), inv(cholesky(CD_R)), inv(cholesky(CD_T))]
+            CD_sqrt_inv = [inv_sqrt(CD_Z), inv_sqrt(CD_R), inv_sqrt(CD_T)]
             # # tmp save for debug
             # savename = os.path.join(datadir, modname, 'CD_inv_debug.npz')
-            # np.savez(savename, CD_Z=CD_Z, CDZ_inv=CDinv[0], CDZ_sqrt_inv=CD_sqrt_inv[0], CDZ_sqrt_inv2=CD_sqrt_inv2[0])
+            # np.savez(savename, CD_Z=CD_Z, CDZ_inv=CDinv[0], CDZ_sqrt_inv=CD_sqrt_inv[0], CDZ_sqrt_inv2=CD_sqrt_inv2[0], CDZ_sqrt_inv3=CD_sqrt_inv3[0])
         else:
             CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data

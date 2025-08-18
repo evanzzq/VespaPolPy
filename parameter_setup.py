@@ -6,8 +6,8 @@ isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "201205280507S"
-runname = "run1_3c_CD_fit_L2"
+modname = "201111221848P"
+runname = "run1_3c_CD_fit"
 num_chains = 1
 totalSteps = int(1e5)
 burnInSteps = int(6e4)
@@ -18,7 +18,7 @@ maxN = 5
 
 ampRange = (-1., 1.) # only applies to real data
 slwRange = (6., 14.) # only applies to real data
-minSpace = 1.0
+minSpace = 3.0
 
 CDopt = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
 
