@@ -86,7 +86,7 @@ else:
 ensemble = sum(ensembles, [])
 
 # ---- Load prior and (if synthetic) true model ----
-with open(os.path.join(datadir, modname, "Prior.pkl"), "rb") as f:
+with open(os.path.join(run_path, "Prior.pkl"), "rb") as f:
     prior = pickle.load(f)
 model = None
 if isSyn:

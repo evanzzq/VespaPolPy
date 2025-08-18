@@ -1,6 +1,6 @@
 # ---- Parameter setup ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 isSyn = False
 is3c = True # for synthetic this will be overriden
