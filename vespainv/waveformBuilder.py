@@ -288,7 +288,7 @@ def PVH_to_ZRT(P, SV, SH, slw, a0=6.3, b0=3.6, radius=6371.):
 
     # Construct transformation matrix
     RMat = np.array([
-        [-a0 * qa0 * C1, b0 * slw * C2, 0],
+        [a0 * qa0 * C1, -b0 * slw * C2, 0], # reverse Z polarity
         [ a0 * slw * C2, b0 * qb0 * C1, 0],
         [0, 0, 2]
     ])

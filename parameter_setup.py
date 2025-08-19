@@ -6,9 +6,9 @@ isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
-modname = "201111221848P"
-runname = "run1_3c_CD_fit"
-num_chains = 1
+modname = "201111221848"
+runname = "run38_3c_CD_fit_multichain_L1_fixed_Z_polarity"
+num_chains = 16
 totalSteps = int(1e5)
 burnInSteps = int(6e4)
 nSaveModels = 200
@@ -17,7 +17,7 @@ actionsPerStep = 2
 maxN = 5
 
 ampRange = (-1., 1.) # only applies to real data
-slwRange = (6., 14.) # only applies to real data
+slwRange = (2., 10.) # only applies to real data
 minSpace = 3.0
 
 CDopt = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
