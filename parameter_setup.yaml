@@ -1,0 +1,161 @@
+# ---- universal defaults ----
+defaults:
+  filedir: "H:/My Drive/Research/VespaPolPy"
+  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+
+  isSyn: false
+  is3c: true # for synthetic this will be overriden
+  comp: "Z" # only applies to real data
+
+  num_chains: 16
+  totalSteps: 100000
+  burnInSteps: 60000
+  nSaveModels: 200
+  actionsPerStep: 2
+
+  maxN: 5
+
+  ampRange: [-1., 1.] # only applies to real data
+  minSpace: 3.0
+
+  CDopt: 3        # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+
+  isbp: false
+  freqs: [0.02, 1.0]
+  isds: false
+
+  bazRange: [-50.0, 0.0]
+
+  locDiff: false
+  distDiffRange: [-5.0, -5.0]
+  bazDiffRange: [-5.0, -5.0]
+
+  phaseBaz: false
+  fitAtts: false
+  fitPhase: true
+
+# ---- experiment specifics ----
+experiments:
+  # P, L1
+  - modname: "201111221848_P_30_33"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+
+  - modname: "201111221848_P_33_36"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+  
+  - modname: "201111221848_P_36_39"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+  
+  - modname: "201111221848_P_39_42"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+  
+  - modname: "201111221848_P_42_45"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+  
+  - modname: "201111221848_P_45_48"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [2., 10.]
+    normOpt: 1
+  
+  # P, L2
+  - modname: "201111221848_P_30_33"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+
+  - modname: "201111221848_P_33_36"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+  
+  - modname: "201111221848_P_36_39"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+  
+  - modname: "201111221848_P_39_42"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+  
+  - modname: "201111221848_P_42_45"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+  
+  - modname: "201111221848_P_45_48"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [2., 10.]
+    normOpt: 2
+
+  # S, L1
+  - modname: "201111221848_S_30_33"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+
+  - modname: "201111221848_S_33_36"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+  
+  - modname: "201111221848_S_36_39"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+  
+  - modname: "201111221848_S_39_42"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+  
+  - modname: "201111221848_S_42_45"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+  
+  - modname: "201111221848_S_45_48"
+    runname: "run1_3c_CD_fit_multichain_L1"
+    slwRange: [6., 14.]
+    normOpt: 1
+  
+  # S, L2
+  - modname: "201111221848_S_30_33"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
+
+  - modname: "201111221848_S_33_36"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
+  
+  - modname: "201111221848_S_36_39"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
+  
+  - modname: "201111221848_S_39_42"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
+  
+  - modname: "201111221848_S_42_45"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
+  
+  - modname: "201111221848_S_45_48"
+    runname: "run2_3c_CD_fit_multichain_L2"
+    slwRange: [6., 14.]
+    normOpt: 2
