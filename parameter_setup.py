@@ -1,14 +1,14 @@
 # ---- Parameter setup ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 isSyn = False
 is3c = True # for synthetic this will be overriden
 comp = "Z" # only applies to real data
 
 modname = "201111221848"
-runname = "run38_3c_CD_fit_multichain_L1_fixed_Z_polarity"
-num_chains = 16
+runname = "run38_3c_CD_fit_multichain_L2_fixed_Z_polarity"
+num_chains = 1
 totalSteps = int(1e5)
 burnInSteps = int(6e4)
 nSaveModels = 200
@@ -35,4 +35,4 @@ bazDiffRange = (-5., -5.)
 phaseBaz = False
 fitAtts = False
 fitPhase = True
-normOpt = 2
+normOpt = 1

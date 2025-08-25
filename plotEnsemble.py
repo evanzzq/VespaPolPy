@@ -1,13 +1,84 @@
 from vespainv.visualization import plot_ensemble_vespagram, plot_seismogram_compare
 from vespainv.utils import prep_data
-import pickle, os, re
+import pickle, os, re, argparse, yaml
 import numpy as np
 import matplotlib.pyplot as plt
-from parameter_setup import *  # has isSyn, modname, runname, etc.
+
+# ---- File Dir (Mac/PC) override ----
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+
+# ---- Parse config file ----
+parser = argparse.ArgumentParser()
+parser.add_argument("--config", type=str, default="parameter_setup.yaml", help="YAML config file")
+args = parser.parse_args()
+
+with open(args.config, "r") as f:
+    config = yaml.safe_load(f)
+
+defaults = config.get("defaults", {})
+experiments = config["experiments"]
+
+all_exp_names = [None] * len(experiments)
+
+for iexp, exp in enumerate(experiments):
+    # Merge defaults + experiment
+    params = {**defaults, **exp}
+    # Unpack parameters
+    modname = params["modname"]
+    runname = params["runname"]
+
+    all_exp_names[iexp] = f"{modname}: {runname}"
+
+# ---- Print and ask for selection ----
+print("\nAvailable experiments:")
+for i, name in enumerate(all_exp_names):
+    print(f"{i}: {name}")
+
+choice = int(input("\nSelect an experiment index to plot: "))
+if choice < 0 or choice >= len(experiments):
+    raise ValueError("Invalid choice!")
+
+# ---- Selected experiment ----
+selected_params = {**defaults, **experiments[choice]}
+
+# Unpack parameters
+modname    = selected_params["modname"]
+runname    = selected_params["runname"]
+isSyn      = selected_params["isSyn"]
+is3c       = selected_params["is3c"]
+comp       = selected_params["comp"]
+num_chains = selected_params["num_chains"]
+totalSteps = int(selected_params["totalSteps"])
+burnInSteps = int(selected_params["burnInSteps"])
+nSaveModels = selected_params["nSaveModels"]
+actionsPerStep = selected_params["actionsPerStep"]
+maxN       = selected_params["maxN"]
+
+ampRange   = tuple(selected_params["ampRange"])
+slwRange   = tuple(selected_params["slwRange"])
+minSpace   = selected_params["minSpace"]
+
+CDopt      = selected_params["CDopt"]
+isbp       = selected_params["isbp"]
+freqs      = tuple(selected_params["freqs"])
+isds       = selected_params["isds"]
+
+bazRange   = tuple(selected_params["bazRange"])
+locDiff    = selected_params["locDiff"]
+distDiffRange = tuple(selected_params["distDiffRange"])
+bazDiffRange  = tuple(selected_params["bazDiffRange"])
+
+phaseBaz   = selected_params["phaseBaz"]
+fitAtts    = selected_params["fitAtts"]
+fitPhase   = selected_params["fitPhase"]
+normOpt    = selected_params["normOpt"]
+
+print(f"Selected: {modname}, {runname}")
 
 # -------- Selection options --------
 chains_to_plot = None           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = -4500 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 # ---- Paths ----
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
