@@ -3,7 +3,10 @@ import matplotlib.pyplot as plt
 from vespainv.model import Bookkeeping
 from scipy.stats import gaussian_kde
 
-def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False):
+def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False, third_click=False):
+
+    # Initialize as None; if third_click == True, this will be update
+    selected_pt = None
 
     arrAll = np.concatenate([m.arr for m in ensemble])
     slwAll = np.concatenate([m.slw for m in ensemble])
@@ -120,10 +123,18 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     # plt.tight_layout()
 
-    print("Click to define a box: first lower-left, then upper-right")
+    # Get posterior plot range from two clicks
+    print("Click twice to define a box (first lower-left, then upper-right):")
     pts = plt.ginput(2)
-    # plt.close()
     (tmin, pmin), (tmax, pmax) = sorted(pts)
+    print(f"Selected range: arrival time {tmin:.2f} to {tmax:.2f} s, slowness {pmin:.2f} to {pmax:.2f} s/deg.\n")
+
+    # Get moveout correction point from one click
+    if third_click:
+        print("Click once to select arrival time - slowness pair to apply moveout correction:")
+        selected_pt_tmp = plt.ginput(1)
+        selected_pt = selected_pt_tmp[0]
+        print(f"Selected point: arrival time {selected_pt[0]:.2f} s, slowness {selected_pt[1]:.2f} s/deg.")
 
     # Get indices inside the selected box
     mask_box = (arrAll >= tmin) & (arrAll <= tmax) & (slwAll >= pmin) & (slwAll <= pmax)
@@ -138,7 +149,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
         if true_value is not None:
             for val in np.atleast_1d(true_value):
-                ax.axvline(val, color='red', linestyle='--', linewidth=1.5)
+                ax.axvline(val, color='red', linestyle='--', linewidth=0.5)
 
         num_unique = len(np.unique(data))
         if len(data) < 5 or num_unique < 2:
@@ -222,8 +233,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         
         plt.tight_layout()
         plt.show()
+    
+    return selected_pt
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False, moveout_pt=None):
 
     from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
 
@@ -242,6 +255,48 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
                 )
         U_model /= len(ensemble)
 
+    # Apply moveout correction if moveout_pt is provided
+    # Phase BAZ won't work in this correction!
+    if moveout_pt:
+
+        from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
+
+        arr, slow = moveout_pt
+        U_shifted = np.zeros_like(U)
+        U_model_shifted = np.zeros_like(U)
+
+        refLat = prior.refLat
+        refLon = prior.refLon
+        srcLat = prior.srcLat
+        srcLon = prior.srcLon
+        refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+        
+        for itrace in range(n_traces):
+            trDist, trBaz = metadata[itrace]
+            trDist += model.distDiff[itrace]
+            trBaz += model.bazDiff[itrace]
+            # Get slowness on x and y directions
+            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
+            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+            # Get dx and dy
+            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
+            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+            # Get tshift
+            tshift = slow_x * dx + slow_y * dy
+            # Shift traces
+            if is3c:
+                for ic in range(3):
+                    U_shifted[:, itrace, ic] = np.interp(time, time - tshift, U[:, itrace, ic], left=0.0, right=0.0)
+                    U_model_shifted[:, itrace, ic] = np.interp(time, time - tshift, U_model[:, itrace, ic], left=0.0, right=0.0)
+            else:
+                U_shifted[:, itrace] = np.interp(time, time - tshift, U[:, itrace], left=0.0, right=0.0)
+                U_model_shifted[:, itrace] = np.interp(time, time - tshift, U_model[:, itrace], left=0.0, right=0.0)
+        
+        # Overwrite
+        U = U_shifted
+        U_model = U_model_shifted
+
+    # Plot seismograms
     if is3c:
         fig, axs = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
         comp_labels = ['Z', 'R', 'T']
@@ -249,12 +304,12 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             ax = axs[comp]
             for i in range(n_traces):
                 trace = U[:, i, comp]
-                # trace /= np.max(np.abs(trace))
                 ax.plot(time, trace + i * offset, color='black')
                 if U_model is not None:
                     trace_model = U_model[:, i, comp]
-                    # trace_model /= np.max(np.abs(trace_model))
                     ax.plot(time, trace_model + i * offset, color='red')
+                if moveout_pt:
+                    ax.axvline(x=arr, color='r', linestyle='--')
             ax.set_title(f"Component {comp_labels[comp]}")
             ax.set_xlabel("Time (s)")
         axs[0].set_ylabel("Trace Index")
@@ -267,8 +322,9 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             plt.plot(time, trace + i * offset, color='black')
             if U_model is not None:
                 trace_model = U_model[:, i]
-                # trace_model /= np.max(np.abs(trace_model))
                 plt.plot(time, trace_model + i * offset, color='red')
+            if moveout_pt:
+                    ax.axvline(x=arr, color='r', linestyle='--')
             plt.text(time[-1] + 0.5, i * offset, f"{dist:.2f}°, {baz:.2f}°", va='center', fontsize=8)
         plt.xlabel("Time (s)")
         plt.ylabel("Trace Index")

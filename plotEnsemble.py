@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Parse config file ----
 parser = argparse.ArgumentParser()
@@ -78,7 +78,7 @@ print(f"Selected: {modname}, {runname}")
 
 # -------- Selection options --------
 chains_to_plot = None           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = -4500 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 # ---- Paths ----
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
@@ -169,16 +169,17 @@ U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
 # ---- Plot ----
-plot_ensemble_vespagram(
+moveout_pt = plot_ensemble_vespagram(
     ensemble, Utime, prior,
     amp_weighted=True,
     true_model=model,
-    is3c=is3c_flag
+    is3c=is3c_flag,
+    third_click=True
 )
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=ensemble, prior=prior, metadata=metadata,
-    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz
+    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, moveout_pt=moveout_pt
 )
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
