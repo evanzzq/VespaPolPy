@@ -46,48 +46,79 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid]
         )
     
+    # Kernel density estimation
+
     # Define bins
     xRange = [np.min(Utime), np.max(Utime)]
     yRange = prior.slwRange
-    nBins = 50
-    xEdges = np.linspace(xRange[0], xRange[1], nBins)
-    yEdges = np.linspace(yRange[0], yRange[1], nBins)
 
-    if amp_weighted:
-        histCounts = np.zeros((nBins - 1, nBins - 1), dtype=np.float32)
-        for i in range(len(arrAll)):
-            xIdx = np.searchsorted(xEdges, arrAll[i]) - 1
-            yIdx = np.searchsorted(yEdges, slwAll[i]) - 1
-            if 0 <= xIdx < nBins - 1 and 0 <= yIdx < nBins - 1:
-                histCounts[xIdx, yIdx] += ampAll[i]
-    else:
-        histCounts, _, _ = np.histogram2d(arrAll, slwAll, bins=[xEdges, yEdges])
-        histCounts = histCounts.astype(np.float32)
+    xy = np.vstack([arrAll, slwAll])
+    weights = np.abs(ampAll) if amp_weighted else None
+    kde = gaussian_kde(xy, weights=weights)
 
-    alphaData = np.where(histCounts > 0, 1.0, 0.0)
+    xx, yy = np.meshgrid(
+        np.linspace(xRange[0], xRange[1], 200),
+        np.linspace(yRange[0], yRange[1], 200)
+    )
+    zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(xx.shape)
 
+    # Plot as contour
     plt.figure(figsize=(8, 6))
-    vmax = np.nanmax(np.abs(histCounts))
-    h = plt.imshow(histCounts.T, extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
-                origin='lower', aspect='auto', cmap='seismic', vmin=-vmax, vmax=vmax)
-
-    h.set_alpha(alphaData.T)  # Transparency map must match the shape and dtype
-    plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
+    h = plt.contourf(xx, yy, zz, levels=30, cmap='seismic')
+    plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
     plt.xlabel("Arrival Time (s)")
     plt.ylabel("Slowness (s/deg)")
-    plt.title("Ensemble Vespagram" + (" (Amp-Weighted)" if amp_weighted else ""))
+    plt.title("Ensemble Vespagram (KDE)")
     plt.grid(True)
 
     if true_model is not None:
-        for i in range(true_model.Nphase):
-            plt.arrow(true_model.arr[i], true_model.slw[i],
-                      dx=0.0, dy=0.002,  # upward arrow
-                      head_width=0.2, head_length=0.002,
-                      fc='cyan', ec='cyan')
-        plt.plot(true_model.arr, true_model.slw, 'cx', label="True Arrivals")
+        plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
         plt.legend()
 
-    plt.tight_layout()
+    plt.show(block=False)
+    
+    # # Define bins
+    # xRange = [np.min(Utime), np.max(Utime)]
+    # yRange = prior.slwRange
+    # nBins = 50
+    # xEdges = np.linspace(xRange[0], xRange[1], nBins)
+    # yEdges = np.linspace(yRange[0], yRange[1], nBins)
+
+    # if amp_weighted:
+    #     histCounts = np.zeros((nBins - 1, nBins - 1), dtype=np.float32)
+    #     for i in range(len(arrAll)):
+    #         xIdx = np.searchsorted(xEdges, arrAll[i]) - 1
+    #         yIdx = np.searchsorted(yEdges, slwAll[i]) - 1
+    #         if 0 <= xIdx < nBins - 1 and 0 <= yIdx < nBins - 1:
+    #             histCounts[xIdx, yIdx] += ampAll[i]
+    # else:
+    #     histCounts, _, _ = np.histogram2d(arrAll, slwAll, bins=[xEdges, yEdges])
+    #     histCounts = histCounts.astype(np.float32)
+
+    # alphaData = np.where(histCounts > 0, 1.0, 0.0)
+
+    # plt.figure(figsize=(8, 6))
+    # vmax = np.nanmax(np.abs(histCounts))
+    # h = plt.imshow(histCounts.T, extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
+    #             origin='lower', aspect='auto', cmap='seismic', vmin=-vmax, vmax=vmax)
+
+    # h.set_alpha(alphaData.T)  # Transparency map must match the shape and dtype
+    # plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
+    # plt.xlabel("Arrival Time (s)")
+    # plt.ylabel("Slowness (s/deg)")
+    # plt.title("Ensemble Vespagram" + (" (Amp-Weighted)" if amp_weighted else ""))
+    # plt.grid(True)
+
+    # if true_model is not None:
+    #     for i in range(true_model.Nphase):
+    #         plt.arrow(true_model.arr[i], true_model.slw[i],
+    #                   dx=0.0, dy=0.002,  # upward arrow
+    #                   head_width=0.2, head_length=0.002,
+    #                   fc='cyan', ec='cyan')
+    #     plt.plot(true_model.arr, true_model.slw, 'cx', label="True Arrivals")
+    #     plt.legend()
+
+    # plt.tight_layout()
 
     print("Click to define a box: first lower-left, then upper-right")
     pts = plt.ginput(2)

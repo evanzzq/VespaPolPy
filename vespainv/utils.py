@@ -138,15 +138,16 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             # Downsample time axis
             if isds:
                 factor = int(round((1 / dt) / isds))
-            if factor > 1:
+            if isds and factor > 1:
                 time = time[::factor]
                 dt = time[1] - time[0]
             np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
 
         # Downsample data
-        trZ.data = trZ.data[::factor]
-        trR.data = trR.data[::factor]
-        trT.data = trT.data[::factor]
+        if isds:
+            trZ.data = trZ.data[::factor]
+            trR.data = trR.data[::factor]
+            trT.data = trT.data[::factor]
         # Store traces
         traces["UZ"].append(trZ.data)
         traces["UR"].append(trR.data)
