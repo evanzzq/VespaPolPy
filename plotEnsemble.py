@@ -9,13 +9,13 @@ filedir = "H:\My Drive\Research\VespaPolPy"
 # filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
-third_click = True
+third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = True
 
 # The following will be overridden if use_manual == False
-modname    = "201111221848_P_30_33"
+modname    = "201111221848_P_39_42"
 runname    = "run3_3c_CD_fit_multichain_L1_maxN10_action1"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
@@ -25,11 +25,12 @@ isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
 isds       = False
 phaseBaz   = False
-fitAtts    = True
+fitAtts    = False
+fitPhase   = True
 
 # -------- Selection options --------
-chains_to_plot = [0,3,6,7]           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+chains_to_plot = None           # Example: [0, 2] to select specific chains by index
+likelihood_threshold = -10000 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:
     # ---- Parse config file ----
@@ -182,12 +183,12 @@ moveout_pt = plot_ensemble_vespagram(
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=ensemble, prior=prior, metadata=metadata,
-    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, moveout_pt=moveout_pt
+    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase, moveout_pt=moveout_pt
 )
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=[ensemble[-1]], prior=prior, metadata=metadata,
-    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, moveout_pt=moveout_pt
+    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase, moveout_pt=moveout_pt
 )
 
 plt.show()

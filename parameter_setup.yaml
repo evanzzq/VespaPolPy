@@ -33,70 +33,103 @@ defaults:
   phaseBaz: false
   fitAtts: false
   fitPhase: true
+  isMars: false
 
 # ---- experiment specifics ----
 experiments:
-  # P, L1
-  - modname: "201111221848_P_30_33"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 1
 
-  - modname: "201111221848_P_33_36"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
+  # CF 1c
+  - modname: "Mars_CF"
+    runname: "run1_Z_CD_fit_multichain_L1_maxN10_action1"
+    isMars: true
+    is3c: false
+    comp: "Z"
+    slwRange: [-8., 8.]
     normOpt: 1
   
-  - modname: "201111221848_P_36_39"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
+  - modname: "Mars_CF"
+    runname: "run2_3c_CD_fit_multichain_L1_maxN10_action1"
+    isMars: true
+    is3c: true
+    slwRange: [-8., 8.]
     normOpt: 1
   
-  - modname: "201111221848_P_39_42"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 1
+  - modname: "Mars_CF"
+    runname: "run3_Z_CD_fit_multichain_L2_maxN10_action1"
+    isMars: true
+    is3c: false
+    comp: "Z"
+    slwRange: [-8., 8.]
+    normOpt: 2
   
-  - modname: "201111221848_P_42_45"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 1
-  
-  - modname: "201111221848_P_45_48"
-    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 1
-  
-  # P, L2
-  - modname: "201111221848_P_30_33"
+  - modname: "Mars_CF"
     runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
+    isMars: true
+    is3c: true
+    slwRange: [-8., 8.]
     normOpt: 2
 
-  - modname: "201111221848_P_33_36"
-    runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 2
+  # # P, L1
+  # - modname: "201111221848_P_30_33"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
+
+  # - modname: "201111221848_P_33_36"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
   
-  - modname: "201111221848_P_36_39"
-    runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 2
+  # - modname: "201111221848_P_36_39"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
   
-  - modname: "201111221848_P_39_42"
-    runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 2
+  # - modname: "201111221848_P_39_42"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
   
-  - modname: "201111221848_P_42_45"
-    runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 2
+  # - modname: "201111221848_P_42_45"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
   
-  - modname: "201111221848_P_45_48"
-    runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
-    slwRange: [2., 10.]
-    normOpt: 2
+  # - modname: "201111221848_P_45_48"
+  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 1
+  
+  # # P, L2
+  # - modname: "201111221848_P_30_33"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
+
+  # - modname: "201111221848_P_33_36"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
+  
+  # - modname: "201111221848_P_36_39"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
+  
+  # - modname: "201111221848_P_39_42"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
+  
+  # - modname: "201111221848_P_42_45"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
+  
+  # - modname: "201111221848_P_45_48"
+  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   slwRange: [2., 10.]
+  #   normOpt: 2
 
   # # S, L1
   # - modname: "201111221848_S_30_33"

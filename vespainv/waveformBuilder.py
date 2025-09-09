@@ -119,6 +119,7 @@ def create_U_from_model_3c_freqdomain(
     fitAtts = bookkeeping.fitAtts
     phaseBaz = bookkeeping.phaseBaz
     fitPhase = bookkeeping.fitPhase
+    isMars = bookkeeping.isMars
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
@@ -131,8 +132,11 @@ def create_U_from_model_3c_freqdomain(
     srcLat = prior.srcLat
     srcLon = prior.srcLon
 
-    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
-    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
+    if isMars:
+        refDist = np.mean(metadata[:, 0])
+    else:
+        refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    # _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
@@ -188,7 +192,10 @@ def create_U_from_model_3c_freqdomain(
             SV_W *= sin_inc * cos_azi
             SH_W *= sin_inc * sin_azi
             
-            Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
+            if isMars:
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph], a0=5.0, b0=3.0, radius=3389.5)
+            else:
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
 
             if fitPhase:
                 R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))

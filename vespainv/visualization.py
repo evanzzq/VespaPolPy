@@ -236,14 +236,14 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     
     return selected_pt
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False, moveout_pt=None):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False, fitPhase=True, moveout_pt=None):
 
     from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
 
     is3c = True if U.ndim == 3 else False
     n_traces = U.shape[1]
 
-    bk_tmp = Bookkeeping(fitAtts=fitAtts, phaseBaz=phaseBaz)
+    bk_tmp = Bookkeeping(fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase)
 
     if ensemble is not None:
         U_model = np.zeros_like(U)

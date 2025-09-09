@@ -96,6 +96,7 @@ if __name__ == "__main__":
         fitAtts    = params["fitAtts"]
         fitPhase   = params["fitPhase"]
         normOpt    = params["normOpt"]
+        isMars     = params["isMars"]
 
         print(f"\n=== Running experiment: {modname} / {runname} ===")
 
@@ -161,7 +162,8 @@ if __name__ == "__main__":
             phaseBaz=phaseBaz,
             locDiff=locDiff,
             fitAtts=fitAtts,
-            fitPhase=fitPhase
+            fitPhase=fitPhase,
+            isMars=isMars
         )
 
         # -------- Multiprocessing setup --------
