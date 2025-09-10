@@ -1,16 +1,16 @@
 # ---- universal defaults ----
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
-  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  # filedir: "H:/My Drive/Research/VespaPolPy"
+  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
 
   num_chains: 16
-  totalSteps: 100000
-  burnInSteps: 60000
-  nSaveModels: 200
+  totalSteps: 1000 #100000
+  burnInSteps: 600 #60000
+  nSaveModels: 200 #200
   actionsPerStep: 1
 
   maxN: 10

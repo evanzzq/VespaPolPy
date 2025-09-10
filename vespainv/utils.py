@@ -530,7 +530,7 @@ def est_dom_freq(data, fs):
             return np.sum(freqs * fft_pwr) / np.sum(fft_pwr)
 
         f0_all = np.apply_along_axis(_single_trace_f0, axis=0, arr=data)
-        f0 = np.mean(f0_all)
+        f0 = np.nanmean(f0_all)
     else:
         raise ValueError("Input data must be 1D or 2D numpy array.")
 
