@@ -13,6 +13,7 @@ class Bookkeeping:
     fitAtts:        bool = False
     fitPhase:       bool = False
     normOpt:        int = 2
+    isMars:         bool = False
 
     def __post_init__(self):
         if self.burnInSteps is None:

@@ -336,7 +336,7 @@ def update_wvtype(model, prior):
     # Success, return
     return model_new, True
 
-def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
+def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     from vespainv.model import VespaModel, Prior
     from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_freqdomain
@@ -352,6 +352,7 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
     phaseBaz = bookkeeping.phaseBaz
     fitAtts = bookkeeping.fitAtts
     locDiff = bookkeeping.locDiff
+    normOpt = bookkeeping.normOpt
 
     # Extract stf and its time vectors
     stf_time = stf[:, 0]
@@ -370,7 +371,8 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
     logL_trace = []
 
     U_model = np.zeros(trace_shape)
-    logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
+    if normOpt == 1: logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
+    if normOpt == 2: logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -389,8 +391,8 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
     for iStep in range(totalSteps):
 
-        # dynamically change allowed max phase number
-        prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
+        # # dynamically change allowed max phase number
+        # prior.maxN = int(min(iStep / burnInSteps * maxN + 1, maxN))
 
         if model.Nphase == 0:
             actions = [0]
@@ -434,7 +436,8 @@ def rjmcmc_run(U_obs, CDinv, metadata, Utime, stf, prior, bookkeeping, saveDir):
                 action_counts[iAction].append(1)  # always count attempt
 
         U_model_new = create_U_from_model_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
-        new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
+        if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
+        if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
         if np.log(np.random.rand()) < log_accept_ratio:

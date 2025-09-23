@@ -1,22 +1,22 @@
 # ---- universal defaults ----
 defaults:
-  # filedir: "H:/My Drive/Research/VespaPolPy"
-  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  filedir: "H:/My Drive/Research/VespaPolPy"
+  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
 
-  num_chains: 16
-  totalSteps: 1000 #100000
-  burnInSteps: 600 #60000
-  nSaveModels: 200 #200
+  num_chains: 32
+  totalSteps: 200000
+  burnInSteps: 120000
+  nSaveModels: 200
   actionsPerStep: 1
 
   maxN: 10
 
   ampRange: [-1., 1.] # only applies to real data
-  minSpace: 3.0
+  minSpace: 1.0
 
   CDopt: 3        # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
 
@@ -48,20 +48,21 @@ experiments:
     normOpt: 1
   
   - modname: "Mars_CF"
-    runname: "run2_3c_CD_fit_multichain_L1_maxN10_action1"
-    isMars: true
-    is3c: true
-    slwRange: [-8., 8.]
-    normOpt: 1
-  
-  - modname: "Mars_CF"
-    runname: "run3_Z_CD_fit_multichain_L2_maxN10_action1"
+    runname: "run2_Z_CD_fit_multichain_L2_maxN10_action1"
     isMars: true
     is3c: false
     comp: "Z"
     slwRange: [-8., 8.]
     normOpt: 2
   
+  # CF 3c
+  - modname: "Mars_CF"
+    runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+    isMars: true
+    is3c: true
+    slwRange: [-8., 8.]
+    normOpt: 1
+
   - modname: "Mars_CF"
     runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
     isMars: true
@@ -71,63 +72,63 @@ experiments:
 
   # # P, L1
   # - modname: "201111221848_P_30_33"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
 
   # - modname: "201111221848_P_33_36"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
   
   # - modname: "201111221848_P_36_39"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
   
   # - modname: "201111221848_P_39_42"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
   
   # - modname: "201111221848_P_42_45"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
   
   # - modname: "201111221848_P_45_48"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 1
   
   # # P, L2
   # - modname: "201111221848_P_30_33"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
 
   # - modname: "201111221848_P_33_36"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
   
   # - modname: "201111221848_P_36_39"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
   
   # - modname: "201111221848_P_39_42"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
   
   # - modname: "201111221848_P_42_45"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
   
   # - modname: "201111221848_P_45_48"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
   #   normOpt: 2
 
