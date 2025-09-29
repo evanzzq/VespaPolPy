@@ -137,7 +137,6 @@ class Prior3c:
     ph_hhRange: tuple = (-90, 90)
     ph_vhRange: tuple = (-90, 90)
     attsRange: tuple = (0, 4)
-    svfacRange: tuple = (0, 1)
     distDiffRange: tuple = (-1, 1)
     bazDiffRange: tuple = (-10, 10)
 
@@ -150,7 +149,6 @@ class Prior3c:
     ph_hhStd: float = None
     ph_vhStd: float = None
     attsStd: float = None
-    svfacStd: float = None
     distDiffStd: float = None
     bazDiffStd: float = None
 
@@ -173,8 +171,6 @@ class Prior3c:
             self.ph_vhStd = 0.2 * (self.ph_vhRange[1] - self.ph_vhRange[0])
         if self.attsStd is None:
             self.attsStd = 0.2 * (self.attsRange[1] - self.attsRange[0])
-        if self.svfacStd is None:
-            self.svfacStd = 0.2 * (self.svfacRange[1] - self.svfacRange[0])
         if self.distDiffStd is None:
             self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
         if self.bazDiffStd is None:
@@ -201,7 +197,6 @@ class VespaModel3c:
     ph_hh: np.ndarray
     ph_vh: np.ndarray
     atts: np.ndarray
-    svfac: np.ndarray
     wvtype: np.ndarray
     # Below are for each trace/station/marsquake
     distDiff: np.ndarray = None
@@ -226,7 +221,6 @@ class VespaModel3c:
             ph_hh=np.array([]),
             ph_vh=np.array([]),
             atts=np.array([]),
-            svfac=np.array([]),
             wvtype=np.array([]),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
@@ -245,12 +239,12 @@ class VespaModel3c:
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
             baz=np.zeros(Nphase),
-            dip=np.random.uniform(prior.dipRange[0], prior.dipRange[1], Nphase),
+            # dip=np.random.uniform(prior.dipRange[0], prior.dipRange[1], Nphase),
+            dip=np.zeros(Nphase),
             azi=np.random.uniform(prior.aziRange[0], prior.aziRange[1], Nphase),
             ph_hh=np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1], Nphase),
             ph_vh=np.random.uniform(prior.ph_vhRange[0], prior.ph_vhRange[1], Nphase),
             atts=np.random.uniform(prior.attsRange[0], prior.attsRange[1], Nphase),
-            svfac=np.random.uniform(prior.svfacRange[0], prior.svfacRange[1], Nphase),
             wvtype=np.random.randint(2, size=Nphase),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)

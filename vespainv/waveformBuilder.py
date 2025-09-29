@@ -180,17 +180,20 @@ def create_U_from_model_3c_freqdomain(
                 SV_W = np.zeros_like(P_W)
                 SH_W = np.zeros_like(P_W)
             else:
-                SV_W = model.amp[iph] * model.svfac[iph] * S_shifted_W
-                SH_W = model.amp[iph] * (1 - model.svfac[iph]) * S_shifted_W
+                SV_W = model.amp[iph] * S_shifted_W
+                SH_W = model.amp[iph] * S_shifted_W
                 P_W = np.zeros_like(SV_W)
             
-            sin_inc = np.sin(np.radians(model.dip[iph]))
+            # sin_inc = np.sin(np.radians(model.dip[iph]))
             sin_azi = np.sin(np.radians(model.azi[iph]))
             cos_azi = np.cos(np.radians(model.azi[iph]))
 
-            P_W *= np.cos(np.radians(model.dip[iph]))
-            SV_W *= sin_inc * cos_azi
-            SH_W *= sin_inc * sin_azi
+            # P_W *= np.cos(np.radians(model.dip[iph]))
+            # SV_W *= sin_inc * cos_azi
+            # SH_W *= sin_inc * sin_azi
+
+            SV_W *= cos_azi
+            SH_W *= sin_azi
             
             if isMars:
                 Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph], a0=5.0, b0=3.0, radius=3389.5)

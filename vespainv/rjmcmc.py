@@ -110,12 +110,11 @@ def birth3c(model, prior):
         model_new.slw = np.append(model_new.slw, np.random.uniform(prior.slwRange[0], prior.slwRange[1]))
         model_new.amp = np.append(model_new.amp, np.random.uniform(prior.ampRange[0], prior.ampRange[1]))
         model_new.baz = np.append(model_new.baz, np.random.uniform(prior.bazRange[0], prior.bazRange[1]))
-        model_new.dip = np.append(model_new.dip, np.random.uniform(prior.dipRange[0], prior.dipRange[1]))
+        # model_new.dip = np.append(model_new.dip, np.random.uniform(prior.dipRange[0], prior.dipRange[1]))
         model_new.azi = np.append(model_new.azi, np.random.uniform(prior.aziRange[0], prior.aziRange[1]))
         model_new.ph_hh = np.append(model_new.ph_hh, np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1]))
         model_new.ph_vh = np.append(model_new.ph_vh, np.random.uniform(prior.ph_vhRange[0], prior.ph_vhRange[1]))
         model_new.atts = np.append(model_new.atts, np.random.uniform(prior.attsRange[0], prior.attsRange[1]))
-        model_new.svfac = np.append(model_new.svfac, np.random.uniform(prior.svfacRange[0], prior.svfacRange[1]))
         model_new.wvtype = np.append(model_new.wvtype, np.random.randint(2))
         return model_new, True
     else:
@@ -146,12 +145,11 @@ def death3c(model, prior):
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
         model_new.baz = np.delete(model_new.baz, idx)
-        model_new.dip = np.delete(model_new.dip, idx)
+        # model_new.dip = np.delete(model_new.dip, idx)
         model_new.azi = np.delete(model_new.azi, idx)
         model_new.ph_hh = np.delete(model_new.ph_hh, idx)
         model_new.ph_vh = np.delete(model_new.ph_vh, idx)
         model_new.atts = np.delete(model_new.atts, idx)
-        model_new.svfac = np.delete(model_new.svfac, idx)
         model_new.wvtype = np.delete(model_new.wvtype, idx)
         model_new.Nphase -= 1
         success = True
@@ -573,11 +571,11 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         if model.Nphase == 0:
             actions = [0]
         else:
-            actionPool = np.arange(9)
-            if fitPhase: actionPool = np.append(actionPool, [9, 10])
-            if phaseBaz: actionPool = np.append(actionPool, [11])
-            if fitAtts: actionPool = np.append(actionPool, [12])
-            if locDiff: actionPool = np.append(actionPool, [13, 14])
+            actionPool = np.arange(7)
+            if fitPhase: actionPool = np.append(actionPool, [7, 8])
+            if phaseBaz: actionPool = np.append(actionPool, [9])
+            if fitAtts: actionPool = np.append(actionPool, [10])
+            if locDiff: actionPool = np.append(actionPool, [11, 12])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -599,25 +597,23 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
                 model_new, success = update_slw(model_new, prior)
             elif iAction == 4:
                 model_new, success = update_amp(model_new, prior)
+            # elif iAction == 5:
+            #     model_new, success = update_dip(model_new, prior)
             elif iAction == 5:
-                model_new, success = update_dip(model_new, prior)
-            elif iAction == 6:
                 model_new, success = update_azi(model_new, prior)
-            elif iAction == 7:
-                model_new, success = update_svfac(model_new, prior)
-            elif iAction == 8:
+            elif iAction == 6:
                 model_new, success = update_wvtype(model_new, prior)
-            elif iAction == 9:
+            elif iAction == 7:
                 model_new, success = update_ph_hh(model_new, prior)
-            elif iAction == 10:
+            elif iAction == 8:
                 model_new, success = update_ph_vh(model_new, prior)
-            elif iAction == 11:
+            elif iAction == 9:
                 model_new, success = update_phaseBaz(model_new, prior)
-            elif iAction == 12:
+            elif iAction == 10:
                 model_new, success = update_atts(model_new, prior)
-            elif iAction == 13:
+            elif iAction == 11:
                 model_new, success = update_distDiff(model_new, prior)
-            elif iAction == 14:
+            elif iAction == 12:
                 model_new, success = update_bazDiff(model_new, prior)
 
             if success:

@@ -17,16 +17,15 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     if is3c:
         aziAll = np.concatenate([m.azi for m in ensemble])
-        dipAll = np.concatenate([m.dip for m in ensemble])
+        # dipAll = np.concatenate([m.dip for m in ensemble])
         ph_hhAll = np.concatenate([m.ph_hh for m in ensemble])
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
-        SVfacAll = np.concatenate([m.svfac for m in ensemble])
         isP_All = np.concatenate([m.wvtype for m in ensemble])  # Assume 1=P, 0=S
 
-        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll, isP_All = (
+        arrAll, slwAll, ampAll, bazAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
             arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], 
-            aziAll[valid], dipAll[valid], ph_hhAll[valid], ph_vhAll[valid], 
-            attsAll[valid], SVfacAll[valid], isP_All[valid]
+            aziAll[valid], ph_hhAll[valid], ph_vhAll[valid], 
+            attsAll[valid], isP_All[valid]
         )
 
         # === NEW: filter by user input ===
@@ -38,10 +37,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         else:
             mask_wave = np.ones_like(isP_All, dtype=bool)
 
-        arrAll, slwAll, ampAll, bazAll, aziAll, dipAll, ph_hhAll, ph_vhAll, attsAll, SVfacAll, isP_All = (
+        arrAll, slwAll, ampAll, bazAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
             arrAll[mask_wave], slwAll[mask_wave], ampAll[mask_wave], bazAll[mask_wave], 
-            aziAll[mask_wave], dipAll[mask_wave], ph_hhAll[mask_wave], ph_vhAll[mask_wave], 
-            attsAll[mask_wave], SVfacAll[mask_wave], isP_All[mask_wave]
+            aziAll[mask_wave], ph_hhAll[mask_wave], ph_vhAll[mask_wave], 
+            attsAll[mask_wave], isP_All[mask_wave]
         )
 
     else:  # Non-3c case
@@ -181,14 +180,12 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             ampTrue = true_model.amp[idx]
             bazTrue = true_model.baz[idx]
             aziTrue = true_model.azi[idx]
-            dipTrue = true_model.dip[idx]
             ph_hhTrue = true_model.ph_hh[idx]
             ph_vhTrue = true_model.ph_vh[idx]
             attsTrue = true_model.atts[idx]
-            svfacTrue = true_model.svfac[idx]
 
         # Plot KDEs
-        fig, axs = plt.subplots(3, 4, figsize=(10, 6))
+        fig, axs = plt.subplots(3, 3, figsize=(8, 8))
         axs = axs.flatten()
 
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
@@ -196,18 +193,16 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
         plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
         plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None)
-        plot_kde(axs[5], dipAll, 'Pol. Dip.', prior.dipRange, true_value=dipTrue if true_model else None)
-        plot_kde(axs[6], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None)
-        plot_kde(axs[7], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None)
-        plot_kde(axs[8], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
-        plot_kde(axs[9], SVfacAll, 'SV/SH Ratio', prior.svfacRange, true_value=svfacTrue if true_model else None)
+        plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None)
+        plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None)
+        plot_kde(axs[7], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
 
         # P/S histogram
         ps_vals = isP_All[mask_box]
-        axs[10].hist(ps_vals, bins=[-0.5, 0.5, 1.5])
-        axs[10].set_xticks([0, 1])
-        axs[10].set_xticklabels(['S', 'P'])
-        axs[10].set_title('P or S')
+        axs[8].hist(ps_vals, bins=[-0.5, 0.5, 1.5])
+        axs[8].set_xticks([0, 1])
+        axs[8].set_xticklabels(['S', 'P'])
+        axs[8].set_title('P or S')
         
         plt.tight_layout()
         plt.show()

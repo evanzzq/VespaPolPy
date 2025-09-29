@@ -15,12 +15,12 @@ third_click = False
 use_manual = True
 
 # The following will be overridden if use_manual == False
-modname    = "Mars_CF"
-runname    = "run1_Z_CD_fit_multichain_L1_maxN10_action1"
-isSyn      = False
-is3c       = False # for synthetic this will be overriden
+modname    = "model6"
+runname    = "run1_3c_CD_0_multichain_L2"
+isSyn      = True
+is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
-CDopt      = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+CDopt      = 0 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
 isds       = False
@@ -29,7 +29,7 @@ fitAtts    = False
 fitPhase   = True
 
 # -------- Selection options --------
-chains_to_plot = None           # Example: [0, 2] to select specific chains by index
+chains_to_plot = [6]           # Example: [0, 2] to select specific chains by index
 likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:

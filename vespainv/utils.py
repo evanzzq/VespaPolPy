@@ -655,6 +655,8 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
             CDinv = compute_toeplitz_CDinv(CD)
             CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
             # CD_sqrt_inv = inv(cholesky(CD))
+    else:
+        CDinv, CD_sqrt_inv = None, None
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz

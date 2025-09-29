@@ -1,31 +1,33 @@
 import pickle, os, sys
 import numpy as np
 import matplotlib.pyplot as plt
-from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c
-from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c, create_U_from_model_3c_freqdomain
+from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c, Bookkeeping
+from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
 from vespainv.utils import dest_point
-from parameter_setup import filedir
 
 # Parameter setup
-modname = "model5"
+filedir = "H:/My Drive/Research/VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+
+modname = "model6"
 Nphase = 3
 is3c = True
 ampRange = (-1, 1)
-slwRange = (0, 1)
+slwRange = (0., 2.)
 
 # Parameter setup: stf
-f0 = 0.5
+f0 = 0.3
 dt = 0.05
 
 # Parameter setup: time vector
-tmax = 100
+tmax = 60
 
 # Parameter setup: array
 srcLat = 0.0
 srcLon = 0.0
 base_dist = 35.0
 base_baz = 30.0
-Ntrace = 25
+Ntrace = 20
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
 
 # Parameter setup: location perturbation
@@ -35,16 +37,16 @@ bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([25, 50, 75])
-slw = np.array([0.2, 0.4, 0.6])
+arr = np.array([15, 30, 45])
+slw = np.array([0.5, 1., 1.5])
 amp = np.array([1, 0.8, 0.6])
-dip = np.array([20, 45, 90, 50])
-azi = np.array([0, 0, 90, 45])
-ph_hh = np.array([10, 20, 30, 40])
-ph_vh = np.array([40, 30, 20, 10])
-atts = np.array([1, 1, 1, 1])
-svfac = np.array([0, 1, 0, 0.5])
-wvtype = np.array([1, 0, 0, 0])
+baz = np.array([0., 0., 0.])
+dip = np.array([0., 0., 0.])
+azi = np.array([0, 90, 45])
+ph_hh = np.array([10, 20, 30])
+ph_vh = np.array([30, 20, 10])
+atts = np.array([1, 1, 1])
+wvtype = np.array([1, 0, 0])
 
 synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -76,7 +78,7 @@ if is3c:
     model = VespaModel3c.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel3c(
-            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, dip=dip, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, svfac=svfac, wvtype=wvtype
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, baz=baz, dip=dip, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype
         )
 else:
     prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
@@ -107,9 +109,6 @@ with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
     ftxt.write(np.array2string(model.slw, separator=", ") + "\n\n")
     ftxt.write("--- Amplitudes ---\n")
     ftxt.write(np.array2string(model.amp, separator=", ") + "\n\n")
-    if hasattr(model, 'dip'):
-        ftxt.write("--- Polarization Dip Angle ---\n")
-        ftxt.write(np.array2string(model.dip, separator=", ") + "\n\n")
     if hasattr(model, 'azi'):
         ftxt.write("--- Polarization Azimuth Angle ---\n")
         ftxt.write(np.array2string(model.azi, separator=", ") + "\n\n")
@@ -122,9 +121,6 @@ with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
     if hasattr(model, 'atts'):
         ftxt.write("--- Attenuation (t* for S) ---\n")
         ftxt.write(np.array2string(model.atts, separator=", ") + "\n\n")
-    if hasattr(model, 'svfac'):
-        ftxt.write("--- SV Amplitude Ratio ---\n")
-        ftxt.write(np.array2string(model.svfac, separator=", ") + "\n\n")
     if hasattr(model, 'wvtype'):
         ftxt.write("--- Wave Type (P = True) ---\n")
         ftxt.write(np.array2string(model.wvtype, separator=", ") + "\n\n")
@@ -141,7 +137,8 @@ with open(os.path.join(synDir, "Prior.pkl"), "wb") as f2:
 
 # Generate U, plot, and save
 if is3c:
-    U = create_U_from_model_3c_freqdomain(model, prior, station_metadata, time, stf_time, stf)
+    U = create_U_from_model_3c_freqdomain(model, prior, station_metadata, time, stf_time, stf,
+                                          Bookkeeping(fitAtts=False, phaseBaz=False, fitPhase=True, isMars=False))
 else:
     U = create_U_from_model(model, prior, station_metadata, time, stf_time, stf)
 
