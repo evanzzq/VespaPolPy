@@ -12,7 +12,7 @@ filedir = "H:\My Drive\Research\VespaPolPy"
 third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = True
+use_manual = False
 
 # The following will be overridden if use_manual == False
 modname    = "model6"
@@ -29,8 +29,8 @@ fitAtts    = False
 fitPhase   = True
 
 # -------- Selection options --------
-chains_to_plot = [6]           # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+chains_to_plot = None          # Example: [0, 2] to select specific chains by index
+likelihood_threshold = -1000 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:
     # ---- Parse config file ----

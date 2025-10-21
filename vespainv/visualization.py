@@ -141,7 +141,26 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         print("No data points selected.")
         return
 
-    def plot_kde(ax, data, label, range_, true_value=None):
+    def plot_kde(ax, data, label, range_, true_value=None, circular=False):
+        """
+        Plot a KDE or histogram of posterior samples.
+
+        Parameters
+        ----------
+        ax : matplotlib.axes.Axes
+            Axis to plot on.
+        data : array-like
+            Data samples.
+        label : str
+            Plot title.
+        range_ : tuple
+            (min, max) plotting range.
+        true_value : float or list, optional
+            True/reference value(s) to mark.
+        circular : bool, optional
+            Whether to treat the variable as circular (e.g., angles).
+            If True, data are wrapped and duplicated to ensure smooth KDE near boundaries.
+        """
         data = data[mask_box]
         data = data[~np.isnan(data)]
         ax.set_title(label)
@@ -151,7 +170,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
                 ax.axvline(val, color='red', linestyle='--', linewidth=0.5)
 
         num_unique = len(np.unique(data))
-        if len(data) < 5 or num_unique < 2:
+        if  len(data) < 5 or num_unique < 10:
             ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
             ax.text(0.5, 0.9, 'Insufficient variance\n(showing histogram)', ha='center',
                     va='top', transform=ax.transAxes, fontsize=9, color='darkred')
@@ -159,17 +178,28 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             return
 
         try:
-            kde = gaussian_kde(data)
-            x = np.linspace(*range_, 100)
+            if circular:
+                # --- Circular wrapping ---
+                low, high = range_
+                width = high - low
+                # wrap into [low, high)
+                data_wrapped = ((data - low) % width) + low
+                # duplicate shifted versions to remove boundary edge effects
+                data_aug = np.concatenate([data_wrapped, data_wrapped - width, data_wrapped + width])
+            else:
+                data_aug = data
+
+            kde = gaussian_kde(data_aug)
+            x = np.linspace(*range_, 200)
             ax.plot(x, kde(x), label='KDE')
             ax.set_xlim(range_)
             ax.legend()
+
         except np.linalg.LinAlgError:
             ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
             ax.text(0.5, 0.9, 'KDE failed\n(showing histogram)', ha='center',
                     va='top', transform=ax.transAxes, fontsize=9, color='darkred')
             ax.set_xlim(range_)
-
 
     if is3c:    
         # True model phases within click range
@@ -192,9 +222,9 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
         plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
-        plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None)
-        plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None)
-        plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None)
+        plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
+        plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None, circular=True)
+        plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None, circular=True)
         plot_kde(axs[7], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
 
         # P/S histogram

@@ -134,7 +134,7 @@ class Prior3c:
     bazRange: tuple = (-10, 10)
     dipRange: tuple = (0, 90)
     aziRange: tuple = (-180, 180)
-    ph_hhRange: tuple = (-90, 90)
+    ph_hhRange: tuple = (-180, 180)
     ph_vhRange: tuple = (-90, 90)
     attsRange: tuple = (0, 4)
     distDiffRange: tuple = (-1, 1)

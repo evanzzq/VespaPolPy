@@ -9,44 +9,45 @@ from vespainv.utils import dest_point
 filedir = "H:/My Drive/Research/VespaPolPy"
 # filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
-modname = "model6"
+modname = "model10"
 Nphase = 3
+maxN = 10 # will be written into Prior
 is3c = True
-ampRange = (-1, 1)
-slwRange = (0., 2.)
+ampRange = (0, 1)
+slwRange = (0., 10.)
 
 # Parameter setup: stf
-f0 = 0.3
-dt = 0.05
+f0 = 0.2
+dt = 0.1
 
 # Parameter setup: time vector
-tmax = 60
+tmax = 150
 
 # Parameter setup: array
 srcLat = 0.0
 srcLon = 0.0
-base_dist = 35.0
+base_dist = 110.0
 base_baz = 30.0
 Ntrace = 20
 refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
 
 # Parameter setup: location perturbation
 locDiff = False
-distDiff = np.random.uniform(-5.0, 5.0, Ntrace)
-bazDiff  = np.random.uniform(-5.0, 5.0, Ntrace)
+distDiff = np.random.uniform(-3.0, 3.0, Ntrace)
+bazDiff  = np.random.uniform(-3.0, 3.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([15, 30, 45])
-slw = np.array([0.5, 1., 1.5])
-amp = np.array([1, 0.8, 0.6])
-baz = np.array([0., 0., 0.])
-dip = np.array([0., 0., 0.])
-azi = np.array([0, 90, 45])
-ph_hh = np.array([10, 20, 30])
-ph_vh = np.array([30, 20, 10])
-atts = np.array([1, 1, 1])
-wvtype = np.array([1, 0, 0])
+arr = np.array([50, 65, 100])
+slw = np.array([5., 2.5, 6.])
+amp = np.array([0.8, 0.5, 0.6])
+baz = np.array([0., 0., 0.]) # not using this in most cases
+dip = np.array([0., 0., 0.]) # not using this at all - eliminate in the future
+azi = np.array([10, 0, 20]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
+ph_hh = np.array([15, 0, 0]) # N/A for P and pure SV?
+ph_vh = np.array([0, 30, 60]) # N/A for pure SH 
+atts = np.array([1,1,1])
+wvtype = np.array([0, 1, 0])
 
 synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -74,14 +75,14 @@ np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delim
 
 # Define prior and model, and save
 if is3c:
-    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
+    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel3c.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel3c(
             Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, baz=baz, dip=dip, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype
         )
 else:
-    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
+    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel(
@@ -184,4 +185,213 @@ if is3c:
 else:
     np.savetxt(os.path.join(synDir, "U.csv"), U, delimiter=",")
 
-sys.exit(0)
+# sys.exit(0)
+
+# === Optional: Add noise to synthetic seismograms ===
+add_noise = True
+sigma = 0.05  # target standard deviation (std) for noise
+np.random.seed(42)
+
+if add_noise:
+    print("[INFO] Generating noisy datasets (L2 = Gaussian, L1 = Laplace)...")
+
+    # --- Prepare output directories ---
+    synDir_L2 = os.path.join(filedir, "SynData", modname + "_noisy_L2")
+    synDir_L1 = os.path.join(filedir, "SynData", modname + "_noisy_L1")
+    os.makedirs(synDir_L2, exist_ok=True)
+    os.makedirs(synDir_L1, exist_ok=True)
+
+    # --- Save shared metadata ---
+    np.savetxt(os.path.join(synDir_L2, "station_metadata.csv"), station_metadata, delimiter=",", header="distance,baz", comments="")
+    np.savetxt(os.path.join(synDir_L1, "station_metadata.csv"), station_metadata, delimiter=",", header="distance,baz", comments="")
+    np.savetxt(os.path.join(synDir_L2, "time.csv"), time, delimiter=",")
+    np.savetxt(os.path.join(synDir_L1, "time.csv"), time, delimiter=",")
+
+    # --- Generate noise and noisy datasets ---
+    # U has shape (T, N, 3) if is3c else (T, N)
+    if is3c:
+        # Gaussian noise (L2)
+        noise_L2 = np.random.normal(loc=0.0, scale=sigma, size=U.shape)
+        U_noisy_L2 = U + noise_L2
+
+        # Laplace noise (L1). Choose scale b so Laplace std = sigma:
+        # Var(Laplace) = 2*b^2 => b = sigma / sqrt(2)
+        laplace_b = sigma / np.sqrt(2.0)
+        noise_L1 = np.random.laplace(loc=0.0, scale=laplace_b, size=U.shape)
+        U_noisy_L1 = U + noise_L1
+
+        # Save noisy data and noise traces for each component
+        comps = [("UZ", 0), ("UR", 1), ("UT", 2)]
+        for name, ic in comps:
+            np.savetxt(os.path.join(synDir_L2, f"{name}.csv"), U_noisy_L2[:, :, ic], delimiter=",")
+            np.savetxt(os.path.join(synDir_L2, f"{name}_noise.csv"), noise_L2[:, :, ic], delimiter=",")
+
+            np.savetxt(os.path.join(synDir_L1, f"{name}.csv"), U_noisy_L1[:, :, ic], delimiter=",")
+            np.savetxt(os.path.join(synDir_L1, f"{name}_noise.csv"), noise_L1[:, :, ic], delimiter=",")
+    else:
+        # 1-component case (T, N)
+        noise_L2 = np.random.normal(loc=0.0, scale=sigma, size=U.shape)
+        U_noisy_L2 = U + noise_L2
+
+        laplace_b = sigma / np.sqrt(2.0)
+        noise_L1 = np.random.laplace(loc=0.0, scale=laplace_b, size=U.shape)
+        U_noisy_L1 = U + noise_L1
+
+        np.savetxt(os.path.join(synDir_L2, "U.csv"), U_noisy_L2, delimiter=",")
+        np.savetxt(os.path.join(synDir_L2, "U_noise.csv"), noise_L2, delimiter=",")
+        np.savetxt(os.path.join(synDir_L1, "U.csv"), U_noisy_L1, delimiter=",")
+        np.savetxt(os.path.join(synDir_L1, "U_noise.csv"), noise_L1, delimiter=",")
+
+    print(f"[INFO] Noisy datasets saved to:\n  {synDir_L2}\n  {synDir_L1}")
+
+    # === Fit and save noise covariance matrices (Kolb & Lekic style) ===
+    from scipy.signal import correlate
+    from scipy.linalg import toeplitz
+    from scipy.optimize import curve_fit
+
+    def fit_and_save_CD(noise_array, out_dir, comps_names):
+        """
+        noise_array: either noise_L2 or noise_L1
+          - 3C: shape (T, N, 3)
+          - 1C: shape (T, N)
+        out_dir: directory to save CD files
+        comps_names: list of tuples (name, ic) for 3C or [('U', 0)] for 1C
+        """
+        if is3c:
+            for name, ic in comps_names:
+                noise_stack = noise_array[:, :, ic]  # (T, N)
+                n_samples, n_traces = noise_stack.shape
+                dt_local = dt if 'dt' not in globals() else dt  # prefer local dt variable
+                # fallback to prior.dt if available
+                if 'prior' in globals() and hasattr(prior, 'dt'):
+                    dt_local = prior.dt
+
+                max_lag_seconds = 50.0
+                max_lag = int(max_lag_seconds / dt_local)
+                if max_lag < 1:
+                    max_lag = n_samples
+
+                # Zero-mean each trace
+                noise_stack = noise_stack - np.mean(noise_stack, axis=0)
+
+                # Compute autocovariance (non-negative lags) per trace
+                acovs = []
+                for i in range(n_traces):
+                    trace = noise_stack[:, i]
+                    acorr = correlate(trace, trace, mode="full")
+                    acorr = acorr[n_samples - 1:]  # keep non-negative lags
+                    acorr = acorr[:max_lag]
+                    acorr /= n_samples
+                    acovs.append(acorr)
+
+                # Average autocovariance across traces
+                avg_autocov = np.mean(acovs, axis=0)
+                lags = np.arange(len(avg_autocov)) * dt_local
+
+                # Normalized autocov for stable fit
+                if avg_autocov[0] == 0:
+                    print(f"[WARN] zero variance for {name}; skipping CD fit.")
+                    continue
+                avg_autocov_norm = avg_autocov / avg_autocov[0]
+
+                # Model: a * exp(-lambda * tau) * cos(lambda * omega0 * tau)
+                def akl_model(tau, a, lambd, omega0):
+                    return a * np.exp(-lambd * tau) * np.cos(lambd * omega0 * tau)
+
+                try:
+                    popt, _ = curve_fit(
+                        akl_model,
+                        lags,
+                        avg_autocov_norm,
+                        p0=(1.0, 0.1, 2 * np.pi * 0.2),
+                        maxfev=10000
+                    )
+                    a_fit_norm, lambda_fit, omega0_fit = popt
+                    a_fit = a_fit_norm * avg_autocov[0]
+                except Exception as e:
+                    print(f"[WARN] Fit failed for {name}: {e}")
+                    # Fallback: use empirical autocov extended to full length
+                    full_lags = np.arange(n_samples) * dt_local
+                    acov_fit = np.zeros(n_samples)
+                    acov_fit[:len(avg_autocov)] = avg_autocov
+                    CD_fit = toeplitz(acov_fit)
+                    np.savetxt(os.path.join(out_dir, f"CD_{name}_empirical.csv"), CD_fit, delimiter=",")
+                    continue
+
+                # Build full autocovariance and Toeplitz covariance matrix
+                full_lags = np.arange(n_samples) * dt_local
+                acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
+                CD_fit = toeplitz(acov_fit)
+
+                # Save
+                np.savetxt(os.path.join(out_dir, f"CD_{name}_fit.csv"), CD_fit, delimiter=",")
+
+        else:
+            # 1-component case
+            noise_stack = noise_array  # (T, N)
+            n_samples, n_traces = noise_stack.shape
+            dt_local = dt if 'dt' not in globals() else dt
+            if 'prior' in globals() and hasattr(prior, 'dt'):
+                dt_local = prior.dt
+            max_lag_seconds = 50.0
+            max_lag = int(max_lag_seconds / dt_local)
+            if max_lag < 1:
+                max_lag = n_samples
+
+            noise_stack = noise_stack - np.mean(noise_stack, axis=0)
+
+            acovs = []
+            for i in range(n_traces):
+                trace = noise_stack[:, i]
+                acorr = correlate(trace, trace, mode="full")
+                acorr = acorr[n_samples - 1:]
+                acorr = acorr[:max_lag]
+                acorr /= n_samples
+                acovs.append(acorr)
+
+            avg_autocov = np.mean(acovs, axis=0)
+            lags = np.arange(len(avg_autocov)) * dt_local
+            if avg_autocov[0] == 0:
+                print("[WARN] zero variance for U; skipping CD fit.")
+                return
+            avg_autocov_norm = avg_autocov / avg_autocov[0]
+
+            def akl_model(tau, a, lambd, omega0):
+                return a * np.exp(-lambd * tau) * np.cos(lambd * omega0 * tau)
+
+            try:
+                popt, _ = curve_fit(
+                    akl_model,
+                    lags,
+                    avg_autocov_norm,
+                    p0=(1.0, 0.1, 2 * np.pi * 0.2),
+                    maxfev=10000
+                )
+                a_fit_norm, lambda_fit, omega0_fit = popt
+                a_fit = a_fit_norm * avg_autocov[0]
+            except Exception as e:
+                print(f"[WARN] Fit failed for U: {e}")
+                full_lags = np.arange(n_samples) * dt_local
+                acov_fit = np.zeros(n_samples)
+                acov_fit[:len(avg_autocov)] = avg_autocov
+                CD_fit = toeplitz(acov_fit)
+                np.savetxt(os.path.join(out_dir, f"CD_U_empirical.csv"), CD_fit, delimiter=",")
+                return
+
+            full_lags = np.arange(n_samples) * dt_local
+            acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
+            CD_fit = toeplitz(acov_fit)
+            np.savetxt(os.path.join(out_dir, "CD_U_fit.csv"), CD_fit, delimiter=",")
+
+    # Run fit & save for L2 and L1 separately
+    if is3c:
+        comps_names = [("UZ", 0), ("UR", 1), ("UT", 2)]
+    else:
+        comps_names = [("U", 0)]
+
+    fit_and_save_CD(noise_L2, synDir_L2, comps_names)
+    fit_and_save_CD(noise_L1, synDir_L1, comps_names)
+
+    print("[INFO] Noise covariance matrices (and empirical fallbacks) saved for both L2 & L1.")
+else:
+    print("[INFO] Noise addition skipped.")

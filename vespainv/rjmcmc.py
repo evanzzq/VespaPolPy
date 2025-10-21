@@ -6,7 +6,7 @@ from vespainv.utils import generate_arr
 
 import numpy as np
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.03, CDinv=None):
+def compute_log_likelihood(U_obs, U_model, sigma=0.05, CDinv=None):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
     
@@ -625,7 +625,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
         if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
-        log_accept_ratio = (new_logL - logL)
+        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1)/(model_new.Nphase + 1))
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
