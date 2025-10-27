@@ -118,8 +118,10 @@ def create_U_from_model_3c_freqdomain(
 
     fitAtts = bookkeeping.fitAtts
     phaseBaz = bookkeeping.phaseBaz
-    fitPhase = bookkeeping.fitPhase
-    isMars = bookkeeping.isMars
+    fitPhase = bookkeeping.fitPhase # ph_hh and ph_vh
+    isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
+    pref = bookkeeping.pref
+    tref = bookkeeping.tref
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
@@ -129,13 +131,15 @@ def create_U_from_model_3c_freqdomain(
 
     refLat = prior.refLat
     refLon = prior.refLon
+    refDist = prior.refDist
+    refBaz = prior.refBaz
     srcLat = prior.srcLat
     srcLon = prior.srcLon
 
-    if isMars:
-        refDist = np.mean(metadata[:, 0])
-    else:
-        refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
+    # if isMars:
+    #     refDist = np.mean(metadata[:, 0]) # use S0794a
+    # else:
+    #     refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
     # _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     stf_shift = stf_time[-1]
@@ -150,8 +154,8 @@ def create_U_from_model_3c_freqdomain(
         trBaz += model.bazDiff[itrace]
 
         if not phaseBaz:
-            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
-            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+            dx = (trDist - refDist) * np.sin(np.radians(refBaz))
+            dy = (trDist - refDist) * np.cos(np.radians(refBaz))
 
         traceZ_W = np.zeros(len(time), dtype=complex)
         traceR_W = np.zeros(len(time), dtype=complex)

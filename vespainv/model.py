@@ -14,6 +14,9 @@ class Bookkeeping:
     fitPhase:       bool = False
     normOpt:        int = 2
     isMars:         bool = False
+    # pref and tref for phase-aligned case (relative slowness), default to zero
+    pref:           float = 0.0 # also serves as flag
+    tref:           float = 0.0
 
     def __post_init__(self):
         if self.burnInSteps is None:
@@ -23,6 +26,7 @@ class Bookkeeping:
 class Prior:
     refLat: float
     refLon: float
+    refDist: float
     refBaz: float
     srcLat: float
     srcLon: float

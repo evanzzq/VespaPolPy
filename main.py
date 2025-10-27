@@ -125,17 +125,17 @@ if __name__ == "__main__":
             prior.arrStd = 5.0
         else:
             srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
-            refLat, refLon, refBaz = calc_array_center(metadata, srcLat, srcLon)
+            refLat, refLon, refDist, refBaz = calc_array_center(metadata, srcLat, srcLon)
             if is3c:
                 prior = Prior3c(
-                    refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
+                    refLat=refLat, refLon=refLon, refDist=refDist, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
                     minSpace=stf_wid, maxN=maxN,
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                     slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
                 )
             else:
                 prior = Prior(
-                    refLat=refLat, refLon=refLon, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
+                    refLat=refLat, refLon=refLon, refDist=refDist, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
                     minSpace=stf_wid, maxN=maxN,
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                     slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange

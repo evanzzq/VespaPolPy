@@ -448,21 +448,20 @@ def bandpass(data, fs, fmin, fmax, corners=4, zerophase=True):
 
     return filtered
 
-
 def calc_array_center(station_metadata, srcLat, srcLon):
     """
     Calculate approximate center of an array.
 
     Inputs:
-      station_metadata: np.ndarray of shape (n_station, 2) [distance (deg), back-azimuth (deg)]
+      station_metadata: np.ndarray of shape (n_station, 2)
+          [distance (deg), back-azimuth (deg)] for each station relative to the source
       srcLat, srcLon: event source latitude and longitude (degrees)
 
     Returns:
-      centerLat, centerLon, centerBaz
+      centerLat, centerLon, centerBaz, centerDist
     """
-
     n_station = station_metadata.shape[0]
-    
+
     latitudes = []
     longitudes = []
     for i in range(n_station):
@@ -470,22 +469,31 @@ def calc_array_center(station_metadata, srcLat, srcLon):
         lat, lon = dest_point(srcLat, srcLon, baz, dist)
         latitudes.append(lat)
         longitudes.append(lon)
-    
+
     latitudes = np.array(latitudes)
     longitudes = np.array(longitudes)
-    
+
     centerLat = np.mean(latitudes)
     centerLon = np.mean(longitudes)
-    
-    # Compute centerBaz from src -> array center
+
+    # --- Compute centerBaz and centerDist from src → array center ---
     d2r = np.pi / 180
     r2d = 180 / np.pi
     dlon = (centerLon - srcLon) * d2r
-    y = np.sin(dlon) * np.cos(centerLat * d2r)
-    x = np.cos(srcLat * d2r) * np.sin(centerLat * d2r) - np.sin(srcLat * d2r) * np.cos(centerLat * d2r) * np.cos(dlon)
+    lat1 = srcLat * d2r
+    lat2 = centerLat * d2r
+
+    # Forward azimuth (baz)
+    y = np.sin(dlon) * np.cos(lat2)
+    x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(dlon)
     centerBaz = (np.arctan2(y, x) * r2d) % 360
 
-    return centerLat, centerLon, centerBaz
+    # Great-circle distance (degrees)
+    centerDist = np.arccos(
+        np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(dlon)
+    ) * r2d
+
+    return centerLat, centerLon, centerDist, centerBaz
 
 def create_stf(f0, dt):
     stf_time_0 = np.arange(-4 / f0, 4 / f0 + dt, dt)
