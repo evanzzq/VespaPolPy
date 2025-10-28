@@ -95,7 +95,7 @@ from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
 def create_U_from_model_3c_freqdomain(
     model: VespaModel,
     prior: Prior,
-    metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
+    metadata: np.ndarray,  # shape (n_traces, 2): [lat, lon] per row; if isMars, [dist, baz] per row
     time: np.ndarray,
     stf_time: np.ndarray,
     stf: np.ndarray,
@@ -113,13 +113,14 @@ def create_U_from_model_3c_freqdomain(
     - stf: np.ndarray, source time function values
 
     Returns:
-    - U_model: np.ndarray of shape (n_traces, len(time), 3), synthetic seismograms
+    - U_model: np.ndarray of shape (len(time), n_traces, 3), synthetic seismograms
     """
 
     fitAtts = bookkeeping.fitAtts
-    phaseBaz = bookkeeping.phaseBaz
     fitPhase = bookkeeping.fitPhase # ph_hh and ph_vh
     isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
+    locDiff = bookkeeping.locDiff
+    srcArray = bookkeeping.srcArray
     pref = bookkeeping.pref
     tref = bookkeeping.tref
 
@@ -131,32 +132,56 @@ def create_U_from_model_3c_freqdomain(
 
     refLat = prior.refLat
     refLon = prior.refLon
-    refDist = prior.refDist
+    
     refBaz = prior.refBaz
+    refAz = (refBaz + 180)%360
+    
     srcLat = prior.srcLat
     srcLon = prior.srcLon
-
-    # if isMars:
-    #     refDist = np.mean(metadata[:, 0]) # use S0794a
-    # else:
-    #     refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
-    # _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
 
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
     stf_W = fft(stf)
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
+    # if pref (input data aligned at a phase), pre-calculate pref_x/y
+    # not need for an if condition, because pref = 0.0 if not used
+    if srcArray:
+        pref_x = pref * np.sin(np.radians(refBaz))
+        pref_y = pref * np.cos(np.radians(refBaz))
+    else:
+        pref_x = pref * np.sin(np.radians(refAz))
+        pref_y = pref * np.cos(np.radians(refAz))
+
     for itrace in range(n_traces):
         
-        trDist, trBaz = metadata[itrace]
-        trDist += model.distDiff[itrace]
-        trBaz += model.bazDiff[itrace]
+        # if isMars, then metadata is in (dist, baz), and default to source array
+        if isMars:
+            trDist, trBaz = metadata[itrace]
+            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
+        # else, metadata is in (lat, lon)
+        else:
+            trLat, trLon = metadata[itrace]
 
-        if not phaseBaz:
-            dx = (trDist - refDist) * np.sin(np.radians(refBaz))
-            dy = (trDist - refDist) * np.cos(np.radians(refBaz))
+        # it doesn't make sense to do locDiff in receiver array
+        # in source array setting, srcLat/srcLon is actually station coordinates
+        if (isMars or srcArray) and locDiff:
+            # radius of Mars w/ zero flattening
+            # in Mars & source array case, trLat/Lon refers to source coordinates, srcLat/Lon refers to station (InSight)
+            # coordinates; therefore trBaz is the azimuth of station-->source, i.e., back azimuth
+            _, _, trBaz = gps2dist_azimuth(trLat, trLon, srcLat, srcLon, a=3389500, f=0)
+            trDist = locations2degrees(trLat, trLon, srcLat, srcLon)
+            trDist += model.distDiff[itrace]
+            trBaz  += model.bazDiff[itrace]
+            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
 
+        dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
+        dy = (trLat - refLat)
+
+        # if pref (input data aligned at a phase), calculate shift time to be subtracted
+        tshift_sub = pref_x * dx + pref_y * dy
+
+        # initialize
         traceZ_W = np.zeros(len(time), dtype=complex)
         traceR_W = np.zeros(len(time), dtype=complex)
         traceT_W = np.zeros(len(time), dtype=complex)
@@ -164,14 +189,16 @@ def create_U_from_model_3c_freqdomain(
         for iph in range(model.Nphase):
             
             slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
-            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+            slow += pref
 
-            if phaseBaz:
-                dx = (trDist - refDist) * np.sin(np.radians(trBaz+model.baz[iph]))
-                dy = (trDist - refDist) * np.cos(np.radians(trBaz+model.baz[iph]))
+            if srcArray:
+                slow_x = slow * np.sin(np.radians(refBaz))
+                slow_y = slow * np.cos(np.radians(refBaz))
+            else:
+                slow_x = slow * np.sin(np.radians(refAz))
+                slow_y = slow * np.cos(np.radians(refAz))
 
-            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
 
             P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
             S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
@@ -188,21 +215,17 @@ def create_U_from_model_3c_freqdomain(
                 SH_W = model.amp[iph] * S_shifted_W
                 P_W = np.zeros_like(SV_W)
             
-            # sin_inc = np.sin(np.radians(model.dip[iph]))
             sin_azi = np.sin(np.radians(model.azi[iph]))
             cos_azi = np.cos(np.radians(model.azi[iph]))
-
-            # P_W *= np.cos(np.radians(model.dip[iph]))
-            # SV_W *= sin_inc * cos_azi
-            # SH_W *= sin_inc * sin_azi
 
             SV_W *= cos_azi
             SH_W *= sin_azi
             
+            # use absolute slowness in FST
             if isMars:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph], a0=5.0, b0=3.0, radius=3389.5)
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, slow, a0=5.0, b0=3.0, radius=3389.5)
             else:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, model.slw[iph])
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, slow)
 
             if fitPhase:
                 R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))

@@ -8,10 +8,10 @@ class Bookkeeping:
     burnInSteps:    int = None
     nSaveModels:    int = 100
     actionsPerStep: int = 2
-    phaseBaz:       bool = False
-    locDiff:        bool = False
-    fitAtts:        bool = False
-    fitPhase:       bool = False
+    locDiff:        bool = False # perturb array location in (dist, baz)
+    fitAtts:        bool = False # attenuation
+    fitPhase:       bool = False # ph_hh and ph_vh
+    srcArray:       bool = False # receiver or source array
     normOpt:        int = 2
     isMars:         bool = False
     # pref and tref for phase-aligned case (relative slowness), default to zero

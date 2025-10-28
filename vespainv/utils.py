@@ -157,7 +157,7 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         stla = trZ.stats.sac.stla
         stlo = trZ.stats.sac.stlo
         dist_deg = trZ.stats.sac.gcarc
-        _, baz, _ = gps2dist_azimuth(evla, evlo, stla, stlo)
+        _, _, baz = gps2dist_azimuth(evla, evlo, stla, stlo)
         stlas.append(stla)
         stlos.append(stlo)
         dists.append(dist_deg)
@@ -335,9 +335,10 @@ def make_vespagram(
 
         for itrace in range(n_traces):
             trDist, trBaz = metadata[itrace]
+            trAz = (trBaz + 180)%360
 
             # Compute station lat/lon
-            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist)
+            trLat, trLon = dest_point(srcLat, srcLon, trAz, trDist)
 
             # Local dx, dy (same convention as forward modeling)
             dx = (trLon - refLon) * np.cos(np.radians(refLat))
@@ -668,6 +669,7 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
     metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
+    metadata_lalo = np.loadtxt(os.path.join(datadir, modname, "station_metadata_lalo.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
     dt = Utime[1] - Utime[0]
 
     if isbp:
