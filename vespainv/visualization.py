@@ -261,27 +261,24 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     
     return selected_pt
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, fitAtts=False, phaseBaz=False, fitPhase=True, moveout_pt=None):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, bookkeeping=None, moveout_pt=None):
 
-    from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
+    from vespainv.waveformBuilder import create_U_from_model_freqdomain, create_U_from_model_3c_freqdomain
 
     is3c = True if U.ndim == 3 else False
     n_traces = U.shape[1]
-
-    bk_tmp = Bookkeeping(fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase)
 
     if ensemble is not None:
         U_model = np.zeros_like(U)
         for model in ensemble:
             U_model += (
-                create_U_from_model_3c_freqdomain(model, prior, metadata, time, stf[:, 0], stf[:, 1], bk_tmp) # tmp fix!!! 
+                create_U_from_model_3c_freqdomain(model, metadata, time, stf[:, 0], stf[:, 1], bookkeeping)
                 if is3c 
-                else create_U_from_model(model, prior, metadata, time, stf[:, 0], stf[:, 1], bk_tmp)
+                else create_U_from_model_freqdomain(model, metadata, time, stf[:, 0], stf[:, 1], bookkeeping)
                 )
         U_model /= len(ensemble)
 
     # Apply moveout correction if moveout_pt is provided
-    # Phase BAZ won't work in this correction!
     if moveout_pt:
 
         from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
@@ -290,10 +287,10 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
         U_shifted = np.zeros_like(U)
         U_model_shifted = np.zeros_like(U)
 
-        refLat = prior.refLat
-        refLon = prior.refLon
-        srcLat = prior.srcLat
-        srcLon = prior.srcLon
+        refLat = bookkeeping.refLat
+        refLon = bookkeeping.refLon
+        srcLat = bookkeeping.srcLat
+        srcLon = bookkeeping.srcLon
         refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
         
         for itrace in range(n_traces):

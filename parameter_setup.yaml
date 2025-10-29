@@ -1,16 +1,16 @@
 # ---- universal defaults ----
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
-  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  # filedir: "H:/My Drive/Research/VespaPolPy"
+  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
-  isSyn: true
+  isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
 
-  num_chains: 16
-  totalSteps: 100000
-  burnInSteps: 80000
-  nSaveModels: 200
+  num_chains: 2
+  totalSteps: 1000
+  burnInSteps: 800
+  nSaveModels: 10
   actionsPerStep: 1
 
   maxN: 10
@@ -30,61 +30,67 @@ defaults:
   distDiffRange: [-5.0, -5.0]
   bazDiffRange: [-5.0, -5.0]
 
-  phaseBaz: false
   fitAtts: false
   fitPhase: true
   isMars: false
+  srcArray: false
+
+  pref: 0.0
+  tref: 0.0
 
 # ---- experiment specifics ----
 experiments:
 
-  # model 10 noise free
-  - modname: "model10"
-    runname: "run1_L1"
-    slwRange: [0., 8.]
-    CDopt: 0
-    normOpt: 1
-  
-  - modname: "model10"
-    runname: "run1_L2"
-    slwRange: [0., 8.]
-    CDopt: 0
-    normOpt: 2
-  
-  # model 10 noisy L1
-  - modname: "model10_noisy_L1"
-    runname: "run1_L1"
-    slwRange: [0., 8.]
-    CDopt: 3
-    normOpt: 1
-  
-  - modname: "model10_noisy_L1"
-    runname: "run1_L2"
-    slwRange: [0., 8.]
-    CDopt: 3
-    normOpt: 2
-  
-  # model 10 noisy L2
-  - modname: "model10_noisy_L2"
-    runname: "run1_L1"
-    slwRange: [0., 8.]
-    CDopt: 3
-    normOpt: 1
-  
-  - modname: "model10_noisy_L2"
-    runname: "run1_L2"
-    slwRange: [0., 8.]
-    CDopt: 3
-    normOpt: 2
-
-  # # CF 3c
-  # - modname: "Mars_CF_short_Z"
-  #   runname: "run1_3c_CD_0_multichain_L1_maxN10_action1"
+  # # model 10 noise free
+  # - modname: "model10"
+  #   runname: "run1_L1"
+  #   slwRange: [0., 8.]
   #   CDopt: 0
-  #   isMars: true
-  #   is3c: true
-  #   slwRange: [-8., 8.]
   #   normOpt: 1
+  
+  # - modname: "model10"
+  #   runname: "run1_L2"
+  #   slwRange: [0., 8.]
+  #   CDopt: 0
+  #   normOpt: 2
+  
+  # # model 10 noisy L1
+  # - modname: "model10_noisy_L1"
+  #   runname: "run1_L1"
+  #   slwRange: [0., 8.]
+  #   CDopt: 3
+  #   normOpt: 1
+  
+  # - modname: "model10_noisy_L1"
+  #   runname: "run1_L2"
+  #   slwRange: [0., 8.]
+  #   CDopt: 3
+  #   normOpt: 2
+  
+  # # model 10 noisy L2
+  # - modname: "model10_noisy_L2"
+  #   runname: "run1_L1"
+  #   slwRange: [0., 8.]
+  #   CDopt: 3
+  #   normOpt: 1
+  
+  # - modname: "model10_noisy_L2"
+  #   runname: "run1_L2"
+  #   slwRange: [0., 8.]
+  #   CDopt: 3
+  #   normOpt: 2
+
+  # CF 3c
+  - modname: "Mars_CF_short_Z"
+    runname: "run_p"
+    CDopt: 0
+    isMars: true
+    srcArray: true
+    is3c: true
+    slwRange: [-8., 8.]
+    normOpt: 1
+    pref: 7.3457
+    tref: 0.0
 
   # - modname: "Mars_CF_short_Z"
   #   runname: "run2_3c_CD_0_multichain_L2_maxN10_action1"
@@ -94,13 +100,16 @@ experiments:
   #   slwRange: [-8., 8.]
   #   normOpt: 2
 
-  # - modname: "Mars_CF_short"
-  #   runname: "run2_3c_CD_0_multichain_L1_maxN10_action1"
-  #   CDopt: 0
-  #   isMars: true
-  #   is3c: true
-  #   slwRange: [-8., 8.]
-  #   normOpt: 1
+  - modname: "Mars_CF_short"
+    runname: "run_p"
+    CDopt: 0
+    isMars: true
+    srcArray: true
+    is3c: true
+    slwRange: [-8., 8.]
+    normOpt: 1
+    pref: 7.3457
+    tref: 0.0
 
   # - modname: "Mars_CF_short"
   #   runname: "run2_3c_CD_0_multichain_L2_maxN10_action1"

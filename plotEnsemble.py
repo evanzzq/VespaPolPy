@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
 third_click = False
@@ -30,7 +30,7 @@ fitPhase   = True
 
 # -------- Selection options --------
 chains_to_plot = None          # Example: [0, 2] to select specific chains by index
-likelihood_threshold = -1000 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:
     # ---- Parse config file ----
@@ -73,13 +73,7 @@ if not use_manual:
     isSyn      = selected_params["isSyn"]
     is3c       = selected_params["is3c"]
     comp       = selected_params["comp"]
-
     CDopt      = selected_params["CDopt"]
-    isbp       = selected_params["isbp"]
-    freqs      = tuple(selected_params["freqs"])
-    isds       = selected_params["isds"]
-
-    phaseBaz   = selected_params["phaseBaz"]
     fitAtts    = selected_params["fitAtts"]
 
 print(f"Selected: {modname}, {runname}")
@@ -169,8 +163,12 @@ if isSyn:
         model = pickle.load(f)
 
 # ---- Load observed data & STF ----
-U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds)
+U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
+
+# ---- Load Bookkeeping ----
+with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
+    bookkeeping = pickle.load(f)
 
 # ---- Plot ----
 moveout_pt = plot_ensemble_vespagram(
@@ -183,12 +181,12 @@ moveout_pt = plot_ensemble_vespagram(
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=ensemble, prior=prior, metadata=metadata,
-    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase, moveout_pt=moveout_pt
+    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt
 )
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=[ensemble[-1]], prior=prior, metadata=metadata,
-    stf=stf, fitAtts=fitAtts, phaseBaz=phaseBaz, fitPhase=fitPhase, moveout_pt=moveout_pt
+    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt
 )
 
 plt.show()

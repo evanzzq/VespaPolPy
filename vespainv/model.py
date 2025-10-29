@@ -4,6 +4,14 @@ from vespainv.utils import generate_arr
 
 @dataclass
 class Bookkeeping:
+    # array geometry
+    refLat: float
+    refLon: float
+    refBaz: float # always lit. baz, i.e., station --> source
+    # src Lat/Lon refers to source in receiver array, station in source array
+    srcLat: float
+    srcLon: float
+    # inversion setup
     totalSteps:     int = 1e6
     burnInSteps:    int = None
     nSaveModels:    int = 100
@@ -24,12 +32,7 @@ class Bookkeeping:
 
 @dataclass
 class Prior:
-    refLat: float
-    refLon: float
-    refDist: float
-    refBaz: float
-    srcLat: float
-    srcLon: float
+
     timeRange: tuple
 
     maxN: int = 5
@@ -124,11 +127,7 @@ class VespaModel:
 
 @dataclass
 class Prior3c:
-    refLat: float
-    refLon: float
-    refBaz: float
-    srcLat: float
-    srcLon: float
+    
     timeRange: tuple
 
     maxN: int = 5
@@ -155,8 +154,6 @@ class Prior3c:
     attsStd: float = None
     distDiffStd: float = None
     bazDiffStd: float = None
-
-    sourceArray: bool = False
 
     def __post_init__(self):
         if self.slwStd is None:

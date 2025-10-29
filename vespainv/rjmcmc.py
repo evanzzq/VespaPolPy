@@ -121,7 +121,7 @@ def birth3c(model, prior):
         return model_new, False
 
 
-def death(model, prior):
+def death(model):
     model_new = copy.deepcopy(model)
     if model_new.Nphase > 0:
         idx = np.random.randint(model_new.Nphase) if model_new.Nphase > 0 else 0
@@ -136,7 +136,7 @@ def death(model, prior):
         success = False
     return model_new, success
 
-def death3c(model, prior):
+def death3c(model):
     model_new = copy.deepcopy(model)
     success = False
     if model_new.Nphase > 0:
@@ -197,38 +197,6 @@ def update_amp(model, prior):
     # Success, return
     return model_new, True
 
-def update_phaseBaz(model, prior):
-    # Copy model
-    model_new = copy.deepcopy(model)
-    # Select a trace and update
-    idx = np.random.randint(model_new.Nphase)
-    model_new.baz[idx] += prior.bazStd * np.random.randn()
-    # Check range
-    if not (prior.bazRange[0] <= model_new.baz[idx] <= prior.bazRange[1]):
-        return model, False
-    # Success, return
-    return model_new, True
-
-def update_nc(model, prior):
-    # Copy model
-    model_new = copy.deepcopy(model)
-    # Update
-    eps = np.finfo(float).eps
-    model_new.nc1 += prior.nc1Std * np.random.randn()
-    model_new.nc1 = np.clip(model_new.nc1, eps, 1)
-    model_new.nc2 += prior.nc2Std * np.random.randn()
-    # Return
-    return model_new, True
-
-def update_sig(model, prior):
-    # Copy model
-    model_new = copy.deepcopy(model)
-    # Update
-    eps = np.finfo(float).eps
-    model_new.sig = np.maximum(eps, model_new.sig + prior.sigStd * np.random.randn() * prior.stdU)
-    # Return
-    return model_new, True
-
 def update_distDiff(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
@@ -249,18 +217,6 @@ def update_bazDiff(model, prior):
     model_new.bazDiff[idx] += prior.bazDiffStd * np.random.randn()
     # Check range
     if not (prior.bazDiffRange[0] <= model_new.bazDiff[idx] <= prior.bazDiffRange[1]):
-        return model, False
-    # Success, return
-    return model_new, True
-
-def update_dip(model, prior):
-    # Copy model
-    model_new = copy.deepcopy(model)
-    # Select a trace and update
-    idx = np.random.randint(model_new.Nphase)
-    model_new.dip[idx] += prior.dipStd * np.random.randn()
-    # Check range
-    if not (prior.dipRange[0] <= model_new.dip[idx] <= prior.dipRange[1]):
         return model, False
     # Success, return
     return model_new, True
@@ -313,18 +269,6 @@ def update_atts(model, prior):
     # Success, return
     return model_new, True
 
-def update_svfac(model, prior):
-    # Copy model
-    model_new = copy.deepcopy(model)
-    # Select a trace and update
-    idx = np.random.randint(model_new.Nphase)
-    model_new.svfac[idx] += prior.svfacStd * np.random.randn()
-    # Check range and wave type
-    if not (prior.svfacRange[0] <= model_new.svfac[idx] <= prior.svfacRange[1]) or model_new.wvtype[idx] == 1:
-        return model, False
-    # Success, return
-    return model_new, True
-
 def update_wvtype(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
@@ -336,8 +280,8 @@ def update_wvtype(model, prior):
 
 def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
-    from vespainv.model import VespaModel, Prior
-    from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_freqdomain
+    from vespainv.model import VespaModel
+    from vespainv.waveformBuilder import create_U_from_model_freqdomain
 
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -347,7 +291,6 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
-    phaseBaz = bookkeeping.phaseBaz
     fitAtts = bookkeeping.fitAtts
     locDiff = bookkeeping.locDiff
     normOpt = bookkeeping.normOpt
@@ -396,9 +339,8 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             actions = [0]
         else:
             actionPool = np.arange(5)
-            if phaseBaz: actionPool = np.append(actionPool, [5])
-            if fitAtts: actionPool = np.append(actionPool, [6])
-            if locDiff: actionPool = np.append(actionPool, [7, 8])
+            if fitAtts: actionPool = np.append(actionPool, [5])
+            if locDiff: actionPool = np.append(actionPool, [6, 7])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -413,7 +355,7 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             if iAction == 0:
                 model_new, _ = birth(model_new, prior)
             elif iAction == 1:
-                model_new, _ = death(model_new, prior)
+                model_new, _ = death(model_new)
             elif iAction == 2:
                 model_new, success = update_arr(model_new, prior)
             elif iAction == 3:
@@ -421,19 +363,17 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             elif iAction == 4:
                 model_new, success = update_amp(model_new, prior)
             elif iAction == 5:
-                model_new, success = update_phaseBaz(model_new, prior)
-            elif iAction == 6:
                 model_new, success = update_atts(model_new, prior)
-            elif iAction == 7:
+            elif iAction == 6:
                 model_new, _ = update_distDiff(model_new, prior)
-            elif iAction == 8:
+            elif iAction == 7:
                 model_new, _ = update_bazDiff(model_new, prior)
             
             if success:
                 applied_actions.append(iAction)
                 action_counts[iAction].append(1)  # always count attempt
 
-        U_model_new = create_U_from_model_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
+        U_model_new = create_U_from_model_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
         if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
         if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
@@ -525,7 +465,6 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     nSaveModels = bookkeeping.nSaveModels
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
-    phaseBaz = bookkeeping.phaseBaz
     locDiff = bookkeeping.locDiff
     fitAtts = bookkeeping.fitAtts
     fitPhase = bookkeeping.fitPhase
@@ -543,7 +482,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     samples = []
     logL_trace = []
 
-    U_model = create_U_from_model_3c_freqdomain(model, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
+    U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
     if normOpt == 1: logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
     if normOpt == 2: logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
@@ -573,9 +512,8 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         else:
             actionPool = np.arange(7)
             if fitPhase: actionPool = np.append(actionPool, [7, 8])
-            if phaseBaz: actionPool = np.append(actionPool, [9])
-            if fitAtts: actionPool = np.append(actionPool, [10])
-            if locDiff: actionPool = np.append(actionPool, [11, 12])
+            if fitAtts: actionPool = np.append(actionPool, [9])
+            if locDiff: actionPool = np.append(actionPool, [10, 11])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -590,15 +528,13 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             if iAction == 0:
                 model_new, success = birth3c(model_new, prior)
             elif iAction == 1:
-                model_new, success = death3c(model_new, prior)
+                model_new, success = death3c(model_new)
             elif iAction == 2:
                 model_new, success = update_arr(model_new, prior)
             elif iAction == 3:
                 model_new, success = update_slw(model_new, prior)
             elif iAction == 4:
                 model_new, success = update_amp(model_new, prior)
-            # elif iAction == 5:
-            #     model_new, success = update_dip(model_new, prior)
             elif iAction == 5:
                 model_new, success = update_azi(model_new, prior)
             elif iAction == 6:
@@ -608,12 +544,10 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             elif iAction == 8:
                 model_new, success = update_ph_vh(model_new, prior)
             elif iAction == 9:
-                model_new, success = update_phaseBaz(model_new, prior)
-            elif iAction == 10:
                 model_new, success = update_atts(model_new, prior)
-            elif iAction == 11:
+            elif iAction == 10:
                 model_new, success = update_distDiff(model_new, prior)
-            elif iAction == 12:
+            elif iAction == 11:
                 model_new, success = update_bazDiff(model_new, prior)
 
             if success:
@@ -621,7 +555,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
                 action_counts[iAction].append(1)  # always count attempt
 
         # Evaluate proposed model
-        U_model_new = create_U_from_model_3c_freqdomain(model_new, prior, metadata, Utime, stf_time, stf_data, bookkeeping)
+        U_model_new = create_U_from_model_3c_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
         if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
         if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
@@ -706,24 +640,3 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
     return samples, logL_trace
-
-# Archive #
-def choose_actions(phaseBaz, locDiff, fitNoise, actionsPerStep):
-    actionPool = [0, 1, 2, 3, 4]
-    if phaseBaz:
-        actionPool.extend([5])
-    if fitNoise:
-        actionPool.extend([6, 7])
-    if locDiff:
-        actionPool.extend([8, 9])
-
-    actionPool = np.array(actionPool)
-
-    if 6 in actionPool:
-        base_actions = actionPool[actionPool != 5]
-        base_weight = 0.99 / len(base_actions)
-        weights = np.array([0.01 if a == 5 else base_weight for a in actionPool])
-    else:
-        weights = np.full(len(actionPool), 1.0 / len(actionPool))
-
-    return np.random.choice(actionPool, size=actionsPerStep, replace=True, p=weights)

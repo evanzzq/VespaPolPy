@@ -92,11 +92,11 @@ if __name__ == "__main__":
         distDiffRange = tuple(params["distDiffRange"])
         bazDiffRange  = tuple(params["bazDiffRange"])
 
-        phaseBaz   = params["phaseBaz"]
         fitAtts    = params["fitAtts"]
         fitPhase   = params["fitPhase"]
         normOpt    = params["normOpt"]
         isMars     = params["isMars"]
+        srcArray   = params["srcArray"]
 
         print(f"\n=== Running experiment: {modname} / {runname} ===")
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
         datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
 
         U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c = prep_data(
-            datadir, modname, is3c, comp, CDopt, isbp, freqs, isds
+            datadir, modname, is3c, comp, CDopt
         )
         dt = Utime[1] - Utime[0]
 
@@ -124,19 +124,14 @@ if __name__ == "__main__":
                 prior = pickle.load(f)
             prior.arrStd = 5.0
         else:
-            srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
-            refLat, refLon, refDist, refBaz = calc_array_center(metadata, srcLat, srcLon)
             if is3c:
                 prior = Prior3c(
-                    refLat=refLat, refLon=refLon, refDist=refDist, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
                     minSpace=stf_wid, maxN=maxN,
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                     slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
                 )
             else:
                 prior = Prior(
-                    refLat=refLat, refLon=refLon, refDist=refDist, refBaz=refBaz, srcLat=srcLat, srcLon=srcLon,
-                    minSpace=stf_wid, maxN=maxN,
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                     slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
                 )
@@ -154,17 +149,28 @@ if __name__ == "__main__":
                 model = pickle.load(f)
 
         # Bookkeeping
+        srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
+        refLat, refLon, _, refBaz = calc_array_center(metadata, srcLat, srcLon, srcArray)
         bookkeeping = Bookkeeping(
             totalSteps=totalSteps,
             burnInSteps=burnInSteps,
             nSaveModels=nSaveModels,
             actionsPerStep=actionsPerStep,
-            phaseBaz=phaseBaz,
             locDiff=locDiff,
             fitAtts=fitAtts,
             fitPhase=fitPhase,
-            isMars=isMars
+            isMars=isMars,
+            srcArray=srcArray,
+            srcLat=srcLat,
+            srcLon=srcLon,
+            refLat=refLat,
+            refLon=refLon,
+            refBaz=refBaz
         )
+        bk_path = os.path.join(save_dir, "Bookkeeping.pkl")
+        if not os.path.exists(bk_path):
+            with open(bk_path, "wb") as f:
+                pickle.dump(bookkeeping, f)
 
         # -------- Multiprocessing setup --------
         # Get number of physical cores

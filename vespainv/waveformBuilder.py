@@ -8,8 +8,7 @@ from obspy.geodetics.base import locations2degrees, gps2dist_azimuth
 
 def create_U_from_model_freqdomain(
     model: VespaModel,
-    prior: Prior,
-    metadata: np.ndarray,  # shape (n_traces, 2): [dist, baz] per row
+    metadata: np.ndarray,  # shape (n_traces, 2): [lat, lon] per row; if isMars, [dist, baz] per row
     time: np.ndarray,
     stf_time: np.ndarray,
     stf: np.ndarray,
@@ -30,8 +29,12 @@ def create_U_from_model_freqdomain(
     - U_model: np.ndarray of shape (n_traces, len(time)), synthetic seismograms
     """
 
-    phaseBaz = bookkeeping.phaseBaz
     fitAtts = bookkeeping.fitAtts
+    isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
+    locDiff = bookkeeping.locDiff
+    srcArray = bookkeeping.srcArray
+    pref = bookkeeping.pref
+    tref = bookkeeping.tref
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces))
@@ -39,10 +42,14 @@ def create_U_from_model_freqdomain(
     if model.Nphase == 0:
         return U_model
 
-    refLat = prior.refLat
-    refLon = prior.refLon
-    srcLat = prior.srcLat
-    srcLon = prior.srcLon
+    refLat = bookkeeping.refLat
+    refLon = bookkeeping.refLon
+    
+    refBaz = bookkeeping.refBaz
+    refAz = (refBaz + 180)%360
+    
+    srcLat = bookkeeping.srcLat
+    srcLon = bookkeeping.srcLon
 
     refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
     _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
@@ -52,29 +59,59 @@ def create_U_from_model_freqdomain(
     stf_W = fft(stf)
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
+    # if pref (input data aligned at a phase), pre-calculate pref_x/y
+    # not need for an if condition, because pref = 0.0 if not used
+    if srcArray:
+        pref_x = pref * np.sin(np.radians(refBaz))
+        pref_y = pref * np.cos(np.radians(refBaz))
+    else:
+        pref_x = pref * np.sin(np.radians(refAz))
+        pref_y = pref * np.cos(np.radians(refAz))
+
     for itrace in range(n_traces):
         
-        trDist, trBaz = metadata[itrace]
-        trDist += model.distDiff[itrace]
-        trBaz += model.bazDiff[itrace]
+        # if isMars, then metadata is in (dist, baz), and default to source array
+        if isMars:
+            trDist, trBaz = metadata[itrace]
+            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
+        # else, metadata is in (lat, lon)
+        else:
+            trLat, trLon = metadata[itrace]
 
-        if not phaseBaz:
-            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
-            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+        # it doesn't make sense to do locDiff in receiver array
+        # in source array setting, srcLat/srcLon is actually station coordinates
+        if (isMars or srcArray) and locDiff:
+            # radius of Mars w/ zero flattening
+            # in Mars & source array case, trLat/Lon refers to source coordinates, srcLat/Lon refers to station (InSight)
+            # coordinates; therefore trBaz is the azimuth of station-->source, i.e., back azimuth
+            _, _, trBaz = gps2dist_azimuth(trLat, trLon, srcLat, srcLon, a=3389500, f=0)
+            trDist = locations2degrees(trLat, trLon, srcLat, srcLon)
+            trDist += model.distDiff[itrace]
+            trBaz  += model.bazDiff[itrace]
+            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
 
+        dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
+        dy = (trLat - refLat)
+
+        # if pref (input data aligned at a phase), calculate shift time to be subtracted
+        tshift_sub = pref_x * dx + pref_y * dy
+
+        # initialize
         trace_W = np.zeros(len(time), dtype=complex)
 
         for iph in range(model.Nphase):
             
             slow = model.slw[iph]
-            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
-            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+            slow += pref
 
-            if phaseBaz:
-                dx = (trDist - refDist) * np.sin(np.radians(trBaz+model.baz[iph]))
-                dy = (trDist - refDist) * np.cos(np.radians(trBaz+model.baz[iph]))
+            if srcArray:
+                slow_x = slow * np.sin(np.radians(refBaz))
+                slow_y = slow * np.cos(np.radians(refBaz))
+            else:
+                slow_x = slow * np.sin(np.radians(refAz))
+                slow_y = slow * np.cos(np.radians(refAz))
 
-            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
 
             if fitAtts: stf_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph])
 
@@ -94,7 +131,6 @@ from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
 
 def create_U_from_model_3c_freqdomain(
     model: VespaModel,
-    prior: Prior,
     metadata: np.ndarray,  # shape (n_traces, 2): [lat, lon] per row; if isMars, [dist, baz] per row
     time: np.ndarray,
     stf_time: np.ndarray,
@@ -130,14 +166,14 @@ def create_U_from_model_3c_freqdomain(
     if model.Nphase == 0:
         return U_model
 
-    refLat = prior.refLat
-    refLon = prior.refLon
+    refLat = bookkeeping.refLat
+    refLon = bookkeeping.refLon
     
-    refBaz = prior.refBaz
+    refBaz = bookkeeping.refBaz
     refAz = (refBaz + 180)%360
     
-    srcLat = prior.srcLat
-    srcLon = prior.srcLon
+    srcLat = bookkeeping.srcLat
+    srcLon = bookkeeping.srcLon
 
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')

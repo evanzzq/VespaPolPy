@@ -303,9 +303,10 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             CD_fit = toeplitz(acov_fit)
             np.savetxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), CD_fit, delimiter=",")
 
+    # Archive: used to save metadata in (dist, baz) format
+    # np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
+    #            np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
-               np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
-    np.savetxt(os.path.join(output_dir, "station_metadata_lalo.csv"),
                np.column_stack([stlas, stlos]), delimiter=",", header="lat,lon", comments='')
     np.savetxt(os.path.join(output_dir, "eventinfo.csv"),
                np.column_stack([evla, evlo]), delimiter=",", header="evla,evlo", comments='')
@@ -314,14 +315,15 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
 def make_vespagram(
     U: np.ndarray,                   # shape (n_time, n_traces)
     time: np.ndarray,               # shape (n_time,)
-    metadata: np.ndarray,           # shape (n_traces, 2) = [dist, baz]
+    metadata: np.ndarray,           # shape (n_traces, 2) = (lat, lon)
     refLat: float,
     refLon: float,
     srcLat: float,
     srcLon: float,
     slow_grid: np.ndarray,
-    refBaz: float = None,
-    clim: tuple = None
+    refBaz: float,
+    srcArray: bool,
+    clim: tuple
 ) -> np.ndarray:
 
     import matplotlib.pyplot as plt
@@ -341,14 +343,17 @@ def make_vespagram(
             trLat, trLon = dest_point(srcLat, srcLon, trAz, trDist)
 
             # Local dx, dy (same convention as forward modeling)
-            dx = (trLon - refLon) * np.cos(np.radians(refLat))
-            dy = trLat - refLat
+            dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
+            dy = (trLat - refLat)
 
             # Slowness vector
-            if refBaz is not None:
-                trBaz = refBaz
-            slow_x = slow * np.cos(np.radians(90 - trBaz))
-            slow_y = slow * np.sin(np.radians(90 - trBaz))
+            if srcArray:
+                slow_x = slow * np.sin(np.radians(refBaz))
+                slow_y = slow * np.cos(np.radians(refBaz))
+            else:
+                refAz = (refBaz + 180)%360
+                slow_x = slow * np.sin(np.radians(refAz))
+                slow_y = slow * np.cos(np.radians(refAz))
 
             # Time shift
             tshift = (slow_x * dx + slow_y * dy)
@@ -449,52 +454,64 @@ def bandpass(data, fs, fmin, fmax, corners=4, zerophase=True):
 
     return filtered
 
-def calc_array_center(station_metadata, srcLat, srcLon):
+import numpy as np
+
+def calc_array_center(metadata, srcLat, srcLon, srcArray):
     """
-    Calculate approximate center of an array.
+    Calculate approximate center of an array and its geometric relation to the source.
 
     Inputs:
-      station_metadata: np.ndarray of shape (n_station, 2)
-          [distance (deg), back-azimuth (deg)] for each station relative to the source
-      srcLat, srcLon: event source latitude and longitude (degrees)
+      metadata : np.ndarray of shape (n_station, 2) in (lat, lon)
+      srcLat, srcLon : float
+          Source (or station, if srcArray=True) latitude and longitude in degrees
+      srcArray : bool
+          True for source array (single station, multiple sources)
+          False for receiver array (single source, multiple stations)
 
     Returns:
-      centerLat, centerLon, centerBaz, centerDist
+      centerLat, centerLon, centerDist, centerBaz
+        centerLat/Lon : mean coordinates of array
+        centerDist : great-circle distance (degrees) between source/station and array center
+        centerBaz : azimuth from station→center if srcArray=True,
+                    or center→source (back-azimuth) if srcArray=False
     """
-    n_station = station_metadata.shape[0]
 
-    latitudes = []
-    longitudes = []
-    for i in range(n_station):
-        dist, baz = station_metadata[i]
-        lat, lon = dest_point(srcLat, srcLon, baz, dist)
-        latitudes.append(lat)
-        longitudes.append(lon)
+    # --- Compute array geometric center ---
+    lats = np.array(metadata[:, 0])
+    lons = np.array(metadata[:, 1])
+    centerLat = np.mean(lats)
+    centerLon = np.mean(lons)
 
-    latitudes = np.array(latitudes)
-    longitudes = np.array(longitudes)
-
-    centerLat = np.mean(latitudes)
-    centerLon = np.mean(longitudes)
-
-    # --- Compute centerBaz and centerDist from src → array center ---
+    # --- Compute distance and azimuth based on array type ---
     d2r = np.pi / 180
     r2d = 180 / np.pi
-    dlon = (centerLon - srcLon) * d2r
+
     lat1 = srcLat * d2r
+    lon1 = srcLon * d2r
     lat2 = centerLat * d2r
+    lon2 = centerLon * d2r
 
-    # Forward azimuth (baz)
-    y = np.sin(dlon) * np.cos(lat2)
-    x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(dlon)
-    centerBaz = (np.arctan2(y, x) * r2d) % 360
+    if srcArray:
+        # Source array → station is src; center is mean of sources
+        dlon = (lon2 - lon1)
+        y = np.sin(dlon) * np.cos(lat2)
+        x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(dlon)
+        centerBaz = (np.arctan2(y, x) * r2d) % 360.0
+    else:
+        # Receiver array → source is src; center is mean of stations
+        dlon = (lon1 - lon2)
+        y = np.sin(dlon) * np.cos(lat1)
+        x = np.cos(lat2) * np.sin(lat1) - np.sin(lat2) * np.cos(lat1) * np.cos(dlon)
+        centerBaz = (np.arctan2(y, x) * r2d) % 360.0
 
-    # Great-circle distance (degrees)
+    # --- Great-circle distance (degrees) ---
+    dlon_gc = (lon2 - lon1)
     centerDist = np.arccos(
-        np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(dlon)
+        np.sin(lat1) * np.sin(lat2) + np.cos(lat1) * np.cos(lat2) * np.cos(dlon_gc)
     ) * r2d
 
     return centerLat, centerLon, centerDist, centerBaz
+
 
 def create_stf(f0, dt):
     stf_time_0 = np.arange(-4 / f0, 4 / f0 + dt, dt)
@@ -619,9 +636,9 @@ def inv_sqrt(C):
     D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
     return eigvecs @ D_inv_sqrt @ eigvecs.T
 
-def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isnorm=False):
+def prep_data(datadir, modname, is3c, comp, CDopt):
     import os
-    from scipy.linalg import fractional_matrix_power, cholesky, inv, eigh
+    from scipy.linalg import fractional_matrix_power
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
             response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
@@ -652,35 +669,17 @@ def prep_data(datadir, modname, is3c, comp, CDopt, isbp, freqs, isds=False, isno
             CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
             CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
             CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
-            # CD_sqrt_inv = [fractional_matrix_power(CD_Z, -0.5), fractional_matrix_power(CD_R, -0.5), fractional_matrix_power(CD_T, -0.5)]
-            # CD_sqrt_inv2 = [inv(cholesky(CD_Z)), inv(cholesky(CD_R)), inv(cholesky(CD_T))]
             CD_sqrt_inv = [inv_sqrt(CD_Z), inv_sqrt(CD_R), inv_sqrt(CD_T)]
-            # # tmp save for debug
-            # savename = os.path.join(datadir, modname, 'CD_inv_debug.npz')
-            # np.savez(savename, CD_Z=CD_Z, CDZ_inv=CDinv[0], CDZ_sqrt_inv=CD_sqrt_inv[0], CDZ_sqrt_inv2=CD_sqrt_inv2[0], CDZ_sqrt_inv3=CD_sqrt_inv3[0])
         else:
             CDname = "CD_U"+comp+robust_handle+".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
             CDinv = compute_toeplitz_CDinv(CD)
             CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
-            # CD_sqrt_inv = inv(cholesky(CD))
     else:
         CDinv, CD_sqrt_inv = None, None
 
     Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
-    metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
-    metadata_lalo = np.loadtxt(os.path.join(datadir, modname, "station_metadata_lalo.csv"), delimiter=",", skiprows=1)  # columns: distance, baz
+    metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: lat, lon
     dt = Utime[1] - Utime[0]
-
-    if isbp:
-        U_obs = bandpass(U_obs, 1/dt, freqs[0], freqs[1])
-
-    if isds:
-        factor = int((1/dt) / isds)
-        U_obs = U_obs[::factor]
-        Utime = Utime[::factor]
-        dt = Utime[1] - Utime[0]
-    
-    if isnorm: U_obs /= np.max(np.abs(U_obs)) # normalize
     
     return U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c
