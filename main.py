@@ -83,11 +83,7 @@ if __name__ == "__main__":
         minSpace   = params["minSpace"]
 
         CDopt      = params["CDopt"]
-        isbp       = params["isbp"]
-        freqs      = tuple(params["freqs"])
-        isds       = params["isds"]
 
-        bazRange   = tuple(params["bazRange"])
         locDiff    = params["locDiff"]
         distDiffRange = tuple(params["distDiffRange"])
         bazDiffRange  = tuple(params["bazDiffRange"])
@@ -97,6 +93,11 @@ if __name__ == "__main__":
         normOpt    = params["normOpt"]
         isMars     = params["isMars"]
         srcArray   = params["srcArray"]
+
+        ref_manual = params["ref_manual"]
+        refLat     = params["refLat"]
+        refLon     = params["refLon"]
+        refBaz     = params["refBaz"]
 
         print(f"\n=== Running experiment: {modname} / {runname} ===")
 
@@ -128,12 +129,12 @@ if __name__ == "__main__":
                 prior = Prior3c(
                     minSpace=stf_wid, maxN=maxN,
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
-                    slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
+                    slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
                 )
             else:
                 prior = Prior(
                     timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
-                    slwRange=slwRange, bazRange=bazRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
+                    slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
                 )
             save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)
             os.makedirs(save_dir, exist_ok=True)
@@ -150,7 +151,8 @@ if __name__ == "__main__":
 
         # Bookkeeping
         srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
-        refLat, refLon, _, refBaz = calc_array_center(metadata, srcLat, srcLon, srcArray)
+        if not ref_manual:
+            refLat, refLon, _, refBaz = calc_array_center(metadata, srcLat, srcLon, srcArray)
         bookkeeping = Bookkeeping(
             totalSteps=totalSteps,
             burnInSteps=burnInSteps,

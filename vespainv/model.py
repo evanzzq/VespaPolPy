@@ -39,7 +39,6 @@ class Prior:
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    bazRange: tuple = (-50, 50)
     attsRange: tuple = (0, 4)
     distDiffRange: tuple = (-5, 5)
     bazDiffRange: tuple = (-5, 5)
@@ -47,7 +46,6 @@ class Prior:
     arrStd: float = 0.15
     slwStd: float = None
     ampStd: float = None
-    bazStd: float = None
     attsStd: float = None
     distDiffStd: float = None
     bazDiffStd: float = None
@@ -59,8 +57,6 @@ class Prior:
             self.slwStd = 0.2 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
             self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
-        if self.bazStd is None:
-            self.bazStd = 0.2 * (self.bazRange[1] - self.bazRange[0])
         if self.attsStd is None:
             self.attsStd = 0.1 * (self.attsRange[1] - self.attsRange[0])
         if self.distDiffStd is None:
@@ -134,8 +130,6 @@ class Prior3c:
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    bazRange: tuple = (-10, 10)
-    dipRange: tuple = (0, 90)
     aziRange: tuple = (-180, 180)
     ph_hhRange: tuple = (-180, 180)
     ph_vhRange: tuple = (-90, 90)
@@ -146,8 +140,6 @@ class Prior3c:
     arrStd: float = 1.0
     slwStd: float = None
     ampStd: float = None
-    bazStd: float = None
-    dipStd: float = None
     aziStd: float = None
     ph_hhStd: float = None
     ph_vhStd: float = None
@@ -160,10 +152,6 @@ class Prior3c:
             self.slwStd = 0.2 * (self.slwRange[1] - self.slwRange[0])
         if self.ampStd is None:
             self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
-        if self.bazStd is None:
-            self.bazStd = 0.2 * (self.bazRange[1] - self.bazRange[0])
-        if self.dipStd is None:
-            self.dipStd = 0.2 * (self.dipRange[1] - self.dipRange[0])
         if self.aziStd is None:
             self.aziStd = 0.2 * (self.aziRange[1] - self.aziRange[0])
         if self.ph_hhStd is None:

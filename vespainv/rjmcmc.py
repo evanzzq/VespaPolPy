@@ -93,7 +93,6 @@ def birth(model, prior):
             )
         model_new.slw = np.append(model_new.slw, np.random.uniform(prior.slwRange[0], prior.slwRange[1]))
         model_new.amp = np.append(model_new.amp, np.random.uniform(prior.ampRange[0], prior.ampRange[1]))
-        model_new.baz = np.append(model_new.baz, np.random.uniform(prior.bazRange[0], prior.bazRange[1]))
         model_new.atts = np.append(model_new.atts, np.random.uniform(prior.attsRange[0], prior.attsRange[1]))
         success = True
     else:
@@ -109,8 +108,6 @@ def birth3c(model, prior):
             )
         model_new.slw = np.append(model_new.slw, np.random.uniform(prior.slwRange[0], prior.slwRange[1]))
         model_new.amp = np.append(model_new.amp, np.random.uniform(prior.ampRange[0], prior.ampRange[1]))
-        model_new.baz = np.append(model_new.baz, np.random.uniform(prior.bazRange[0], prior.bazRange[1]))
-        # model_new.dip = np.append(model_new.dip, np.random.uniform(prior.dipRange[0], prior.dipRange[1]))
         model_new.azi = np.append(model_new.azi, np.random.uniform(prior.aziRange[0], prior.aziRange[1]))
         model_new.ph_hh = np.append(model_new.ph_hh, np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1]))
         model_new.ph_vh = np.append(model_new.ph_vh, np.random.uniform(prior.ph_vhRange[0], prior.ph_vhRange[1]))
@@ -128,7 +125,6 @@ def death(model):
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
-        model_new.baz = np.delete(model_new.baz, idx)
         model_new.atts = np.delete(model_new.atts, idx)
         model_new.Nphase -= 1
         success = True
@@ -144,8 +140,6 @@ def death3c(model):
         model_new.arr = np.delete(model_new.arr, idx)
         model_new.slw = np.delete(model_new.slw, idx)
         model_new.amp = np.delete(model_new.amp, idx)
-        model_new.baz = np.delete(model_new.baz, idx)
-        # model_new.dip = np.delete(model_new.dip, idx)
         model_new.azi = np.delete(model_new.azi, idx)
         model_new.ph_hh = np.delete(model_new.ph_hh, idx)
         model_new.ph_vh = np.delete(model_new.ph_vh, idx)

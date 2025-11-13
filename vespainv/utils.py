@@ -304,8 +304,8 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             np.savetxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), CD_fit, delimiter=",")
 
     # Archive: used to save metadata in (dist, baz) format
-    # np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
-    #            np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
+    np.savetxt(os.path.join(output_dir, "station_metadata_db.csv"),
+               np.column_stack([dists, bazs]), delimiter=",", header="dist_deg,baz", comments='')
     np.savetxt(os.path.join(output_dir, "station_metadata.csv"),
                np.column_stack([stlas, stlos]), delimiter=",", header="lat,lon", comments='')
     np.savetxt(os.path.join(output_dir, "eventinfo.csv"),

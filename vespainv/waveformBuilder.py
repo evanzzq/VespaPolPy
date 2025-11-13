@@ -51,9 +51,6 @@ def create_U_from_model_freqdomain(
     srcLat = bookkeeping.srcLat
     srcLon = bookkeeping.srcLon
 
-    refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
-    _, refBaz, _ = gps2dist_azimuth(srcLat, srcLon, refLat, refLon)
-
     stf_shift = stf_time[-1]
     stf = np.pad(stf, (0, len(time)-len(stf)), mode='constant')
     stf_W = fft(stf)
@@ -181,7 +178,7 @@ def create_U_from_model_3c_freqdomain(
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
     # if pref (input data aligned at a phase), pre-calculate pref_x/y
-    # not need for an if condition, because pref = 0.0 if not used
+    # no need for an if condition, because pref = 0.0 if not used
     if srcArray:
         pref_x = pref * np.sin(np.radians(refBaz))
         pref_y = pref * np.cos(np.radians(refBaz))

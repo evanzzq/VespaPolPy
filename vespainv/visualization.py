@@ -11,9 +11,8 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     arrAll = np.concatenate([m.arr for m in ensemble])
     slwAll = np.concatenate([m.slw for m in ensemble])
     ampAll = np.concatenate([m.amp for m in ensemble])
-    bazAll = np.concatenate([m.baz for m in ensemble])
     attsAll = np.concatenate([m.atts for m in ensemble])
-    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll) & ~np.isnan(bazAll)
+    valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll)
 
     if is3c:
         aziAll = np.concatenate([m.azi for m in ensemble])
@@ -22,8 +21,8 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
         isP_All = np.concatenate([m.wvtype for m in ensemble])  # Assume 1=P, 0=S
 
-        arrAll, slwAll, ampAll, bazAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
-            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid], 
+        arrAll, slwAll, ampAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
+            arrAll[valid], slwAll[valid], ampAll[valid],
             aziAll[valid], ph_hhAll[valid], ph_vhAll[valid], 
             attsAll[valid], isP_All[valid]
         )
@@ -37,15 +36,15 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         else:
             mask_wave = np.ones_like(isP_All, dtype=bool)
 
-        arrAll, slwAll, ampAll, bazAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
-            arrAll[mask_wave], slwAll[mask_wave], ampAll[mask_wave], bazAll[mask_wave], 
+        arrAll, slwAll, ampAll, aziAll, ph_hhAll, ph_vhAll, attsAll, isP_All = (
+            arrAll[mask_wave], slwAll[mask_wave], ampAll[mask_wave], 
             aziAll[mask_wave], ph_hhAll[mask_wave], ph_vhAll[mask_wave], 
             attsAll[mask_wave], isP_All[mask_wave]
         )
 
     else:  # Non-3c case
-        arrAll, slwAll, ampAll, bazAll = (
-            arrAll[valid], slwAll[valid], ampAll[valid], bazAll[valid]
+        arrAll, slwAll, ampAll = (
+            arrAll[valid], slwAll[valid], ampAll[valid]
         )
     
     # Kernel density estimation
@@ -66,7 +65,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     # Plot as contour
     plt.figure(figsize=(8, 6))
-    h = plt.contourf(xx, yy, zz, levels=30, cmap='seismic')
+    h = plt.contourf(xx, yy, zz, levels=100, cmap='hot')
     plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
     plt.xlabel("Arrival Time (s)")
     plt.ylabel("Slowness (s/deg)")
@@ -221,7 +220,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
-        plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
+        # plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
         plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
         plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None, circular=True)
         plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None, circular=True)

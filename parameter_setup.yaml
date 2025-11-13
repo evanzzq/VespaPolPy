@@ -1,16 +1,16 @@
 # ---- universal defaults ----
 defaults:
-  # filedir: "H:/My Drive/Research/VespaPolPy"
-  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  filedir: "H:/My Drive/Research/VespaPolPy"
+  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
 
-  num_chains: 2
-  totalSteps: 1000
-  burnInSteps: 800
-  nSaveModels: 10
+  num_chains: 16
+  totalSteps: 300000
+  burnInSteps: 200000
+  nSaveModels: 200
   actionsPerStep: 1
 
   maxN: 10
@@ -19,12 +19,6 @@ defaults:
   minSpace: 1.0
 
   CDopt: 3        # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
-
-  isbp: false
-  freqs: [0.02, 1.0]
-  isds: false
-
-  bazRange: [-50.0, 0.0]
 
   locDiff: false
   distDiffRange: [-5.0, -5.0]
@@ -37,6 +31,11 @@ defaults:
 
   pref: 0.0
   tref: 0.0
+
+  ref_manual: false
+  refLat: 9.48
+  refLon: 163.03
+  refBaz: 78.1
 
 # ---- experiment specifics ----
 experiments:
@@ -81,43 +80,60 @@ experiments:
   #   normOpt: 2
 
   # CF 3c
-  - modname: "Mars_CF_short_Z"
-    runname: "run_p"
-    CDopt: 0
-    isMars: true
-    srcArray: true
-    is3c: true
-    slwRange: [-8., 8.]
-    normOpt: 1
-    pref: 7.3457
-    tref: 0.0
-
   # - modname: "Mars_CF_short_Z"
-  #   runname: "run2_3c_CD_0_multichain_L2_maxN10_action1"
+  #   runname: "run_p2"
   #   CDopt: 0
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
-  #   normOpt: 2
-
-  - modname: "Mars_CF_short"
-    runname: "run_p"
-    CDopt: 0
-    isMars: true
-    srcArray: true
-    is3c: true
-    slwRange: [-8., 8.]
-    normOpt: 1
-    pref: 7.3457
-    tref: 0.0
+  #   slwRange: [-5., 5.]
+  #   normOpt: 1
+  #   pref: 7.3457
+  #   tref: 0.0
 
   # - modname: "Mars_CF_short"
-  #   runname: "run2_3c_CD_0_multichain_L2_maxN10_action1"
+  #   runname: "run_p2"
   #   CDopt: 0
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
-  #   normOpt: 2
+  #   slwRange: [-5., 5.]
+  #   normOpt: 1
+  #   pref: 7.3457
+  #   tref: 0.0
+  
+  # - modname: "Mars_CF_Dahmen_Z"
+  #   runname: "run_p"
+  #   CDopt: 0
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   normOpt: 1
+  #   pref: 7.3457
+  #   tref: 0.0
+
+  # - modname: "Mars_CF_Dahmen"
+  #   runname: "run_p"
+  #   CDopt: 0
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   normOpt: 1
+  #   pref: 7.3457
+  #   tref: 0.0
+  
+  # - modname: "Mars_CF"
+  #   runname: "run_p"
+  #   CDopt: 0
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   normOpt: 1
+  #   pref: 7.3457
+  #   tref: 0.0
 
   # # Syn model9
   # - modname: "model9_P"
@@ -260,10 +276,27 @@ experiments:
   #   normOpt: 1
   
   # - modname: "201111221848_P_45_48"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
+  #   runname: "run6_new_L1"
+  #   slwRange: [2., 8.]
   #   normOpt: 1
   
+  # - modname: "201111221848_P_45_48"
+  #   runname: "run6_new_L2"
+  #   slwRange: [2., 8.]
+  #   normOpt: 2
+  
+  - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
+    runname: "run3_L1_N50"
+    slwRange: [4., 14.]
+    maxN: 10
+    normOpt: 1
+  
+  - modname: "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240"
+    runname: "run1_L1_N50"
+    slwRange: [4., 14.]
+    maxN: 10
+    normOpt: 1
+
   # # P, L2
   # - modname: "201111221848_P_30_33"
   #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
@@ -293,66 +326,4 @@ experiments:
   # - modname: "201111221848_P_45_48"
   #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
   #   slwRange: [2., 10.]
-  #   normOpt: 2
-
-  # # S, L1
-  # - modname: "201111221848_S_30_33"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-
-  # - modname: "201111221848_S_33_36"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_S_36_39"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_S_39_42"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_S_42_45"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_S_45_48"
-  #   runname: "run1_3c_CD_fit_multichain_L1"
-  #   slwRange: [6., 14.]
-  #   normOpt: 1
-  
-  # # S, L2
-  # - modname: "201111221848_S_30_33"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
-  #   normOpt: 2
-
-  # - modname: "201111221848_S_33_36"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_S_36_39"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_S_39_42"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_S_42_45"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_S_45_48"
-  #   runname: "run2_3c_CD_fit_multichain_L2"
-  #   slwRange: [6., 14.]
   #   normOpt: 2
