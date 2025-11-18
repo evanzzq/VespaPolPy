@@ -6,7 +6,7 @@ from vespainv.utils import generate_arr
 
 import numpy as np
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.05, CDinv=None):
+def compute_log_likelihood(U_obs, U_model, sigma=0.04, CDinv=None):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
     
@@ -317,7 +317,7 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
 
     # --- Sliding window setup ---
     window_size = 1000
-    n_actions = 9
+    n_actions = 8
     # Track recent attempts and successes
     action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
     action_success = {i: deque(maxlen=window_size) for i in range(n_actions)}
@@ -340,16 +340,16 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
         model_new = model
         applied_actions = []  # Track successful actions (not yet accepted)
 
-        for i in range(len(actions)):
+        for iAction in actions:
 
             if model_new.Nphase == 0:
                 iAction = 0  # force birth if no phases
             success = False
 
             if iAction == 0:
-                model_new, _ = birth(model_new, prior)
+                model_new, success = birth(model_new, prior)
             elif iAction == 1:
-                model_new, _ = death(model_new)
+                model_new, success = death(model_new)
             elif iAction == 2:
                 model_new, success = update_arr(model_new, prior)
             elif iAction == 3:
@@ -359,9 +359,9 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             elif iAction == 5:
                 model_new, success = update_atts(model_new, prior)
             elif iAction == 6:
-                model_new, _ = update_distDiff(model_new, prior)
+                model_new, success = update_distDiff(model_new, prior)
             elif iAction == 7:
-                model_new, _ = update_bazDiff(model_new, prior)
+                model_new, success = update_bazDiff(model_new, prior)
             
             if success:
                 applied_actions.append(iAction)
@@ -446,7 +446,7 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-    return samples, logL_trace
+    return samples, logL_trace, Nphase
 
 def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
@@ -487,7 +487,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     # --- Sliding window setup ---
     window_size = 1000
-    n_actions = 15
+    n_actions = 12
 
     # Track recent attempts and successes
     action_counts = {i: deque(maxlen=window_size) for i in range(n_actions)}
@@ -633,4 +633,4 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-    return samples, logL_trace
+    return samples, logL_trace, Nphase

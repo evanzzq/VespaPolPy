@@ -44,16 +44,17 @@ def run_chain(chain_id, exp_vars):
 
     # Run RJMCMC
     if is3c:
-        samples, logL_trace = rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
+        samples, logL_trace, Nphase = rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
                                            stf, prior, bookkeeping, save_dir)
     else:
-        samples, logL_trace = rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
+        samples, logL_trace, Nphase = rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
                                          stf, prior, bookkeeping, save_dir)
 
     # Save outputs
     with open(os.path.join(save_dir, "ensemble.pkl"), "wb") as f:
         pickle.dump(samples, f)
     np.savetxt(os.path.join(save_dir, "log_likelihood.txt"), logL_trace)
+    np.savetxt(os.path.join(save_dir, "Nphase.txt"), Nphase)
 
     return samples
 
@@ -120,39 +121,44 @@ if __name__ == "__main__":
         stf_wid = minSpace if minSpace is not None else est_stf_wid(stf)
 
         # Prior
-        if isSyn:
-            with open(os.path.join(datadir, modname, "Prior.pkl"), "rb") as f:
-                prior = pickle.load(f)
-            prior.arrStd = 5.0
+        # if isSyn:
+        #     with open(os.path.join(datadir, modname, "Prior.pkl"), "rb") as f:
+        #         prior = pickle.load(f)
+        #     prior.arrStd = 5.0
+        # else:
+        if is3c:
+            prior = Prior3c(
+                minSpace=stf_wid, maxN=maxN,
+                timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
+                slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
+            )
         else:
-            if is3c:
-                prior = Prior3c(
-                    minSpace=stf_wid, maxN=maxN,
-                    timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
-                    slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
-                )
-            else:
-                prior = Prior(
-                    timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
-                    slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
-                )
-            save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)
-            os.makedirs(save_dir, exist_ok=True)
-            prior_path = os.path.join(save_dir, "Prior.pkl")
-            if not os.path.exists(prior_path):
-                with open(prior_path, "wb") as f:
-                    pickle.dump(prior, f)
+            prior = Prior(
+                timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
+                slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
+            )
+        save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)
+        os.makedirs(save_dir, exist_ok=True)
+        prior_path = os.path.join(save_dir, "Prior.pkl")
+        if not os.path.exists(prior_path):
+            with open(prior_path, "wb") as f:
+                pickle.dump(prior, f)
 
         # Model (synthetic only)
         model = None
         if isSyn:
-            with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f:
-                model = pickle.load(f)
+            with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f1:
+                model = pickle.load(f1)
+            with open(os.path.join(datadir, modname, "Bookkeeping_0.pkl"), "rb") as f2:
+                bookkeeping_0 = pickle.load(f2)
 
         # Bookkeeping
-        srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
-        if not ref_manual:
-            refLat, refLon, _, refBaz = calc_array_center(metadata, srcLat, srcLon, srcArray)
+        if isSyn:
+            srcLat, srcLon, refLat, refLon, refBaz = bookkeeping_0.srcLat, bookkeeping_0.srcLon, bookkeeping_0.refLat, bookkeeping_0.refLon, bookkeeping_0.refBaz
+        else:
+            srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
+            if not ref_manual:
+                refLat, refLon, _, refBaz = calc_array_center(metadata, srcLat, srcLon, srcArray)
         bookkeeping = Bookkeeping(
             totalSteps=totalSteps,
             burnInSteps=burnInSteps,

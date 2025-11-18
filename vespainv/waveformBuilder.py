@@ -109,10 +109,11 @@ def create_U_from_model_freqdomain(
                 slow_y = slow * np.cos(np.radians(refAz))
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
+            # print(f"    Phase {iph}, tshift = {tshift}, slow = {slow}")
 
-            if fitAtts: stf_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph])
+            wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
 
-            shifted_W = stf_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
+            shifted_W = wvlt_W * np.exp(-2j * np.pi * stf_freq * (tshift-stf_shift))
 
             trace_W += model.amp[iph] * shifted_W
 

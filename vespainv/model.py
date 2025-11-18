@@ -78,7 +78,6 @@ class VespaModel:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
-    baz: np.ndarray
     atts: np.ndarray
     distDiff: np.ndarray = None
     bazDiff: np.ndarray = None
@@ -97,7 +96,6 @@ class VespaModel:
             arr=np.array([]),
             slw=np.array([]),
             amp=np.array([]),
-            baz=np.array([]),
             atts=np.array([]),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
@@ -115,7 +113,6 @@ class VespaModel:
             arr=arr,
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
-            baz=np.zeros(Nphase),
             atts=np.random.uniform(prior.attsRange[0], prior.attsRange[1], Nphase),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
@@ -180,7 +177,6 @@ class VespaModel3c:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
-    baz: np.ndarray
     dip: np.ndarray
     azi: np.ndarray
     ph_hh: np.ndarray

@@ -7,9 +7,9 @@ defaults:
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
 
-  num_chains: 16
-  totalSteps: 300000
-  burnInSteps: 200000
+  num_chains: 8
+  totalSteps: 200000
+  burnInSteps: 160000
   nSaveModels: 200
   actionsPerStep: 1
 
@@ -40,290 +40,185 @@ defaults:
 # ---- experiment specifics ----
 experiments:
 
-  # # model 10 noise free
-  # - modname: "model10"
-  #   runname: "run1_L1"
-  #   slwRange: [0., 8.]
-  #   CDopt: 0
-  #   normOpt: 1
-  
-  # - modname: "model10"
-  #   runname: "run1_L2"
-  #   slwRange: [0., 8.]
-  #   CDopt: 0
-  #   normOpt: 2
-  
-  # # model 10 noisy L1
-  # - modname: "model10_noisy_L1"
-  #   runname: "run1_L1"
-  #   slwRange: [0., 8.]
-  #   CDopt: 3
-  #   normOpt: 1
-  
-  # - modname: "model10_noisy_L1"
-  #   runname: "run1_L2"
-  #   slwRange: [0., 8.]
-  #   CDopt: 3
-  #   normOpt: 2
-  
-  # # model 10 noisy L2
-  # - modname: "model10_noisy_L2"
-  #   runname: "run1_L1"
-  #   slwRange: [0., 8.]
-  #   CDopt: 3
-  #   normOpt: 1
-  
-  # - modname: "model10_noisy_L2"
-  #   runname: "run1_L2"
-  #   slwRange: [0., 8.]
-  #   CDopt: 3
-  #   normOpt: 2
-
-  # CF 3c
-  # - modname: "Mars_CF_short_Z"
-  #   runname: "run_p2"
-  #   CDopt: 0
-  #   isMars: true
-  #   srcArray: true
-  #   is3c: true
-  #   slwRange: [-5., 5.]
-  #   normOpt: 1
-  #   pref: 7.3457
-  #   tref: 0.0
-
-  # - modname: "Mars_CF_short"
-  #   runname: "run_p2"
-  #   CDopt: 0
-  #   isMars: true
-  #   srcArray: true
-  #   is3c: true
-  #   slwRange: [-5., 5.]
-  #   normOpt: 1
-  #   pref: 7.3457
-  #   tref: 0.0
-  
-  # - modname: "Mars_CF_Dahmen_Z"
-  #   runname: "run_p"
-  #   CDopt: 0
-  #   isMars: true
-  #   srcArray: true
-  #   is3c: true
-  #   slwRange: [-5., 5.]
-  #   normOpt: 1
-  #   pref: 7.3457
-  #   tref: 0.0
-
-  # - modname: "Mars_CF_Dahmen"
-  #   runname: "run_p"
-  #   CDopt: 0
-  #   isMars: true
-  #   srcArray: true
-  #   is3c: true
-  #   slwRange: [-5., 5.]
-  #   normOpt: 1
-  #   pref: 7.3457
-  #   tref: 0.0
-  
-  # - modname: "Mars_CF"
-  #   runname: "run_p"
-  #   CDopt: 0
-  #   isMars: true
-  #   srcArray: true
-  #   is3c: true
-  #   slwRange: [-5., 5.]
-  #   normOpt: 1
-  #   pref: 7.3457
-  #   tref: 0.0
-
-  # # Syn model9
-  # - modname: "model9_P"
-  #   runname: "run2"
-  #   CDopt: 0
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   maxN: 1
-  #   ampRange: [0., 1.] # may not be actually used (prior for syn is pre-defined, but just in case)
-  #   slwRange: [0., 10.]
-  #   normOpt: 2
-  
-  # - modname: "model9_SV"
-  #   runname: "run2"
-  #   CDopt: 0
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   maxN: 1
-  #   ampRange: [0., 1.] # may not be actually used (prior for syn is pre-defined, but just in case)
-  #   slwRange: [0., 10.]
-  #   normOpt: 2
-
-  # - modname: "model9_S45"
-  #   runname: "run2"
-  #   CDopt: 0
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   maxN: 1
-  #   ampRange: [0., 1.] # may not be actually used (prior for syn is pre-defined, but just in case)
-  #   slwRange: [0., 10.]
-  #   normOpt: 2
-
-  # - modname: "model9_S45_30"
-  #   runname: "run2"
-  #   CDopt: 0
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   maxN: 1
-  #   ampRange: [0., 1.] # may not be actually used (prior for syn is pre-defined, but just in case)
-  #   slwRange: [0., 10.]
-  #   normOpt: 2
-
-  # - modname: "model9_S85"
-  #   runname: "run2"
-  #   CDopt: 0
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   maxN: 1
-  #   ampRange: [0., 1.] # may not be actually used (prior for syn is pre-defined, but just in case)
-  #   slwRange: [0., 10.]
-  #   normOpt: 2
-
-  # # Syn model6
-  # - modname: "model6"
-  #   runname: "run1_3c_CD_0_multichain_L2"
-  #   isSyn: true
-  #   isMars: false
-  #   is3c: true
-  #   slwRange: [0., 2.]
-  #   normOpt: 2
+- modname: "model11_shifted"
+  runname: "run1_L2"
+  is3c: false
+  isSyn: true
+  slwRange: [0., 6.]
+  CDopt: 0
+  normOpt: 2
+  totalSteps: 50000
+  burnInSteps: 40000
+  nSaveModels: 100
 
   # # CF 1c
-  # - modname: "Mars_CF"
-  #   runname: "run1_Z_CD_fit_multichain_L1_maxN10_action1"
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run1_Z_L1"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: false
   #   comp: "Z"
-  #   slwRange: [-8., 8.]
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
   #   normOpt: 1
   
-  # - modname: "Mars_CF"
-  #   runname: "run2_Z_CD_fit_multichain_L2_maxN10_action1"
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run1_Z_L2"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: false
   #   comp: "Z"
-  #   slwRange: [-8., 8.]
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
+  #   normOpt: 2
+
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run2_Z_L1_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
+  #   normOpt: 1
+  
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run2_Z_L2_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
   #   normOpt: 2
   
   # # CF 3c
-  # - modname: "Mars_CF"
-  #   runname: "run3_3c_CD_fit_multichain_L1_maxN10_action1"
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run3_3c_L1"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
   #   normOpt: 1
-
-  # - modname: "Mars_CF"
-  #   runname: "run4_3c_CD_fit_multichain_L2_maxN10_action1"
+  
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run3_3c_L2"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
   #   normOpt: 2
 
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run4_3c_L1_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
+  #   normOpt: 1
+  
+  # - modname: "Mars_CF_short_selected"
+  #   runname: "run4_3c_L2_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
+  #   normOpt: 2
+  
+  # # CF 1c
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run1_Z_L1"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
+  #   normOpt: 1
+  
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run1_Z_L2"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
+  #   normOpt: 2
+
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run2_Z_L1_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
+  #   normOpt: 1
+  
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run2_Z_L2_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: false
+  #   comp: "Z"
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
+  #   normOpt: 2
+  
   # # CF 3c
-  # - modname: "Mars_CF_Dahmen_Z"
-  #   runname: "run1_3c_CD_0_multichain_L1_maxN10_action1"
-  #   CDopt: 0
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run3_3c_L1"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
-  #   normOpt: 1
-
-  # - modname: "Mars_CF_Dahmen"
-  #   runname: "run2_3c_CD_0_multichain_L2_maxN10_action1"
+  #   slwRange: [-5., 5.]
   #   CDopt: 0
+  #   normOpt: 1
+  
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run3_3c_L2"
+  #   ref_manual: true
   #   isMars: true
+  #   srcArray: true
   #   is3c: true
-  #   slwRange: [-8., 8.]
+  #   slwRange: [-5., 5.]
+  #   CDopt: 0
   #   normOpt: 2
 
-  # # P, L1
-  # - modname: "201111221848_P_30_33"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 1
-
-  # - modname: "201111221848_P_33_36"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_P_36_39"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run4_3c_L1_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
   #   normOpt: 1
   
-  # - modname: "201111221848_P_39_42"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_P_42_45"
-  #   runname: "run5_3c_CD_fit_multichain_L1_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_P_45_48"
-  #   runname: "run6_new_L1"
-  #   slwRange: [2., 8.]
-  #   normOpt: 1
-  
-  # - modname: "201111221848_P_45_48"
-  #   runname: "run6_new_L2"
-  #   slwRange: [2., 8.]
-  #   normOpt: 2
-  
-  - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
-    runname: "run3_L1_N50"
-    slwRange: [4., 14.]
-    maxN: 10
-    normOpt: 1
-  
-  - modname: "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240"
-    runname: "run1_L1_N50"
-    slwRange: [4., 14.]
-    maxN: 10
-    normOpt: 1
-
-  # # P, L2
-  # - modname: "201111221848_P_30_33"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 2
-
-  # - modname: "201111221848_P_33_36"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_P_36_39"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_P_39_42"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_P_42_45"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
-  #   normOpt: 2
-  
-  # - modname: "201111221848_P_45_48"
-  #   runname: "run6_3c_CD_fit_multichain_L2_maxN50_action1"
-  #   slwRange: [2., 10.]
+  # - modname: "Mars_CF_short_more_selected"
+  #   runname: "run4_3c_L2_CDfit"
+  #   ref_manual: true
+  #   isMars: true
+  #   srcArray: true
+  #   is3c: true
+  #   slwRange: [-5., 5.]
+  #   CDopt: 3
   #   normOpt: 2

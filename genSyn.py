@@ -2,17 +2,17 @@ import pickle, os, sys
 import numpy as np
 import matplotlib.pyplot as plt
 from vespainv.model import VespaModel, Prior, VespaModel3c, Prior3c, Bookkeeping
-from vespainv.waveformBuilder import create_U_from_model, create_U_from_model_3c_freqdomain
+from vespainv.waveformBuilder import create_U_from_model_freqdomain, create_U_from_model_3c_freqdomain
 from vespainv.utils import dest_point
 
 # Parameter setup
 filedir = "H:/My Drive/Research/VespaPolPy"
 # filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
-modname = "model10"
-Nphase = 3
+modname = "model11"
+Nphase = 2
 maxN = 10 # will be written into Prior
-is3c = True
+is3c = False
 ampRange = (0, 1)
 slwRange = (0., 10.)
 
@@ -21,15 +21,16 @@ f0 = 0.2
 dt = 0.1
 
 # Parameter setup: time vector
-tmax = 150
+tmax = 100
 
 # Parameter setup: array
 srcLat = 0.0
 srcLon = 0.0
 base_dist = 110.0
 base_baz = 30.0
-Ntrace = 20
-refLat, refLon = dest_point(srcLat, srcLon, base_baz, base_dist)
+base_az = (base_baz + 180)%360
+Ntrace = 10
+refLat, refLon = dest_point(srcLat, srcLon, base_az, base_dist)
 
 # Parameter setup: location perturbation
 locDiff = False
@@ -38,16 +39,14 @@ bazDiff  = np.random.uniform(-3.0, 3.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([50, 65, 100])
-slw = np.array([5., 2.5, 6.])
-amp = np.array([0.8, 0.5, 0.6])
-baz = np.array([0., 0., 0.]) # not using this in most cases
-dip = np.array([0., 0., 0.]) # not using this at all - eliminate in the future
-azi = np.array([10, 0, 20]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
-ph_hh = np.array([15, 0, 0]) # N/A for P and pure SV?
-ph_vh = np.array([0, 30, 60]) # N/A for pure SH 
-atts = np.array([1,1,1])
-wvtype = np.array([0, 1, 0])
+arr = np.array([30, 70])
+slw = np.array([1., 4.])
+amp = np.array([0.8, 0.5])
+azi = np.array([0, 20]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
+ph_hh = np.array([0, 30]) # N/A for P and pure SV?
+ph_vh = np.array([20, 60]) # N/A for pure SH 
+atts = np.array([1, 1])
+wvtype = np.array([1, 0])
 
 synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -66,27 +65,32 @@ np.savetxt(os.path.join(synDir, "stf.csv"), stf_array, delimiter=",", header="ti
 # Generate station metadata and save
 time = np.arange(0, tmax, dt)
 # np.random.seed(0)
-dists = base_dist + np.random.uniform(-5.0, 5.0, Ntrace)
-bazs = base_baz + np.random.uniform(-5.0, 5.0, Ntrace)
-idx = np.argsort(dists); dists, bazs = dists[idx], bazs[idx] # sort by dist
-station_metadata = np.column_stack((dists, bazs))
+dists = base_dist + np.random.uniform(-2.0, 2.0, Ntrace)
+bazs = base_baz + np.random.uniform(-2.0, 2.0, Ntrace)
+stlas, stlos = np.zeros_like(dists), np.zeros_like(dists)
+for ista in range(Ntrace):
+    stlas[ista], stlos[ista] = dest_point(srcLat, srcLon, (bazs[ista]+180)%360, dists[ista])
+idx = np.argsort(dists); dists, bazs, stlas, stlos = dists[idx], bazs[idx], stlas[idx], stlos[idx] # sort by dist
+station_metadata_db = np.column_stack((dists, bazs))
+station_metadata = np.column_stack((stlas, stlos))
 
-np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delimiter=",", header="distance,baz", comments="")
+np.savetxt(os.path.join(synDir, "station_metadata_db.csv"), station_metadata_db, delimiter=",", header="dist_deg,baz", comments="")
+np.savetxt(os.path.join(synDir, "station_metadata.csv"), station_metadata, delimiter=",", header="lat,lon", comments="")
 
 # Define prior and model, and save
 if is3c:
-    prior = Prior3c(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
+    prior = Prior3c(maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel3c.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel3c(
-            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, baz=baz, dip=dip, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype
         )
 else:
-    prior = Prior(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
+    prior = Prior(maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
     model = VespaModel.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel(
-            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, atts=atts
         )
     if locDiff:
         model.distDiff = distDiff
@@ -110,9 +114,6 @@ with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
     ftxt.write(np.array2string(model.slw, separator=", ") + "\n\n")
     ftxt.write("--- Amplitudes ---\n")
     ftxt.write(np.array2string(model.amp, separator=", ") + "\n\n")
-    if hasattr(model, 'azi'):
-        ftxt.write("--- Polarization Azimuth Angle ---\n")
-        ftxt.write(np.array2string(model.azi, separator=", ") + "\n\n")
     if hasattr(model, 'ph_hh'):
         ftxt.write("--- Phase Difference: HH ---\n")
         ftxt.write(np.array2string(model.ph_hh, separator=", ") + "\n\n")
@@ -137,11 +138,13 @@ with open(os.path.join(synDir, "Prior.pkl"), "wb") as f2:
     pickle.dump(prior, f2)
 
 # Generate U, plot, and save
+bookkeeping = Bookkeeping(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, fitAtts=False, fitPhase=True, isMars=False)
+with open(os.path.join(synDir, "Bookkeeping_0.pkl"), "wb") as f:
+    pickle.dump(bookkeeping, f)
 if is3c:
-    U = create_U_from_model_3c_freqdomain(model, prior, station_metadata, time, stf_time, stf,
-                                          Bookkeeping(fitAtts=False, phaseBaz=False, fitPhase=True, isMars=False))
+    U = create_U_from_model_3c_freqdomain(model, station_metadata, time, stf_time, stf, bookkeeping)
 else:
-    U = create_U_from_model(model, prior, station_metadata, time, stf_time, stf)
+    U = create_U_from_model_freqdomain(model, station_metadata, time, stf_time, stf, bookkeeping)
 
 if is3c:
     components = ['Z', 'R', 'T']
@@ -162,7 +165,7 @@ else:
     offset = 1.2 * np.max(np.abs(U))  # spacing between traces
     for i in range(n_traces):
         plt.plot(time, U[:, i] + i * offset, color="black")
-        dist, baz = station_metadata[i,:]
+        dist, baz = station_metadata_db[i,:]
         plt.text(time[-1] + 0.5, i * offset, f"{dist:.1f}°, {baz:.0f}°", 
              va='center', fontsize=8)
     plt.xlabel("Time (s)")
@@ -188,7 +191,7 @@ else:
 # sys.exit(0)
 
 # === Optional: Add noise to synthetic seismograms ===
-add_noise = True
+add_noise = False
 sigma = 0.05  # target standard deviation (std) for noise
 np.random.seed(42)
 

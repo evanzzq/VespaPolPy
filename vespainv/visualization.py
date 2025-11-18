@@ -65,7 +65,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     # Plot as contour
     plt.figure(figsize=(8, 6))
-    h = plt.contourf(xx, yy, zz, levels=100, cmap='hot')
+    h = plt.contourf(xx, yy, zz, levels=100, cmap='seismic')
     plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
     plt.xlabel("Arrival Time (s)")
     plt.ylabel("Slowness (s/deg)")
@@ -242,7 +242,6 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             arrTrue = true_model.arr[idx]
             slwTrue = true_model.slw[idx]
             ampTrue = true_model.amp[idx]
-            bazTrue = true_model.baz[idx]
             attsTrue = true_model.atts[idx]
 
         # Plot KDEs
@@ -252,8 +251,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
-        plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
-        # plot_kde(axs[4], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None) ############ tmp fix!!!!!!!!!
+        plot_kde(axs[3], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None) ############ tmp fix!!!!!!!!!
         
         plt.tight_layout()
         plt.show()
