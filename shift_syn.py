@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 
 # ================== USER PARAMETERS ==================
 
-filedir = r"H:/My Drive/Research/VespaPolPy"
-# filedir = r"/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = r"H:/My Drive/Research/VespaPolPy"
+filedir = r"/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # Source and destination model names (folders under SynData/)
 src_modname = "model11"
-dst_modname = "model11_shifted"
+dst_modname = "model11_shifted_more"
 
 # 1c or 3c?
 is3c = False
@@ -19,9 +19,15 @@ is3c = False
 #   keys   = trace indices (0-based)
 #   values = shift in seconds (+ => later, - => earlier)
 SHIFT_MAP = {
-    2: 1.3,    # example: shift trace 2 by +0.3 s
-    5: -1.9,   # example: shift trace 5 by -0.2 s
-    # add more if you want
+    0: 0.3,
+    1: 0.6,
+    2: 1.3,
+    3: -0.2,
+    4: 0.1,
+    5: -1.9,
+    6: -0.1,
+    7: 0.9,
+    9: -1.1
 }
 
 # ====================================================

@@ -177,7 +177,6 @@ class VespaModel3c:
     arr: np.ndarray
     slw: np.ndarray
     amp: np.ndarray
-    dip: np.ndarray
     azi: np.ndarray
     ph_hh: np.ndarray
     ph_vh: np.ndarray

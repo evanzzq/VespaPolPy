@@ -66,7 +66,7 @@ def create_U_from_model_freqdomain(
         pref_y = pref * np.cos(np.radians(refAz))
 
     for itrace in range(n_traces):
-        
+        # print(f"Trace {itrace}")
         # if isMars, then metadata is in (dist, baz), and default to source array
         if isMars:
             trDist, trBaz = metadata[itrace]
@@ -109,7 +109,7 @@ def create_U_from_model_freqdomain(
                 slow_y = slow * np.cos(np.radians(refAz))
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
-            # print(f"    Phase {iph}, tshift = {tshift}, slow = {slow}")
+            # print(f"    Phase {iph}, arr = {tshift}, slw = {slow}, amp = {model.amp[iph]}")
 
             wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
 

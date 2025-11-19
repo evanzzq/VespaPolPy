@@ -54,72 +54,78 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     yRange = prior.slwRange
 
     xy = np.vstack([arrAll, slwAll])
-    weights = np.abs(ampAll) if amp_weighted else None
-    kde = gaussian_kde(xy, weights=weights)
+    if amp_weighted:
+        weights = np.abs(ampAll)
+        total_weight = np.sum(weights)
+    else:
+        weights = None
+        total_weight = len(arrAll)
 
-    xx, yy = np.meshgrid(
-        np.linspace(xRange[0], xRange[1], 200),
-        np.linspace(yRange[0], yRange[1], 200)
-    )
-    zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(xx.shape)
+    # Check rank / condition number of covariance
+    C = np.cov(xy)
+    cond = np.linalg.cond(C)
+    print(cond)
 
-    # Plot as contour
-    plt.figure(figsize=(8, 6))
-    h = plt.contourf(xx, yy, zz, levels=100, cmap='seismic')
-    plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
-    plt.xlabel("Arrival Time (s)")
-    plt.ylabel("Slowness (s/deg)")
-    plt.title("Ensemble Vespagram (KDE)")
-    plt.grid(True)
+    if cond > 1e3:  # 1e3 euristic threshold: covariance nearly singular
+        print("Covariance nearly singular – using 2D histogram instead of KDE.")
+        # --- your existing 2D hist code here ---
+        xRange = [np.min(Utime), np.max(Utime)]
+        yRange = prior.slwRange
+        nBins = 50
+        xEdges = np.linspace(xRange[0], xRange[1], nBins)
+        yEdges = np.linspace(yRange[0], yRange[1], nBins)
 
-    if true_model is not None:
-        plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
-        plt.legend()
+        if amp_weighted:
+            histCounts = np.zeros((nBins - 1, nBins - 1), dtype=np.float32)
+            for i in range(len(arrAll)):
+                xIdx = np.searchsorted(xEdges, arrAll[i]) - 1
+                yIdx = np.searchsorted(yEdges, slwAll[i]) - 1
+                if 0 <= xIdx < nBins - 1 and 0 <= yIdx < nBins - 1:
+                    histCounts[xIdx, yIdx] += ampAll[i]
+        else:
+            histCounts, _, _ = np.histogram2d(arrAll, slwAll, bins=[xEdges, yEdges])
+            histCounts = histCounts.astype(np.float32)
 
-    plt.show(block=False)
-    
-    # # Define bins
-    # xRange = [np.min(Utime), np.max(Utime)]
-    # yRange = prior.slwRange
-    # nBins = 50
-    # xEdges = np.linspace(xRange[0], xRange[1], nBins)
-    # yEdges = np.linspace(yRange[0], yRange[1], nBins)
+        plt.figure(figsize=(8, 6))
+        vmax = np.nanmax(np.abs(histCounts))
+        h = plt.imshow(
+            histCounts.T,
+            extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
+            origin='lower',
+            aspect='auto',
+            cmap='seismic',
+            vmin=-vmax, vmax=vmax
+        )
+        plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
+        plt.xlabel("Arrival Time (s)")
+        plt.ylabel("Slowness (s/deg)")
+        plt.title("Ensemble Vespagram (Hist)")
+        plt.grid(True)
+        if true_model is not None:
+            plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
+            plt.legend()
+        plt.show(block=False)
+    else:
+        # --- safe to do KDE ---
+        kde = gaussian_kde(xy, weights=weights)
+        xx, yy = np.meshgrid(
+            np.linspace(xRange[0], xRange[1], 200),
+            np.linspace(yRange[0], yRange[1], 200)
+        )
+        zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(xx.shape)
+        zz *= total_weight
 
-    # if amp_weighted:
-    #     histCounts = np.zeros((nBins - 1, nBins - 1), dtype=np.float32)
-    #     for i in range(len(arrAll)):
-    #         xIdx = np.searchsorted(xEdges, arrAll[i]) - 1
-    #         yIdx = np.searchsorted(yEdges, slwAll[i]) - 1
-    #         if 0 <= xIdx < nBins - 1 and 0 <= yIdx < nBins - 1:
-    #             histCounts[xIdx, yIdx] += ampAll[i]
-    # else:
-    #     histCounts, _, _ = np.histogram2d(arrAll, slwAll, bins=[xEdges, yEdges])
-    #     histCounts = histCounts.astype(np.float32)
-
-    # alphaData = np.where(histCounts > 0, 1.0, 0.0)
-
-    # plt.figure(figsize=(8, 6))
-    # vmax = np.nanmax(np.abs(histCounts))
-    # h = plt.imshow(histCounts.T, extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
-    #             origin='lower', aspect='auto', cmap='seismic', vmin=-vmax, vmax=vmax)
-
-    # h.set_alpha(alphaData.T)  # Transparency map must match the shape and dtype
-    # plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
-    # plt.xlabel("Arrival Time (s)")
-    # plt.ylabel("Slowness (s/deg)")
-    # plt.title("Ensemble Vespagram" + (" (Amp-Weighted)" if amp_weighted else ""))
-    # plt.grid(True)
-
-    # if true_model is not None:
-    #     for i in range(true_model.Nphase):
-    #         plt.arrow(true_model.arr[i], true_model.slw[i],
-    #                   dx=0.0, dy=0.002,  # upward arrow
-    #                   head_width=0.2, head_length=0.002,
-    #                   fc='cyan', ec='cyan')
-    #     plt.plot(true_model.arr, true_model.slw, 'cx', label="True Arrivals")
-    #     plt.legend()
-
-    # plt.tight_layout()
+        plt.figure(figsize=(8, 6))
+        h = plt.contourf(xx, yy, zz, levels=100, cmap='hot')
+        plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
+        plt.xlabel("Arrival Time (s)")
+        plt.ylabel("Slowness (s/deg)")
+        plt.title("Ensemble Vespagram (KDE)")
+        plt.grid(True)
+        if true_model is not None:
+            plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
+            plt.legend()
+        plt.show(block=False)
 
     # Get posterior plot range from two clicks
     print("Click twice to define a box (first lower-left, then upper-right):")
@@ -337,7 +343,6 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
         for i in range(n_traces):
             dist, baz = metadata[i,:]
             trace = U[:, i]
-            trace /= np.max(np.abs(trace))
             plt.plot(time, trace + i * offset, color='black')
             if U_model is not None:
                 trace_model = U_model[:, i]
