@@ -51,42 +51,42 @@ experiments:
 #   burnInSteps: 40000
 #   nSaveModels: 100
 
-# - modname: "model11_shifted_more"
-#   runname: "run1_L2"
-#   is3c: false
-#   isSyn: true
-#   slwRange: [0., 6.]
-#   CDopt: 0
-#   normOpt: 2
-#   totalSteps: 50000
-#   burnInSteps: 40000
-#   nSaveModels: 100
+- modname: "model12_shifted_more"
+  runname: "run1_L2"
+  is3c: false
+  isSyn: true
+  slwRange: [-2.,2.]
+  CDopt: 0
+  normOpt: 2
+  totalSteps: 50000
+  burnInSteps: 40000
+  nSaveModels: 100
 
-  # CF 1c
-  - modname: "Mars_CF_short_selected"
-    runname: "run1_Z_L1"
-    ref_manual: true
-    isMars: true
-    srcArray: true
-    is3c: false
-    comp: "Z"
-    slwRange: [-2., 2.]
-    CDopt: 0
-    normOpt: 1
-    locDiff: true
-    distDiffRange: [-1.0, 1.0]
-    bazDiffRange: [-20.0, 20.0]
-  
-  - modname: "Mars_CF_short_more_selected"
-    runname: "run_Z_L1_locdiff"
-    ref_manual: true
-    isMars: true
-    srcArray: true
-    is3c: false
-    comp: "Z"
-    slwRange: [-2., 2.]
-    CDopt: 0
-    normOpt: 1
-    locDiff: true
-    distDiffRange: [-1.0, 1.0]
-    bazDiffRange: [-20.0, 20.0]
+# # CF 1c
+# - modname: "Mars_CF_short_selected"
+#   runname: "run1_Z_L1"
+#   ref_manual: true
+#   isMars: true
+#   srcArray: true
+#   is3c: false
+#   comp: "Z"
+#   slwRange: [-2., 2.]
+#   CDopt: 0
+#   normOpt: 1
+#   locDiff: true
+#   distDiffRange: [-1.0, 1.0]
+#   bazDiffRange: [-20.0, 20.0]
+
+# - modname: "Mars_CF_short_more_selected"
+#   runname: "run_Z_L1_locdiff"
+#   ref_manual: true
+#   isMars: true
+#   srcArray: true
+#   is3c: false
+#   comp: "Z"
+#   slwRange: [-2., 2.]
+#   CDopt: 0
+#   normOpt: 1
+#   locDiff: true
+#   distDiffRange: [-1.0, 1.0]
+#   bazDiffRange: [-20.0, 20.0]

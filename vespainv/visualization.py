@@ -1,9 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from cmap import Colormap
 from vespainv.model import Bookkeeping
 from scipy.stats import gaussian_kde
 
 def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False, third_click=False):
+
+    cmap = Colormap('matlab:hot')
 
     # Initialize as None; if third_click == True, this will be update
     selected_pt = None
@@ -116,7 +119,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         zz *= total_weight
 
         plt.figure(figsize=(8, 6))
-        h = plt.contourf(xx, yy, zz, levels=100, cmap='hot')
+        h = plt.contourf(xx, yy, zz, levels=100, cmap=cmap.to_mpl())
         plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
         plt.xlabel("Arrival Time (s)")
         plt.ylabel("Slowness (s/deg)")

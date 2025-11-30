@@ -6,15 +6,15 @@ from vespainv.waveformBuilder import create_U_from_model_freqdomain, create_U_fr
 from vespainv.utils import dest_point
 
 # Parameter setup
-filedir = "H:/My Drive/Research/VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:/My Drive/Research/VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
-modname = "model11"
-Nphase = 2
+modname = "model12"
+Nphase = 5
 maxN = 10 # will be written into Prior
 is3c = False
 ampRange = (0, 1)
-slwRange = (0., 10.)
+slwRange = (-2., 2.)
 
 # Parameter setup: stf
 f0 = 0.2
@@ -39,14 +39,14 @@ bazDiff  = np.random.uniform(-3.0, 3.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([30, 70])
-slw = np.array([1., 4.])
-amp = np.array([0.8, 0.5])
-azi = np.array([0, 20]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
-ph_hh = np.array([0, 30]) # N/A for P and pure SV?
-ph_vh = np.array([20, 60]) # N/A for pure SH 
-atts = np.array([1, 1])
-wvtype = np.array([1, 0])
+arr = np.array([10,42,50,58,90])
+slw = np.array([0., 0, 0.2, -0.2, 1])
+amp = np.array([0.8, 0.8, 1.0, 0.7, 0.5])
+azi = np.array([0,20,0,0,0]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
+ph_hh = np.array([0,30,0,0,0]) # N/A for P and pure SV?
+ph_vh = np.array([20,60,0,0,10]) # N/A for pure SH 
+atts = np.array([1,1,1,1,1])
+wvtype = np.array([1, 0, 1, 0, 1])
 
 synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)

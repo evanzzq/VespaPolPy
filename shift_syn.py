@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 filedir = r"/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # Source and destination model names (folders under SynData/)
-src_modname = "model11"
-dst_modname = "model11_shifted_more"
+src_modname = "model12"
+dst_modname = "model12_shifted_more"
 
 # 1c or 3c?
 is3c = False
@@ -19,13 +19,13 @@ is3c = False
 #   keys   = trace indices (0-based)
 #   values = shift in seconds (+ => later, - => earlier)
 SHIFT_MAP = {
-    0: 0.3,
-    1: 0.6,
-    2: 1.3,
+    0: 1.4,
+    1: 1.6,
+    2: -1.3,
     3: -0.2,
     4: 0.1,
     5: -1.9,
-    6: -0.1,
+    6: -1.1,
     7: 0.9,
     9: -1.1
 }
