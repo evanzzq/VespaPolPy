@@ -514,7 +514,7 @@ def calc_array_center(metadata, srcLat, srcLon, srcArray):
 
 
 def create_stf(f0, dt):
-    stf_time_0 = np.arange(-4 / f0, 4 / f0 + dt, dt)
+    stf_time_0 = np.arange(-2 / f0, 2 / f0 + dt, dt)
     stf_0 = np.exp(-stf_time_0 ** 2 / (2 * (1 / (2 * np.pi * f0)) ** 2))
     stf_time = stf_time_0[:-1]
     stf = np.diff(stf_0) / np.diff(stf_time_0)

@@ -1,92 +1,66 @@
 # ---- universal defaults ----
 defaults:
-  # filedir: "H:/My Drive/Research/VespaPolPy"
-  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
-
+  filedir: "H:/My Drive/Research/VespaPolPy"
+  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
-
   num_chains: 8
-  totalSteps: 200000
-  burnInSteps: 160000
+  totalSteps: 1000000
+  burnInSteps: 800000
   nSaveModels: 200
   actionsPerStep: 1
-
   maxN: 10
-
   ampRange: [-1., 1.] # only applies to real data
   minSpace: 1.0
-
-  CDopt: 3        # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
-
+  CDopt: 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
   locDiff: false
   distDiffRange: [-5.0, -5.0]
   bazDiffRange: [-5.0, -5.0]
-
   fitAtts: false
+  fitLoge: true
   fitPhase: true
   isMars: false
   srcArray: false
-
   pref: 0.0
   tref: 0.0
-
   ref_manual: false
   refLat: 9.48
   refLon: 163.03
   refBaz: 78.1
-
 # ---- experiment specifics ----
 experiments:
 
-# - modname: "model11"
-#   runname: "run1_L2"
-#   is3c: false
-#   isSyn: true
-#   slwRange: [0., 6.]
-#   CDopt: 0
-#   normOpt: 2
-#   totalSteps: 50000
-#   burnInSteps: 40000
-#   nSaveModels: 100
+  # - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
+  #   runname: run4_L1_N20_atts_1e6
+  #   slwRange: [4., 10.]
+  #   normOpt: 1
+  #   maxN: 20
+  #   fitAtts: true
 
-- modname: "model12_shifted_more"
-  runname: "run1_L2"
-  is3c: false
-  isSyn: true
-  slwRange: [-2.,2.]
-  CDopt: 0
-  normOpt: 2
-  totalSteps: 50000
-  burnInSteps: 40000
-  nSaveModels: 100
-
-# # CF 1c
-# - modname: "Mars_CF_short_selected"
-#   runname: "run1_Z_L1"
-#   ref_manual: true
-#   isMars: true
-#   srcArray: true
-#   is3c: false
-#   comp: "Z"
-#   slwRange: [-2., 2.]
-#   CDopt: 0
-#   normOpt: 1
-#   locDiff: true
-#   distDiffRange: [-1.0, 1.0]
-#   bazDiffRange: [-20.0, 20.0]
-
-# - modname: "Mars_CF_short_more_selected"
-#   runname: "run_Z_L1_locdiff"
-#   ref_manual: true
-#   isMars: true
-#   srcArray: true
-#   is3c: false
-#   comp: "Z"
-#   slwRange: [-2., 2.]
-#   CDopt: 0
-#   normOpt: 1
-#   locDiff: true
-#   distDiffRange: [-1.0, 1.0]
-#   bazDiffRange: [-20.0, 20.0]
+  - modname: "201111221848_P_45_48_10_40s"
+    runname: run8_L1_N20_atts_1e6_posamp
+    slwRange: [2., 10.]
+    ampRange: [0., 1.]
+    normOpt: 1
+    maxN: 20
+    fitAtts: true
+    fitLoge: true
+  
+  - modname: "201111221848_P_45_48"
+    runname: run8_L1_N20_atts_loge_1e6_posamp
+    slwRange: [2., 10.]
+    ampRange: [0., 1.]
+    normOpt: 1
+    maxN: 20
+    fitAtts: true
+    fitLoge: true
+    
+  - modname: "201111221848_P_45_48"
+    runname: run8_L1_N20_atts_loge_1e6
+    slwRange: [2., 10.]
+    ampRange: [-1., 1.]
+    normOpt: 1
+    maxN: 20
+    fitAtts: true
+    fitLoge: true

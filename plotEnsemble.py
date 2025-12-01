@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
 third_click = False
@@ -167,6 +167,46 @@ stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skipr
 # ---- Load Bookkeeping ----
 with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
     bookkeeping = pickle.load(f)
+
+# ---- Plot log-likelihood vs. steps ----
+plt.figure(figsize=(8, 5))
+
+if selected_dirs:
+    # Multi-chain case: one curve per chain
+    for cdir in selected_dirs:
+        ll_path = os.path.join(cdir, "log_likelihood.txt")
+        if os.path.isfile(ll_path):
+            try:
+                ll_values = np.loadtxt(ll_path)
+                if ll_values.ndim == 1:
+                    ll = ll_values
+                else:
+                    # assume first column is log-likelihood
+                    ll = ll_values[:, 0]
+                steps = np.arange(len(ll))
+                plt.plot(steps, ll, 'k-', alpha=0.7)
+            except Exception as e:
+                print(f"Warning: could not plot log-likelihood from {cdir}: {e}")
+        else:
+            print(f"Warning: log_likelihood.txt not found in {cdir}, skipping.")
+else:
+    # Single-chain case
+    ll_path = os.path.join(run_path, "log_likelihood.txt")
+    if os.path.isfile(ll_path):
+        ll_values = np.loadtxt(ll_path)
+        if ll_values.ndim == 1:
+            ll = ll_values
+        else:
+            ll = ll_values[:, 0]
+        steps = np.arange(len(ll))
+        plt.plot(steps, ll, 'k-')
+    else:
+        print("Warning: log_likelihood.txt not found for single-chain run.")
+
+plt.xlabel("Step")
+plt.ylabel("Log-likelihood")
+plt.title("Log-likelihood vs. MCMC step")
+plt.grid(True)
 
 # ---- Plot ----
 moveout_pt = plot_ensemble_vespagram(

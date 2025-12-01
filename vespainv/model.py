@@ -18,6 +18,7 @@ class Bookkeeping:
     actionsPerStep: int = 2
     locDiff:        bool = False # perturb array location in (dist, baz)
     fitAtts:        bool = False # attenuation
+    fitLoge:        bool = True # relative error
     fitPhase:       bool = False # ph_hh and ph_vh
     srcArray:       bool = False # receiver or source array
     normOpt:        int = 2
@@ -40,6 +41,7 @@ class Prior:
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
     attsRange: tuple = (0, 4)
+    logeRange: tuple = (0., 2.)
     distDiffRange: tuple = (-5, 5)
     bazDiffRange: tuple = (-5, 5)
 
@@ -47,6 +49,7 @@ class Prior:
     slwStd: float = None
     ampStd: float = None
     attsStd: float = None
+    logeStd: float = None
     distDiffStd: float = None
     bazDiffStd: float = None
 
@@ -59,6 +62,8 @@ class Prior:
             self.ampStd = 0.2 * (self.ampRange[1] - self.ampRange[0])
         if self.attsStd is None:
             self.attsStd = 0.1 * (self.attsRange[1] - self.attsRange[0])
+        if self.logeStd is None:
+            self.logeStd = 0.1 * (self.logeRange[1] - self.logeRange[0])
         if self.distDiffStd is None:
             self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
         if self.bazDiffStd is None:
@@ -79,6 +84,7 @@ class VespaModel:
     slw: np.ndarray
     amp: np.ndarray
     atts: np.ndarray
+    loge: float
     distDiff: np.ndarray = None
     bazDiff: np.ndarray = None
 
@@ -97,6 +103,7 @@ class VespaModel:
             slw=np.array([]),
             amp=np.array([]),
             atts=np.array([]),
+            loge=0.,
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )
@@ -114,6 +121,7 @@ class VespaModel:
             slw=np.random.uniform(prior.slwRange[0], prior.slwRange[1], Nphase),
             amp=np.random.uniform(prior.ampRange[0], prior.ampRange[1], Nphase),
             atts=np.random.uniform(prior.attsRange[0], prior.attsRange[1], Nphase),
+            loge=0.,
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
         )
@@ -131,6 +139,7 @@ class Prior3c:
     ph_hhRange: tuple = (-180, 180)
     ph_vhRange: tuple = (-90, 90)
     attsRange: tuple = (0, 4)
+    logeRange: tuple = (0., 2.)
     distDiffRange: tuple = (-1, 1)
     bazDiffRange: tuple = (-10, 10)
 
@@ -141,6 +150,7 @@ class Prior3c:
     ph_hhStd: float = None
     ph_vhStd: float = None
     attsStd: float = None
+    logeStd: float = None
     distDiffStd: float = None
     bazDiffStd: float = None
 
@@ -157,6 +167,8 @@ class Prior3c:
             self.ph_vhStd = 0.2 * (self.ph_vhRange[1] - self.ph_vhRange[0])
         if self.attsStd is None:
             self.attsStd = 0.2 * (self.attsRange[1] - self.attsRange[0])
+        if self.logeStd is None:
+            self.logeStd = 0.1 * (self.logeRange[1] - self.logeRange[0])
         if self.distDiffStd is None:
             self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
         if self.bazDiffStd is None:
@@ -181,6 +193,7 @@ class VespaModel3c:
     ph_hh: np.ndarray
     ph_vh: np.ndarray
     atts: np.ndarray
+    loge: float
     wvtype: np.ndarray
     # Below are for each trace/station/marsquake
     distDiff: np.ndarray = None
@@ -203,6 +216,7 @@ class VespaModel3c:
             ph_hh=np.array([]),
             ph_vh=np.array([]),
             atts=np.array([]),
+            loge=0.,
             wvtype=np.array([]),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)
@@ -224,6 +238,7 @@ class VespaModel3c:
             ph_hh=np.random.uniform(prior.ph_hhRange[0], prior.ph_hhRange[1], Nphase),
             ph_vh=np.random.uniform(prior.ph_vhRange[0], prior.ph_vhRange[1], Nphase),
             atts=np.random.uniform(prior.attsRange[0], prior.attsRange[1], Nphase),
+            loge=0.,
             wvtype=np.random.randint(2, size=Nphase),
             distDiff=np.zeros(Ntrace),
             bazDiff=np.zeros(Ntrace)

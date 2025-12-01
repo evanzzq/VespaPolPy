@@ -178,10 +178,8 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
                 ax.axvline(val, color='red', linestyle='--', linewidth=0.5)
 
         num_unique = len(np.unique(data))
-        if  len(data) < 5 or num_unique < 10:
+        if  len(data) < 5e5 or num_unique < 10: # len(data) < 5 or num_unique < 10
             ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
-            ax.text(0.5, 0.9, 'Insufficient variance\n(showing histogram)', ha='center',
-                    va='top', transform=ax.transAxes, fontsize=9, color='darkred')
             ax.set_xlim(range_)
             return
 

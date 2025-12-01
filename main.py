@@ -90,6 +90,7 @@ if __name__ == "__main__":
         bazDiffRange  = tuple(params["bazDiffRange"])
 
         fitAtts    = params["fitAtts"]
+        fitLoge    = params["fitLoge"]
         fitPhase   = params["fitPhase"]
         normOpt    = params["normOpt"]
         isMars     = params["isMars"]
@@ -166,6 +167,7 @@ if __name__ == "__main__":
             actionsPerStep=actionsPerStep,
             locDiff=locDiff,
             fitAtts=fitAtts,
+            fitLoge=fitLoge,
             fitPhase=fitPhase,
             isMars=isMars,
             srcArray=srcArray,
