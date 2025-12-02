@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from cmap import Colormap
 from vespainv.model import Bookkeeping
+from vespainv.utils import dest_point
 from scipy.stats import gaussian_kde
 
 def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False, third_click=False):
@@ -269,6 +270,9 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
 
     from vespainv.waveformBuilder import create_U_from_model_freqdomain, create_U_from_model_3c_freqdomain
 
+    isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
+    srcArray = bookkeeping.srcArray
+
     is3c = True if U.ndim == 3 else False
     n_traces = U.shape[1]
 
@@ -293,20 +297,30 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
 
         refLat = bookkeeping.refLat
         refLon = bookkeeping.refLon
+        
+        refBaz = bookkeeping.refBaz
+        refAz = (refBaz + 180)%360
+        
         srcLat = bookkeeping.srcLat
         srcLon = bookkeeping.srcLon
-        refDist = locations2degrees(srcLat, srcLon, refLat, refLon)
         
         for itrace in range(n_traces):
-            trDist, trBaz = metadata[itrace]
-            trDist += model.distDiff[itrace]
-            trBaz += model.bazDiff[itrace]
-            # Get slowness on x and y directions
-            slow_x = slow * np.cos(np.radians(90-trBaz)) # refBaz
-            slow_y = slow * np.sin(np.radians(90-trBaz)) # refBaz
+            if isMars:
+                trDist, trBaz = metadata[itrace]
+                trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
+            # else, metadata is in (lat, lon)
+            else:
+                trLat, trLon = metadata[itrace]
+                # Get slowness on x and y directions
+            if srcArray:
+                slow_x = slow * np.sin(np.radians(refBaz))
+                slow_y = slow * np.cos(np.radians(refBaz))
+            else:
+                slow_x = slow * np.sin(np.radians(refAz))
+                slow_y = slow * np.cos(np.radians(refAz))
             # Get dx and dy
-            dx = (trDist - refDist) * np.sin(np.radians(trBaz))
-            dy = (trDist - refDist) * np.cos(np.radians(trBaz))
+            dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
+            dy = (trLat - refLat)
             # Get tshift
             tshift = slow_x * dx + slow_y * dy
             # Shift traces

@@ -9,14 +9,14 @@ filedir = "H:\My Drive\Research\VespaPolPy"
 # filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
-third_click = False
+third_click = True
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = False
 
 # The following will be overridden if use_manual == False
 modname    = "201111221848_P_45_48"
-runname    = "run5_3c_CD_fit_multichain_L1_maxN50_action1"
+runname    = "run8_L1_N20_atts_1e6_posamp"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
@@ -80,6 +80,10 @@ print(f"Selected: {modname}, {runname}")
 datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
 resdir = os.path.join(filedir, "runs/syn") if isSyn else os.path.join(filedir, "runs/data")
 run_path = os.path.join(resdir, modname, runname)
+
+# ---- Load Bookkeeping ----
+with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
+    bookkeeping = pickle.load(f)
 
 # ---- Detect chains ----
 chain_dirs = sorted(
@@ -164,49 +168,108 @@ if isSyn:
 U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt)
 stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
-# ---- Load Bookkeeping ----
-with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
-    bookkeeping = pickle.load(f)
+# ---- Extract burn-in and total steps ONCE (same for all chains) ----
+burn = bookkeeping.burnInSteps
+tot  = bookkeeping.totalSteps
 
-# ---- Plot log-likelihood vs. steps ----
-plt.figure(figsize=(8, 5))
+# ---- Plot log-likelihood, Nphase vs steps, and histogram of Nphase (post burn-in) ----
+fig, (ax1, ax2, ax3) = plt.subplots(
+    3, 1, figsize=(8, 10),
+    gridspec_kw={'height_ratios': [1, 1, 1]}
+)
+
+all_nop_postburn = []  # collect Nphase after burn-in from all chains
 
 if selected_dirs:
-    # Multi-chain case: one curve per chain
+    # ---- Multi-chain case ----
     for cdir in selected_dirs:
         ll_path = os.path.join(cdir, "log_likelihood.txt")
+        nop_path = os.path.join(cdir, "Nphase.txt")
+
+        # log-likelihood
         if os.path.isfile(ll_path):
-            try:
-                ll_values = np.loadtxt(ll_path)
-                if ll_values.ndim == 1:
-                    ll = ll_values
-                else:
-                    # assume first column is log-likelihood
-                    ll = ll_values[:, 0]
-                steps = np.arange(len(ll))
-                plt.plot(steps, ll, 'k-', alpha=0.7)
-            except Exception as e:
-                print(f"Warning: could not plot log-likelihood from {cdir}: {e}")
+            ll = np.loadtxt(ll_path)
+            if ll.ndim > 1:
+                ll = ll[:, 0]
+            steps_ll = np.arange(len(ll))
+            ax1.plot(steps_ll, ll, 'k-')  # logL, black solid
         else:
-            print(f"Warning: log_likelihood.txt not found in {cdir}, skipping.")
+            print(f"Warning: log_likelihood.txt not found in {cdir}, skipping logL.")
+
+        # Nphase
+        if os.path.isfile(nop_path):
+            nop = np.loadtxt(nop_path)
+            steps_nop = np.arange(len(nop))
+            ax2.plot(steps_nop, nop, 'b-')  # Nphase, blue solid
+
+            # collect post-burnin Nphase
+            i0 = min(burn, len(nop))
+            i1 = min(tot,  len(nop))
+            if i1 > i0:
+                all_nop_postburn.append(nop[i0:i1])
+        else:
+            print(f"Warning: Nphase.txt not found in {cdir}, skipping Nphase.")
+
 else:
-    # Single-chain case
+    # ---- Single-chain case ----
     ll_path = os.path.join(run_path, "log_likelihood.txt")
+    nop_path = os.path.join(run_path, "Nphase.txt")
+
+    # log-likelihood
     if os.path.isfile(ll_path):
-        ll_values = np.loadtxt(ll_path)
-        if ll_values.ndim == 1:
-            ll = ll_values
-        else:
-            ll = ll_values[:, 0]
-        steps = np.arange(len(ll))
-        plt.plot(steps, ll, 'k-')
+        ll = np.loadtxt(ll_path)
+        if ll.ndim > 1:
+            ll = ll[:, 0]
+        steps_ll = np.arange(len(ll))
+        ax1.plot(steps_ll, ll, 'k-')
     else:
         print("Warning: log_likelihood.txt not found for single-chain run.")
 
-plt.xlabel("Step")
-plt.ylabel("Log-likelihood")
-plt.title("Log-likelihood vs. MCMC step")
-plt.grid(True)
+    # Nphase
+    if os.path.isfile(nop_path):
+        nop = np.loadtxt(nop_path)
+        steps_nop = np.arange(len(nop))
+        ax2.plot(steps_nop, nop, 'b-')
+
+        # collect post-burnin Nphase
+        i0 = min(burn, len(nop))
+        i1 = min(tot,  len(nop))
+        if i1 > i0:
+            all_nop_postburn.append(nop[i0:i1])
+    else:
+        print("Warning: Nphase.txt not found for single-chain run.")
+
+# ---- Axis labels / titles ----
+ax1.set_ylabel("Log Likelihood")
+ax1.set_title("Log-likelihood vs. MCMC step")
+ax1.grid(True)
+
+ax2.set_ylabel("Nphase")
+ax2.set_title("Number of Phases vs. MCMC step")
+ax2.grid(True)
+ax2.set_xlabel("Step")
+
+# ---- Optional: log-scale on x-axis for step ----
+ax1.set_xscale("log")
+# ax2.set_xscale("log")
+
+# ---- Histogram of Nphase after burn-in ----
+if all_nop_postburn:
+    nop_post = np.concatenate(all_nop_postburn)
+    bins = np.arange(nop_post.min() - 0.5, nop_post.max() + 1.5, 1)
+    ax3.hist(nop_post, bins=bins, edgecolor='k', alpha=0.7)
+    ax3.set_xlabel("Nphase (post burn-in)")
+    ax3.set_ylabel("Count")
+    ax3.set_title("Histogram of Nphase after burn-in")
+    ax3.grid(True)
+else:
+    ax3.text(0.5, 0.5, "No Nphase data post burn-in",
+             ha='center', va='center', transform=ax3.transAxes)
+    ax3.set_axis_off()
+
+fig.tight_layout()
+# (No saving here)
+
 
 # ---- Plot ----
 moveout_pt = plot_ensemble_vespagram(

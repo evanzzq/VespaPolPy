@@ -6,7 +6,7 @@ from vespainv.utils import generate_arr
 
 import numpy as np
 
-def compute_log_likelihood(U_obs, U_model, sigma=0.04, CDinv=None):
+def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.04):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
     
@@ -263,6 +263,17 @@ def update_atts(model, prior):
     # Success, return
     return model_new, True
 
+def update_loge(model, prior):
+    # Copy model
+    model_new = copy.deepcopy(model)
+    # Update
+    model_new.loge += prior.logeStd * np.random.randn()
+    # Check range
+    if not (prior.logeRange[0] <= model_new.loge <= prior.logeRange[1]):
+        return model, False
+    # Success, return
+    return model_new, True
+
 def update_wvtype(model, prior):
     # Copy model
     model_new = copy.deepcopy(model)
@@ -286,6 +297,7 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
     save_interval = (totalSteps - burnInSteps) // nSaveModels
     actionsPerStep = bookkeeping.actionsPerStep
     fitAtts = bookkeeping.fitAtts
+    fitLoge = bookkeeping.fitLoge
     locDiff = bookkeeping.locDiff
     normOpt = bookkeeping.normOpt
 
@@ -306,8 +318,12 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
     logL_trace = []
 
     U_model = np.zeros(trace_shape)
-    if normOpt == 1: logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
-    if normOpt == 2: logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
+    if normOpt == 1: 
+        CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+        logL = compute_log_likelihood_L1(U_obs, U_model, np.exp(-0.5 * model.loge) * CD_sqrt_inv)
+    if normOpt == 2: 
+        CD_inv = np.asarray(CD_inv)
+        logL = compute_log_likelihood(U_obs, U_model, np.exp(-model.loge) * CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -332,9 +348,10 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
         if model.Nphase == 0:
             actions = [0]
         else:
-            actionPool = np.arange(5)
+            actionPool = np.arange(4)
             if fitAtts: actionPool = np.append(actionPool, [5])
-            if locDiff: actionPool = np.append(actionPool, [6, 7])
+            if fitLoge: actionPool = np.append(actionPool, [6])
+            if locDiff: actionPool = np.append(actionPool, [7, 8])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -359,8 +376,10 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             elif iAction == 5:
                 model_new, success = update_atts(model_new, prior)
             elif iAction == 6:
-                model_new, success = update_distDiff(model_new, prior)
+                model_new, success = update_loge(model_new, prior)
             elif iAction == 7:
+                model_new, success = update_distDiff(model_new, prior)
+            elif iAction == 8:
                 model_new, success = update_bazDiff(model_new, prior)
             
             if success:
@@ -368,10 +387,13 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
                 action_counts[iAction].append(1)  # always count attempt
 
         U_model_new = create_U_from_model_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
-        if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
-        if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
+        if normOpt == 1: 
+            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, np.exp(-0.5 * model_new.loge) * CD_sqrt_inv)
+        if normOpt == 2: 
+            new_logL = compute_log_likelihood(U_obs, U_model_new, np.exp(-model_new.loge) * CDinv)
 
-        log_accept_ratio = ((new_logL - logL) + np.log((model.Nphase + 1) / model_new.Nphase)) if model_new.Nphase > 0 else (new_logL - logL)
+        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
+        
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
@@ -452,6 +474,8 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     from vespainv.model import VespaModel3c
     from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
+    
+    trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
 
     totalSteps = bookkeeping.totalSteps
@@ -461,6 +485,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     actionsPerStep = bookkeeping.actionsPerStep
     locDiff = bookkeeping.locDiff
     fitAtts = bookkeeping.fitAtts
+    fitLoge = bookkeeping.fitLoge
     fitPhase = bookkeeping.fitPhase
     normOpt = bookkeeping.normOpt
 
@@ -477,8 +502,12 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     logL_trace = []
 
     U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
-    if normOpt == 1: logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
-    if normOpt == 2: logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
+    if normOpt == 1: 
+        CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+        logL = compute_log_likelihood_L1(U_obs, U_model, np.exp(-0.5 * model.loge) * CD_sqrt_inv)
+    if normOpt == 2:
+        CDinv = np.asarray(CDinv)
+        logL = compute_log_likelihood(U_obs, U_model, np.exp(-model.loge) * CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -507,7 +536,8 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             actionPool = np.arange(7)
             if fitPhase: actionPool = np.append(actionPool, [7, 8])
             if fitAtts: actionPool = np.append(actionPool, [9])
-            if locDiff: actionPool = np.append(actionPool, [10, 11])
+            if fitLoge: actionPool = np.append(actionPool, [10])
+            if locDiff: actionPool = np.append(actionPool, [11, 12])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
         model_new = model
@@ -540,8 +570,10 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             elif iAction == 9:
                 model_new, success = update_atts(model_new, prior)
             elif iAction == 10:
-                model_new, success = update_distDiff(model_new, prior)
+                model_new, success = update_loge(model_new, prior)
             elif iAction == 11:
+                model_new, success = update_distDiff(model_new, prior)
+            elif iAction == 12:
                 model_new, success = update_bazDiff(model_new, prior)
 
             if success:
@@ -550,10 +582,13 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
         # Evaluate proposed model
         U_model_new = create_U_from_model_3c_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
-        if normOpt == 1: new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
-        if normOpt == 2: new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
+        if normOpt == 1: 
+            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, np.exp(-0.5 * model_new.loge) * CD_sqrt_inv)
+        if normOpt == 2: 
+            new_logL = compute_log_likelihood(U_obs, U_model_new, np.exp(-model_new.loge) * CDinv)
 
-        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1)/(model_new.Nphase + 1))
+        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
+        
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new

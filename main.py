@@ -169,6 +169,7 @@ if __name__ == "__main__":
             fitAtts=fitAtts,
             fitLoge=fitLoge,
             fitPhase=fitPhase,
+            normOpt=normOpt,
             isMars=isMars,
             srcArray=srcArray,
             srcLat=srcLat,
