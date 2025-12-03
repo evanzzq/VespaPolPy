@@ -1,7 +1,7 @@
 # ---- universal defaults ----
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
-  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  # filedir: "H:/My Drive/Research/VespaPolPy"
+  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
@@ -31,6 +31,20 @@ defaults:
 # ---- experiment specifics ----
 experiments:
 
+  - modname: "SKS_tws"
+    runname: run1_L1
+    slwRange: [-2., 2.]
+    ampRange: [0., 1.]
+    normOpt: 1
+    maxN: 3
+    CDopt: 0
+    normOpt: 1
+    fitAtts: true
+    fitLoge: true
+    totalSteps: 100000
+    burnInSteps: 80000
+    num_chains: 4
+
   # - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
   #   runname: run4_L1_N20_atts_1e6
   #   slwRange: [4., 10.]
@@ -38,29 +52,29 @@ experiments:
   #   maxN: 20
   #   fitAtts: true
 
-  - modname: "201111221848_P_45_48_10_40s"
-    runname: run8_L1_N20_atts_1e6_posamp
-    slwRange: [2., 10.]
-    ampRange: [0., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
+  # - modname: "201111221848_P_45_48_10_40s"
+  #   runname: run8_L1_N20_atts_1e6_posamp
+  #   slwRange: [2., 10.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 20
+  #   fitAtts: true
+  #   fitLoge: true
   
-  - modname: "201111221848_P_45_48"
-    runname: run8_L1_N20_atts_loge_1e6_posamp
-    slwRange: [2., 10.]
-    ampRange: [0., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
+  # - modname: "201111221848_P_45_48"
+  #   runname: run8_L1_N20_atts_loge_1e6_posamp
+  #   slwRange: [2., 10.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 20
+  #   fitAtts: true
+  #   fitLoge: true
     
-  - modname: "201111221848_P_45_48"
-    runname: run8_L1_N20_atts_loge_1e6
-    slwRange: [2., 10.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
+  # - modname: "201111221848_P_45_48"
+  #   runname: run8_L1_N20_atts_loge_1e6
+  #   slwRange: [2., 10.]
+  #   ampRange: [-1., 1.]
+  #   normOpt: 1
+  #   maxN: 20
+  #   fitAtts: true
+  #   fitLoge: true

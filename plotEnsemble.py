@@ -5,11 +5,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
-third_click = True
+third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = False

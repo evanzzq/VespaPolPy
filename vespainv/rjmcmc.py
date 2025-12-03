@@ -503,11 +503,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
     if normOpt == 1: 
-        CD_sqrt_inv = np.asarray(CD_sqrt_inv)
-        logL = compute_log_likelihood_L1(U_obs, U_model, np.exp(-0.5 * model.loge) * CD_sqrt_inv)
+        if CD_sqrt_inv:
+            CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+            CD_sqrt_inv *= np.exp(-0.5 * model.loge)
+        logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=CD_sqrt_inv)
     if normOpt == 2:
-        CDinv = np.asarray(CDinv)
-        logL = compute_log_likelihood(U_obs, U_model, np.exp(-model.loge) * CDinv)
+        if CDinv:
+            CDinv = np.asarray(CDinv)
+            CDinv *= np.exp(-model.loge)
+        logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -583,9 +587,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         # Evaluate proposed model
         U_model_new = create_U_from_model_3c_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
         if normOpt == 1: 
-            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, np.exp(-0.5 * model_new.loge) * CD_sqrt_inv)
+            if CD_sqrt_inv:
+                CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+                CD_sqrt_inv *= np.exp(-0.5 * model.loge)
+            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv=CD_sqrt_inv)
         if normOpt == 2: 
-            new_logL = compute_log_likelihood(U_obs, U_model_new, np.exp(-model_new.loge) * CDinv)
+            if CDinv:
+                CDinv = np.asarray(CDinv)
+                CDinv *= np.exp(-model.loge)
+            new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
 
         log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
         
