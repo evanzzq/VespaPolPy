@@ -287,6 +287,9 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
 
     from vespainv.model import VespaModel
     from vespainv.waveformBuilder import create_U_from_model_freqdomain
+    
+    if CD_sqrt_inv is not None: CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+    if CDinv is not None: CDinv = np.asarray(CDinv)
 
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -319,11 +322,13 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
 
     U_model = np.zeros(trace_shape)
     if normOpt == 1: 
-        CD_sqrt_inv = np.asarray(CD_sqrt_inv)
-        logL = compute_log_likelihood_L1(U_obs, U_model, np.exp(-0.5 * model.loge) * CD_sqrt_inv)
-    if normOpt == 2: 
-        CD_inv = np.asarray(CD_inv)
-        logL = compute_log_likelihood(U_obs, U_model, np.exp(-model.loge) * CDinv)
+        if CD_sqrt_inv is not None:      
+            CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
+        logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
+    if normOpt == 2:
+        if CDinv is not None:
+            CDinv_c = CDinv * np.exp(-model.loge)
+        logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -387,10 +392,15 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
                 action_counts[iAction].append(1)  # always count attempt
 
         U_model_new = create_U_from_model_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
+        
         if normOpt == 1: 
-            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, np.exp(-0.5 * model_new.loge) * CD_sqrt_inv)
-        if normOpt == 2: 
-            new_logL = compute_log_likelihood(U_obs, U_model_new, np.exp(-model_new.loge) * CDinv)
+            if CD_sqrt_inv is not None:      
+                CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model_new.loge)
+            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
+        if normOpt == 2:
+            if CDinv is not None:
+                CDinv_c = CDinv * np.exp(-model_new.loge)
+            new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
 
         log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
         
@@ -474,6 +484,9 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     from vespainv.model import VespaModel3c
     from vespainv.waveformBuilder import create_U_from_model_3c_freqdomain
+
+    if CD_sqrt_inv is not None: CD_sqrt_inv = np.asarray(CD_sqrt_inv)
+    if CDinv is not None: CDinv = np.asarray(CDinv)
     
     trace_len = U_obs.shape[0]
     n_traces = U_obs.shape[1]
@@ -502,16 +515,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     logL_trace = []
 
     U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
+    
     if normOpt == 1: 
-        if CD_sqrt_inv:
-            CD_sqrt_inv = np.asarray(CD_sqrt_inv)
-            CD_sqrt_inv *= np.exp(-0.5 * model.loge)
-        logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=CD_sqrt_inv)
+        if CD_sqrt_inv is not None:      
+            CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
+        logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
     if normOpt == 2:
-        if CDinv:
-            CDinv = np.asarray(CDinv)
-            CDinv *= np.exp(-model.loge)
-        logL = compute_log_likelihood(U_obs, U_model, CDinv=CDinv)
+        if CDinv is not None:
+            CDinv_c = CDinv * np.exp(-model.loge)
+        logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -586,16 +598,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
         # Evaluate proposed model
         U_model_new = create_U_from_model_3c_freqdomain(model_new, metadata, Utime, stf_time, stf_data, bookkeeping)
+        
         if normOpt == 1: 
-            if CD_sqrt_inv:
-                CD_sqrt_inv = np.asarray(CD_sqrt_inv)
-                CD_sqrt_inv *= np.exp(-0.5 * model.loge)
-            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv=CD_sqrt_inv)
-        if normOpt == 2: 
-            if CDinv:
-                CDinv = np.asarray(CDinv)
-                CDinv *= np.exp(-model.loge)
-            new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=CDinv)
+            if CD_sqrt_inv is not None:      
+                CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model_new.loge)
+            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
+        if normOpt == 2:
+            if CDinv is not None:
+                CDinv_c = CDinv * np.exp(-model_new.loge)
+            new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
 
         log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
         

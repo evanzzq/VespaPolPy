@@ -266,7 +266,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     
     return selected_pt
 
-def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, bookkeeping=None, moveout_pt=None):
+def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, metadata=None, stf=None, bookkeeping=None, moveout_pt=None, mode="All"):
 
     from vespainv.waveformBuilder import create_U_from_model_freqdomain, create_U_from_model_3c_freqdomain
 
@@ -279,6 +279,41 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
     if ensemble is not None:
         U_model = np.zeros_like(U)
         for model in ensemble:
+            # filter P or S phases based on mode
+            if is3c:
+                if mode == "P":
+                    iph = 0
+                    while True:
+                        if iph >= model.Nphase: break
+                        if model.wvtype[iph] == 0:
+                            model.Nphase -= 1
+                            model.arr = np.delete(model.arr, iph)
+                            model.slw = np.delete(model.slw, iph)
+                            model.amp = np.delete(model.amp, iph)
+                            model.atts = np.delete(model.atts, iph)
+                            model.azi = np.delete(model.azi, iph)
+                            model.ph_hh = np.delete(model.ph_hh, iph)
+                            model.ph_vh = np.delete(model.ph_vh, iph)
+                            model.wvtype = np.delete(model.wvtype, iph)
+                        else:
+                            iph += 1
+                elif mode == "S":
+                    iph = 0
+                    while True:
+                        if iph >= model.Nphase: break
+                        if model.wvtype[iph] == 1:
+                            model.Nphase -= 1
+                            model.arr = np.delete(model.arr, iph)
+                            model.slw = np.delete(model.slw, iph)
+                            model.amp = np.delete(model.amp, iph)
+                            model.atts = np.delete(model.atts, iph)
+                            model.azi = np.delete(model.azi, iph)
+                            model.ph_hh = np.delete(model.ph_hh, iph)
+                            model.ph_vh = np.delete(model.ph_vh, iph)
+                            model.wvtype = np.delete(model.wvtype, iph)
+                        else:
+                            iph += 1
+            # aggreagate U
             U_model += (
                 create_U_from_model_3c_freqdomain(model, metadata, time, stf[:, 0], stf[:, 1], bookkeeping)
                 if is3c 

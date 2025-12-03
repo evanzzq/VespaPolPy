@@ -5,17 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
-third_click = False
+third_click = True
 
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = False
+use_manual = True
+seis_mode = "S"
 
 # The following will be overridden if use_manual == False
-modname    = "201111221848_P_45_48"
+modname    = "201111221848_P_45_48_10_40s"
 runname    = "run8_L1_N20_atts_1e6_posamp"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
@@ -282,12 +283,12 @@ moveout_pt = plot_ensemble_vespagram(
 plot_seismogram_compare(
     U=U_obs, time=Utime, offset=1.5,
     ensemble=ensemble, prior=prior, metadata=metadata,
-    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt
+    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt, mode=seis_mode
 )
-plot_seismogram_compare(
-    U=U_obs, time=Utime, offset=1.5,
-    ensemble=[ensemble[4]], prior=prior, metadata=metadata,
-    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt
-)
+# plot_seismogram_compare(
+#     U=U_obs, time=Utime, offset=1.5,
+#     ensemble=[ensemble[4]], prior=prior, metadata=metadata,
+#     stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt
+# )
 
 plt.show()
