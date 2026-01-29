@@ -1,30 +1,30 @@
-from vespainv.visualization import plot_ensemble_vespagram, plot_seismogram_compare
+from vespainv.visualization import plot_ensemble_vespagram, plot_seismogram_compare, phase_count_distribution_by_model
 from vespainv.utils import prep_data
 import pickle, os, re, argparse, yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
-third_click = True
+third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = True
-seis_mode = "S"
+use_manual = False
+seis_mode = "All" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "201111221848_P_45_48_10_40s"
-runname    = "run8_L1_N20_atts_1e6_posamp"
+modname    = "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240_VEL_0.1_1.0Hz"
+runname    = "run1_L1_N50_atts_loge_1e6"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
 CDopt      = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
-fitAtts    = False
+fitAtts    = True
 fitPhase   = True
 
 # -------- Selection options --------
@@ -270,6 +270,18 @@ else:
 
 fig.tight_layout()
 # (No saving here)
+
+# # ---- Optional statistics ----
+# summary = phase_count_distribution_by_model(
+#     ensemble,
+#     tmin=20, tmax=40,
+#     pmin=10, pmax=12,
+#     is3c=True,          # if you have wvtype and want filtering
+#     wave_type="S",      # or None to include all
+#     make_plots=True
+# )
+
+# print(summary)
 
 
 # ---- Plot ----

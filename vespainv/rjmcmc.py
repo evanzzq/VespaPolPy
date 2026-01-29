@@ -519,11 +519,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     if normOpt == 1: 
         if CD_sqrt_inv is not None:      
             CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
-        logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
+            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
+        else:
+            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
     if normOpt == 2:
         if CDinv is not None:
             CDinv_c = CDinv * np.exp(-model.loge)
-        logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
+            logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
+        else:
+            logL = compute_log_likelihood(U_obs, U_model, CDinv)
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -602,11 +606,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         if normOpt == 1: 
             if CD_sqrt_inv is not None:      
                 CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model_new.loge)
-            new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
+                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
+            else:
+                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
         if normOpt == 2:
             if CDinv is not None:
                 CDinv_c = CDinv * np.exp(-model_new.loge)
-            new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
+                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
+            else:
+                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv)
 
         log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
         

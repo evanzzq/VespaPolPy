@@ -18,9 +18,20 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     attsAll = np.concatenate([m.atts for m in ensemble])
     valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll)
 
+    # --- Histogram of loge across ALL models in the ensemble ---
+    logeAll = np.array([m.loge for m in ensemble], dtype=float)
+    logeAll = logeAll[~np.isnan(logeAll)]
+
+    plt.figure(figsize=(6, 4))
+    plt.hist(logeAll, bins=40, range=(1.99,2.01), color="gray", alpha=0.7, edgecolor="white")
+    plt.xlabel("loge")
+    plt.ylabel("Count")
+    plt.title(f"loge histogram (all models), N={logeAll.size}")
+    plt.tight_layout()
+    plt.show(block=False)
+
     if is3c:
         aziAll = np.concatenate([m.azi for m in ensemble])
-        # dipAll = np.concatenate([m.dip for m in ensemble])
         ph_hhAll = np.concatenate([m.ph_hh for m in ensemble])
         ph_vhAll = np.concatenate([m.ph_vh for m in ensemble])
         isP_All = np.concatenate([m.wvtype for m in ensemble])  # Assume 1=P, 0=S
@@ -149,6 +160,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     if np.sum(mask_box) == 0:
         print("No data points selected.")
         return
+    
+    # Print no. of phases across ensembles
+    n_points = int(np.sum(mask_box))
+    print(f"{n_points} phase-samples in the box (across the ensemble).")
 
     def plot_kde(ax, data, label, range_, true_value=None, circular=False):
         """
@@ -406,3 +421,142 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
 
         plt.grid(True)
         plt.tight_layout()
+
+def phase_count_distribution_by_model(
+    ensemble,
+    tmin, tmax,
+    pmin, pmax,
+    is3c=False,
+    wave_type=None,          # None / "P" / "S"
+    make_plots=True,
+    bins=30,
+):
+    """
+    Compute per-model phase-count statistics inside a (t, slowness) box.
+
+    Statistics are computed for:
+      (1) raw phase counts per model
+      (2) fraction of phases per model in the box
+      (3) inverse fraction (total phases per in-box phase)
+
+    Parameters
+    ----------
+    ensemble : list
+        List of posterior models.
+    tmin, tmax : float
+        Arrival-time bounds (s).
+    pmin, pmax : float
+        Slowness bounds (s/deg).
+    is3c : bool
+        If True, enable wave-type filtering using model.wvtype (1=P, 0=S).
+    wave_type : None | "P" | "S"
+        Optional wave-type filter (used only if is3c=True).
+    make_plots : bool
+        If True, plot histograms.
+    bins : int
+        Histogram bin count.
+
+    Returns
+    -------
+    summary : dict
+        Dictionary of per-model statistics.
+    """
+
+    wave_type_norm = None if wave_type is None else wave_type.upper()
+
+    n_models = len(ensemble)
+    counts_per_model = np.zeros(n_models, dtype=int)
+    totals_per_model = np.zeros(n_models, dtype=int)
+
+    # ---- per-model counting ----
+    for i, m in enumerate(ensemble):
+        arr = np.asarray(m.arr)
+        slw = np.asarray(m.slw)
+
+        valid = ~np.isnan(arr) & ~np.isnan(slw)
+
+        if is3c and wave_type_norm is not None:
+            wv = np.asarray(m.wvtype)
+            valid &= ~np.isnan(wv)
+            if wave_type_norm == "P":
+                valid &= (wv == 1)
+            elif wave_type_norm == "S":
+                valid &= (wv == 0)
+
+        totals_per_model[i] = np.sum(valid)
+
+        mask_box = (
+            (arr >= tmin) & (arr <= tmax) &
+            (slw >= pmin) & (slw <= pmax) &
+            valid
+        )
+
+        counts_per_model[i] = np.sum(mask_box)
+
+    # ---- fractions ----
+    frac_per_model = counts_per_model / totals_per_model
+    inv_frac_per_model = 1.0 / frac_per_model
+
+    # ---- summary statistics ----
+    summary = {
+        "n_models": n_models,
+        "box": {"tmin": tmin, "tmax": tmax, "pmin": pmin, "pmax": pmax},
+        "wave_type": wave_type_norm,
+
+        # raw counts
+        "sum_counts": int(np.sum(counts_per_model)),
+        "mean_counts": float(np.mean(counts_per_model)),
+        "median_counts": float(np.median(counts_per_model)),
+        "std_counts": float(np.std(counts_per_model)),
+
+        # fraction stats
+        "mean_frac": float(np.mean(frac_per_model)),
+        "median_frac": float(np.median(frac_per_model)),
+        "std_frac": float(np.std(frac_per_model)),
+        "iqr_frac": float(np.percentile(frac_per_model, 75) - np.percentile(frac_per_model, 25)),
+        "p05_frac": float(np.percentile(frac_per_model, 5)),
+        "p95_frac": float(np.percentile(frac_per_model, 95)),
+        "max_frac": float(np.max(frac_per_model)),
+
+        # inverse-fraction stats
+        "mean_inv_frac": float(np.mean(inv_frac_per_model)),
+        "median_inv_frac": float(np.median(inv_frac_per_model)),
+        "std_inv_frac": float(np.std(inv_frac_per_model)),
+        "iqr_inv_frac": float(np.percentile(inv_frac_per_model, 75) - np.percentile(inv_frac_per_model, 25)),
+        "p05_inv_frac": float(np.percentile(inv_frac_per_model, 5)),
+        "p95_inv_frac": float(np.percentile(inv_frac_per_model, 95)),
+        "max_inv_frac": float(np.max(inv_frac_per_model)),
+    }
+
+    # ---- plots ----
+    if make_plots:
+        suffix = f" ({wave_type_norm})" if (is3c and wave_type_norm) else ""
+
+        plt.figure(figsize=(7, 4))
+        plt.hist(counts_per_model, bins=bins)
+        plt.xlabel("Phases in box (per model)")
+        plt.ylabel("Number of models")
+        plt.title(f"Per-model phase counts{suffix}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+        plt.figure(figsize=(7, 4))
+        plt.hist(frac_per_model, bins=bins)
+        plt.xlabel("Fraction of phases in box")
+        plt.ylabel("Number of models")
+        plt.title(f"Per-model phase fraction{suffix}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+        plt.figure(figsize=(7, 4))
+        plt.hist(inv_frac_per_model, bins=bins)
+        plt.xlabel("1 / fraction  (total phases per in-box phase)")
+        plt.ylabel("Number of models")
+        plt.title(f"Per-model inverse fraction{suffix}")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
+
+    return summary

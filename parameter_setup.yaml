@@ -1,7 +1,7 @@
 # ---- universal defaults ----
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
-  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  # filedir: "H:/My Drive/Research/VespaPolPy"
+  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
@@ -31,7 +31,87 @@ defaults:
 # ---- experiment specifics ----
 experiments:
 
-  # - modname: "SKS_tws"
+  - modname: "201111221848_P_b10_a20"
+    runname: run1_L1_maxN10
+    slwRange: [-4., 2.]
+    ampRange: [-1., 1.]
+    normOpt: 1
+    maxN: 10
+    CDopt: 3
+    normOpt: 1
+    fitAtts: true
+    fitLoge: true
+    num_chains: 8
+  
+  - modname: "201111221848_P_b10_a20"
+    runname: run1_L1_maxN20
+    slwRange: [-4., 2.]
+    ampRange: [-1., 1.]
+    normOpt: 1
+    maxN: 20
+    CDopt: 3
+    normOpt: 1
+    fitAtts: true
+    fitLoge: true
+    num_chains: 8
+
+  # - modname: "SKS_tws_VEL_0.66Hz"
+  #   runname: run1_L1_maxN2
+  #   slwRange: [-2., 2.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 2
+  #   CDopt: 0
+  #   normOpt: 1
+  #   fitAtts: true
+  #   fitLoge: false
+  #   totalSteps: 200000
+  #   burnInSteps: 160000
+  #   num_chains: 8
+
+  # - modname: "SKS_tws_VEL_0.66Hz"
+  #   runname: run1_L1_maxN10
+  #   slwRange: [-2., 2.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 10
+  #   CDopt: 0
+  #   normOpt: 1
+  #   fitAtts: true
+  #   fitLoge: false
+  #   totalSteps: 200000
+  #   burnInSteps: 160000
+  #   num_chains: 8
+  
+  # - modname: "SKS_tws_VEL_0.1Hz"
+  #   runname: run1_L1_maxN2
+  #   slwRange: [-2., 2.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 2
+  #   CDopt: 0
+  #   normOpt: 1
+  #   fitAtts: true
+  #   fitLoge: false
+  #   totalSteps: 200000
+  #   burnInSteps: 160000
+  #   num_chains: 8
+  
+  # - modname: "SKS_tws_VEL_0.1Hz"
+  #   runname: run1_L1_maxN10
+  #   slwRange: [-2., 2.]
+  #   ampRange: [0., 1.]
+  #   normOpt: 1
+  #   maxN: 10
+  #   CDopt: 0
+  #   normOpt: 1
+  #   fitAtts: true
+  #   fitLoge: false
+  #   totalSteps: 200000
+  #   burnInSteps: 160000
+  #   num_chains: 8
+  
+  # - modname: "SKS_tws_VEL_0.1Hz"
   #   runname: run1_L1_maxN1
   #   slwRange: [-2., 2.]
   #   ampRange: [0., 1.]
@@ -40,135 +120,7 @@ experiments:
   #   CDopt: 0
   #   normOpt: 1
   #   fitAtts: true
-  #   fitLoge: true
-  #   totalSteps: 100000
-  #   burnInSteps: 80000
+  #   fitLoge: false
+  #   totalSteps: 200000
+  #   burnInSteps: 160000
   #   num_chains: 8
-  
-  # - modname: "SKS_tws"
-  #   runname: run1_L2_maxN1
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 1
-  #   CDopt: 0
-  #   normOpt: 2
-  #   fitAtts: true
-  #   fitLoge: true
-  #   totalSteps: 100000
-  #   burnInSteps: 80000
-  #   num_chains: 8
-
-  # - modname: "SKS_tws_0p25Hz"
-  #   runname: run1_L1_maxN1
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 1
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: true
-  #   totalSteps: 100000
-  #   burnInSteps: 80000
-  #   num_chains: 8
-  
-  # - modname: "SKS_tws_0p25Hz"
-  #   runname: run1_L1_maxN3
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 3
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: true
-  #   totalSteps: 100000
-  #   burnInSteps: 80000
-  #   num_chains: 8
-  
-  # - modname: "SKS_tws_2Hz"
-  #   runname: run1_L1_maxN3
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 3
-  #   CDopt: 0
-  #   normOpt: 2
-  #   fitAtts: true
-  #   fitLoge: true
-  #   totalSteps: 100000
-  #   burnInSteps: 80000
-  #   num_chains: 8
-
-  - modname: "201111221848_P_45_48_10_40s"
-    runname: run9_L1_N20_atts_1e6
-    slwRange: [2., 10.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-
-  - modname: "201111221848_P_45_48_10_40s"
-    runname: run9_L1_N20_atts_1e6_posamp
-    slwRange: [2., 10.]
-    ampRange: [0., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-  
-  - modname: "201111221848_P_45_48"
-    runname: run9_L1_N20_atts_1e6
-    slwRange: [2., 10.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-
-  - modname: "201111221848_P_45_48"
-    runname: run9_L1_N20_atts_1e6_posamp
-    slwRange: [2., 10.]
-    ampRange: [0., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-    
-  - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
-    runname: run5_L1_N20_atts_1e6
-    slwRange: [4., 10.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-  
-  - modname: "200909050358_R64_70_locbox_42_45N_105_102W_T1100_1230"
-    runname: run5_L1_N20_atts_1e6_posamp
-    slwRange: [4., 10.]
-    ampRange: [0., 1.]
-    normOpt: 1
-    maxN: 20
-    fitAtts: true
-    fitLoge: true
-  
-  # - modname: "201111221848_P_45_48"
-  #   runname: run8_L1_N20_atts_loge_1e6_posamp
-  #   slwRange: [2., 10.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 20
-  #   fitAtts: true
-  #   fitLoge: true
-    
-  # - modname: "201111221848_P_45_48"
-  #   runname: run8_L1_N20_atts_loge_1e6
-  #   slwRange: [2., 10.]
-  #   ampRange: [-1., 1.]
-  #   normOpt: 1
-  #   maxN: 20
-  #   fitAtts: true
-  #   fitLoge: true

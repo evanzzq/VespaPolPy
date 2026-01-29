@@ -135,8 +135,8 @@ class Prior3c:
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
-    aziRange: tuple = (-180, 180)
-    ph_hhRange: tuple = (-180, 180)
+    aziRange: tuple = (-90, 90)
+    ph_hhRange: tuple = (0, 180)
     ph_vhRange: tuple = (-90, 90)
     attsRange: tuple = (0, 4)
     logeRange: tuple = (0., 2.)
