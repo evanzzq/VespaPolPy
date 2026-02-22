@@ -12,16 +12,16 @@ filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPo
 third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = False
+use_manual = True
 seis_mode = "All" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240_VEL_0.1_1.0Hz"
-runname    = "run1_L1_N50_atts_loge_1e6"
+modname    = "SKS_tws_2pct_VEL_0.1Hz"
+runname    = "run1_L1_maxN1"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
-CDopt      = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+CDopt      = 0 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
 fitAtts    = True
@@ -29,7 +29,7 @@ fitPhase   = True
 
 # -------- Selection options --------
 chains_to_plot = None          # Example: [0, 2] to select specific chains by index
-likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = -1300 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:
     # ---- Parse config file ----

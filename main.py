@@ -79,6 +79,8 @@ if __name__ == "__main__":
         actionsPerStep = params["actionsPerStep"]
         maxN       = params["maxN"]
 
+        man_stf = params["man_stf"]
+
         ampRange   = tuple(params["ampRange"])
         slwRange   = tuple(params["slwRange"])
         minSpace   = params["minSpace"]
@@ -112,7 +114,7 @@ if __name__ == "__main__":
         dt = Utime[1] - Utime[0]
 
         # STF
-        if isSyn:
+        if isSyn or man_stf:
             stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
         else:
             stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1/dt), dt)

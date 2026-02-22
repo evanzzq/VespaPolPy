@@ -11,6 +11,7 @@ defaults:
   nSaveModels: 200
   actionsPerStep: 1
   maxN: 10
+  man_stf: false
   ampRange: [-1., 1.] # only applies to real data
   minSpace: 1.0
   CDopt: 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
@@ -31,96 +32,18 @@ defaults:
 # ---- experiment specifics ----
 experiments:
 
-  - modname: "201111221848_P_b10_a20"
-    runname: run1_L1_maxN10
-    slwRange: [-4., 2.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 10
-    CDopt: 3
-    normOpt: 1
+  - modname: "Tolu_SS_new_manstf"
+    runname: run2_L2_maxN5_man_stf
+    is3c: false # for synthetic this will be overriden
+    comp: "R" # only applies to real data
+    man_stf: true
+    slwRange: [-2., 2.]
+    ampRange: [0., 1.]
+    maxN: 5
+    CDopt: 0
+    normOpt: 2
     fitAtts: true
-    fitLoge: true
+    fitLoge: false
+    totalSteps: 200000
+    burnInSteps: 160000
     num_chains: 8
-  
-  - modname: "201111221848_P_b10_a20"
-    runname: run1_L1_maxN20
-    slwRange: [-4., 2.]
-    ampRange: [-1., 1.]
-    normOpt: 1
-    maxN: 20
-    CDopt: 3
-    normOpt: 1
-    fitAtts: true
-    fitLoge: true
-    num_chains: 8
-
-  # - modname: "SKS_tws_VEL_0.66Hz"
-  #   runname: run1_L1_maxN2
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 2
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: false
-  #   totalSteps: 200000
-  #   burnInSteps: 160000
-  #   num_chains: 8
-
-  # - modname: "SKS_tws_VEL_0.66Hz"
-  #   runname: run1_L1_maxN10
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 10
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: false
-  #   totalSteps: 200000
-  #   burnInSteps: 160000
-  #   num_chains: 8
-  
-  # - modname: "SKS_tws_VEL_0.1Hz"
-  #   runname: run1_L1_maxN2
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 2
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: false
-  #   totalSteps: 200000
-  #   burnInSteps: 160000
-  #   num_chains: 8
-  
-  # - modname: "SKS_tws_VEL_0.1Hz"
-  #   runname: run1_L1_maxN10
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 10
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: false
-  #   totalSteps: 200000
-  #   burnInSteps: 160000
-  #   num_chains: 8
-  
-  # - modname: "SKS_tws_VEL_0.1Hz"
-  #   runname: run1_L1_maxN1
-  #   slwRange: [-2., 2.]
-  #   ampRange: [0., 1.]
-  #   normOpt: 1
-  #   maxN: 1
-  #   CDopt: 0
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: false
-  #   totalSteps: 200000
-  #   burnInSteps: 160000
-  #   num_chains: 8

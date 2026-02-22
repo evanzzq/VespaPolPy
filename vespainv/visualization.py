@@ -195,7 +195,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
         num_unique = len(np.unique(data))
         if  len(data) < 5e5 or num_unique < 10: # len(data) < 5 or num_unique < 10
-            ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
+            ax.hist(data, bins=50, range=range_, color='gray', alpha=0.7)
             ax.set_xlim(range_)
             return
 
@@ -218,7 +218,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             ax.legend()
 
         except np.linalg.LinAlgError:
-            ax.hist(data, bins=30, range=range_, color='gray', alpha=0.7)
+            ax.hist(data, bins=90, range=range_, color='gray', alpha=0.7)
             ax.text(0.5, 0.9, 'KDE failed\n(showing histogram)', ha='center',
                     va='top', transform=ax.transAxes, fontsize=9, color='darkred')
             ax.set_xlim(range_)
@@ -243,8 +243,8 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
-        # plot_kde(axs[3], bazAll, 'Phase BAZ', prior.bazRange, true_value=bazTrue if true_model else None)
-        plot_kde(axs[4], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
+        plot_kde(axs[3], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
+        plot_kde(axs[4], aziAll, 'Pol. Az.', (-45, 15), true_value=-24.98, circular=True)
         plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None, circular=True)
         plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None, circular=True)
         plot_kde(axs[7], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)
@@ -403,6 +403,17 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             ax.set_title(f"Component {comp_labels[comp]}")
             ax.set_xlabel("Time (s)")
         axs[0].set_ylabel("Trace Index")
+
+        # tmp: partical motion plot
+        plt.figure(figsize=(8, 8))
+        trace_R = U[:, 0, 1]
+        trace_T = U[:, 0, 2]
+        trace_R_model = U_model[:, 0, 1]
+        trace_T_model = U_model[:, 0, 2]
+        plt.plot(trace_R, trace_T, color='k')
+        plt.plot(trace_R_model, trace_T_model, color='r')
+        plt.xlim([-1, 1])
+        plt.ylim([-1, 1])
     else:
         plt.figure(figsize=(10, 8))
         for i in range(n_traces):
