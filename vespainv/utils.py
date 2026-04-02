@@ -638,7 +638,9 @@ def inv_sqrt(C):
 
 def prep_data(datadir, modname, is3c, comp, CDopt):
     import os
+    import numpy as np
     from scipy.linalg import fractional_matrix_power
+
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
             response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
@@ -647,39 +649,59 @@ def prep_data(datadir, modname, is3c, comp, CDopt):
             else:
                 print("Aborted.")
                 return
-        U_obs = np.loadtxt(os.path.join(datadir, modname, "U.csv"), delimiter=",")  # columns: data
+        U_obs = np.loadtxt(os.path.join(datadir, modname, "U.csv"), delimiter=",")
     else:
         if is3c:
-            Z_obs = np.loadtxt(os.path.join(datadir, modname, "UZ.csv"), delimiter=",")  # columns: data
-            R_obs = np.loadtxt(os.path.join(datadir, modname, "UR.csv"), delimiter=",")  # columns: data
-            T_obs = np.loadtxt(os.path.join(datadir, modname, "UT.csv"), delimiter=",")  # columns: data
-            U_obs = np.stack([Z_obs, R_obs, T_obs], axis=-1)
+            Z_obs = np.loadtxt(os.path.join(datadir, modname, "UZ.csv"), delimiter=",")
+            R_obs = np.loadtxt(os.path.join(datadir, modname, "UR.csv"), delimiter=",")
+            T_obs = np.loadtxt(os.path.join(datadir, modname, "UT.csv"), delimiter=",")
+
+            if Z_obs.ndim == 1:
+                # single-station 3C -> enforce (nt, 1, 3)
+                U_obs = np.stack([Z_obs, R_obs, T_obs], axis=-1)   # (nt, 3)
+                U_obs = U_obs[:, np.newaxis, :]                    # (nt, 1, 3)
+            else:
+                # multi-station 3C -> (nt, ntrace, 3)
+                U_obs = np.stack([Z_obs, R_obs, T_obs], axis=-1)
         else:
-            Uname = "U"+comp+".csv"
-            U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")  # columns: data
-    
-    CDinv = None # CDopt: 0 - False, 1 - CD, 2- CD_robust, 3- CD_fit
+            Uname = "U" + comp + ".csv"
+            U_obs = np.loadtxt(os.path.join(datadir, modname, Uname), delimiter=",")
+
+    CDinv = None
     if CDopt:
-        if CDopt == 1: robust_handle = ''
-        elif CDopt == 2: robust_handle = '_robust'
-        elif CDopt == 3: robust_handle = "_fit"
-        else: raise ValueError(f"Invalid CDopt value: {CDopt}. Must be 0 (False), 1 (Empirical), or 2 (Robust).")
+        if CDopt == 1:
+            robust_handle = ''
+        elif CDopt == 2:
+            robust_handle = '_robust'
+        elif CDopt == 3:
+            robust_handle = "_fit"
+        else:
+            raise ValueError(f"Invalid CDopt value: {CDopt}. Must be 0 (False), 1 (Empirical), or 2 (Robust).")
+
         if is3c:
-            CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ"+robust_handle+".csv"), delimiter=",")  # columns: data
-            CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR"+robust_handle+".csv"), delimiter=",")  # columns: data
-            CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT"+robust_handle+".csv"), delimiter=",")  # columns: data
+            CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ" + robust_handle + ".csv"), delimiter=",")
+            CD_R = np.loadtxt(os.path.join(datadir, modname, "CD_UR" + robust_handle + ".csv"), delimiter=",")
+            CD_T = np.loadtxt(os.path.join(datadir, modname, "CD_UT" + robust_handle + ".csv"), delimiter=",")
             CDinv = [compute_toeplitz_CDinv(CD_Z), compute_toeplitz_CDinv(CD_R), compute_toeplitz_CDinv(CD_T)]
             CD_sqrt_inv = [inv_sqrt(CD_Z), inv_sqrt(CD_R), inv_sqrt(CD_T)]
         else:
-            CDname = "CD_U"+comp+robust_handle+".csv"
-            CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")  # columns: data
+            CDname = "CD_U" + comp + robust_handle + ".csv"
+            CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")
             CDinv = compute_toeplitz_CDinv(CD)
             CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
     else:
         CDinv, CD_sqrt_inv = None, None
 
-    Utime  = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")  # columns: time
-    metadata = np.loadtxt(os.path.join(datadir, modname, "station_metadata.csv"), delimiter=",", skiprows=1)  # columns: lat, lon
+    Utime = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")
+    metadata = np.loadtxt(
+        os.path.join(datadir, modname, "station_metadata.csv"),
+        delimiter=",",
+        skiprows=1
+    )
+
+    if metadata.ndim == 1:
+        metadata = metadata[np.newaxis, :]
+
     dt = Utime[1] - Utime[0]
-    
+
     return U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c

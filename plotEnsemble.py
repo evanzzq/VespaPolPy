@@ -5,19 +5,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
 third_click = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = True
-seis_mode = "All" # P, S, or All - show selected wave type in waveforms
+use_manual = False
+seis_mode = "P" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "SKS_tws_2pct_VEL_0.1Hz"
-runname    = "run1_L1_maxN1"
+modname    = "201111221848_P_45_48_1Hz_single"
+runname    = "run1_L1_maxN20"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
@@ -29,7 +29,7 @@ fitPhase   = True
 
 # -------- Selection options --------
 chains_to_plot = None          # Example: [0, 2] to select specific chains by index
-likelihood_threshold = -1300 #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
 
 if not use_manual:
     # ---- Parse config file ----

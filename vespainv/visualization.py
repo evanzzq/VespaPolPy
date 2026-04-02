@@ -23,7 +23,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     logeAll = logeAll[~np.isnan(logeAll)]
 
     plt.figure(figsize=(6, 4))
-    plt.hist(logeAll, bins=40, range=(1.99,2.01), color="gray", alpha=0.7, edgecolor="white")
+    plt.hist(logeAll, bins=40, range=prior.logeRange, color="gray", alpha=0.7, edgecolor="white")
     plt.xlabel("loge")
     plt.ylabel("Count")
     plt.title(f"loge histogram (all models), N={logeAll.size}")
@@ -137,6 +137,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plt.ylabel("Slowness (s/deg)")
         plt.title("Ensemble Vespagram (KDE)")
         plt.grid(True)
+        plt.scatter([25.61, 49.29], [6.1509, 4.1895], c='k', marker='x', s=80, label='True model')
         if true_model is not None:
             plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
             plt.legend()
@@ -194,19 +195,16 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
                 ax.axvline(val, color='red', linestyle='--', linewidth=0.5)
 
         num_unique = len(np.unique(data))
-        if  len(data) < 5e5 or num_unique < 10: # len(data) < 5 or num_unique < 10
+        if len(data) < 5e5 or num_unique < 10:
             ax.hist(data, bins=50, range=range_, color='gray', alpha=0.7)
             ax.set_xlim(range_)
             return
 
         try:
             if circular:
-                # --- Circular wrapping ---
                 low, high = range_
                 width = high - low
-                # wrap into [low, high)
                 data_wrapped = ((data - low) % width) + low
-                # duplicate shifted versions to remove boundary edge effects
                 data_aug = np.concatenate([data_wrapped, data_wrapped - width, data_wrapped + width])
             else:
                 data_aug = data
@@ -223,6 +221,100 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
                     va='top', transform=ax.transAxes, fontsize=9, color='darkred')
             ax.set_xlim(range_)
 
+
+    def plot_2d_kde(ax, xdata, ydata, xlabel, ylabel, xrange_, yrange_,
+                    true_x=None, true_y=None, circular_x=False, circular_y=False,
+                    nbins=80):
+        """
+        Plot a 2D KDE or 2D histogram of posterior samples.
+        """
+        x = xdata[mask_box]
+        y = ydata[mask_box]
+
+        valid = (~np.isnan(x)) & (~np.isnan(y))
+        x = x[valid]
+        y = y[valid]
+
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        ax.set_xlim(xrange_)
+        ax.set_ylim(yrange_)
+
+        # plot true/reference values
+        if true_x is not None and true_y is not None:
+            ax.scatter(np.atleast_1d(true_x), np.atleast_1d(true_y),
+                    marker='x', c='red', s=40, linewidths=1.0, zorder=5)
+
+        num_unique_x = len(np.unique(x))
+        num_unique_y = len(np.unique(y))
+
+        # if too few samples / too few unique values, use 2D histogram directly
+        if len(x) < 200 or num_unique_x < 10 or num_unique_y < 10:
+            H, xedges, yedges = np.histogram2d(
+                x, y, bins=nbins, range=[xrange_, yrange_]
+            )
+            ax.imshow(
+                H.T,
+                extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+                origin='lower',
+                aspect='auto',
+                cmap='viridis'
+            )
+            return
+
+        try:
+            # ---- wrap circular variables ----
+            def wrap_and_shifts(data, range_, circular):
+                if not circular:
+                    return [data]
+                low, high = range_
+                width = high - low
+                data_wrapped = ((data - low) % width) + low
+                return [data_wrapped - width, data_wrapped, data_wrapped + width]
+
+            x_versions = wrap_and_shifts(x, xrange_, circular_x)
+            y_versions = wrap_and_shifts(y, yrange_, circular_y)
+
+            # create augmented pairs
+            x_aug = []
+            y_aug = []
+            for xv in x_versions:
+                for yv in y_versions:
+                    x_aug.append(xv)
+                    y_aug.append(yv)
+            x_aug = np.concatenate(x_aug)
+            y_aug = np.concatenate(y_aug)
+
+            values = np.vstack([x_aug, y_aug])
+            kde = gaussian_kde(values)
+
+            nx, ny = 200, 200
+            xx, yy = np.meshgrid(
+                np.linspace(*xrange_, nx),
+                np.linspace(*yrange_, ny)
+            )
+            coords = np.vstack([xx.ravel(), yy.ravel()])
+            zz = kde(coords).reshape(xx.shape)
+
+            h = ax.contourf(xx, yy, zz, levels=100, cmap='plasma')  # or 'magma', 'inferno'
+            ax.contour(xx, yy, zz, colors='k', linewidths=0.3)
+            plt.colorbar(h, ax=ax, label='Density')
+
+        except np.linalg.LinAlgError:
+            H, xedges, yedges = np.histogram2d(
+                x, y, bins=nbins, range=[xrange_, yrange_]
+            )
+            ax.imshow(
+                H.T,
+                extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+                origin='lower',
+                aspect='auto',
+                cmap='viridis'
+            )
+            ax.text(0.5, 0.95, 'KDE failed\n(showing 2D histogram)',
+                    ha='center', va='top', transform=ax.transAxes,
+                    fontsize=9, color='white')
+    
     if is3c:    
         # True model phases within click range
         if true_model:
@@ -236,7 +328,6 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             ph_vhTrue = true_model.ph_vh[idx]
             attsTrue = true_model.atts[idx]
 
-        # Plot KDEs
         fig, axs = plt.subplots(3, 3, figsize=(8, 8))
         axs = axs.flatten()
 
@@ -244,7 +335,21 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
         plot_kde(axs[3], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
-        plot_kde(axs[4], aziAll, 'Pol. Az.', (-45, 15), true_value=-24.98, circular=True)
+
+        plot_2d_kde(
+            axs[4],
+            aziAll, ph_hhAll,
+            xlabel='Pol. Az.',
+            ylabel=r'$\phi_{HH}$',
+            xrange_=prior.aziRange,
+            yrange_=prior.ph_hhRange,
+            true_x=aziTrue if true_model else None,
+            true_y=ph_hhTrue if true_model else None,
+            circular_x=True,
+            circular_y=True
+        )
+        axs[4].set_title(r'Pol. Az. vs $\phi_{HH}$')
+
         plot_kde(axs[5], ph_hhAll, r'$\phi_{HH}$', prior.ph_hhRange, true_value=ph_hhTrue if true_model else None, circular=True)
         plot_kde(axs[6], ph_vhAll, r'$\phi_{VH}$', prior.ph_vhRange, true_value=ph_vhTrue if true_model else None, circular=True)
         plot_kde(axs[7], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None)

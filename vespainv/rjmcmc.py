@@ -49,7 +49,7 @@ def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.05):
     else:
         raise ValueError("U_obs must be 2D or 3D array.")
 
-def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None):
+def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None, sigma=None):
     """
     Compute L1 log-likelihood for 1- or 3-component seismic data with whitening.
 
@@ -69,10 +69,10 @@ def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None):
     log_likelihood : float
         L1 log-likelihood (up to additive constant).
     """
-    residual = np.abs(U_obs - U_model)
+    residual = U_obs - U_model
 
     if CD_sqrt_inv is None:
-        whitened = residual
+        whitened = residual / sigma
     elif residual.ndim == 2:
         whitened = CD_sqrt_inv @ residual  # whiten time dimension
     elif residual.ndim == 3:
@@ -521,21 +521,46 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     samples = []
     logL_trace = []
+    loge_trace = []
+
+    #### - Temp: test loge only - ####
+    test_loge = False
+    if test_loge:
+        arr = np.array([10])
+        slw = np.array([0])
+        amp = np.array([0.5])
+        azi = np.array([0.0])
+        ph_hh = np.array([0.0])
+        ph_vh = np.array([0.0])
+        atts = np.array([0])
+        wvtype = np.array([1])
+        Ntrace = 5
+        Nphase = 1
+        model = VespaModel3c(Nphase=Nphase, Ntrace=Ntrace,
+                arr=arr, slw=slw, amp=amp,
+                azi=azi, ph_hh=ph_hh, ph_vh=ph_vh,
+                atts=atts, wvtype=wvtype, loge=0.
+            )
+    ####
 
     U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
+
+    np.savetxt("UZ_tmp.csv", U_model[:, :, 0], delimiter=",")
+    np.savetxt("UR_tmp.csv", U_model[:, :, 1], delimiter=",")
+    np.savetxt("UT_tmp.csv", U_model[:, :, 2], delimiter=",")
     
     if normOpt == 1: 
         if CD_sqrt_inv is not None:      
             CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
             logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
         else:
-            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
+            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None, sigma=prior.sigma * np.exp(0.5 * model.loge))
     if normOpt == 2:
         if CDinv is not None:
             CDinv_c = CDinv * np.exp(-model.loge)
             logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
         else:
-            logL = compute_log_likelihood(U_obs, U_model, CDinv)
+            logL = compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=prior.sigma * np.exp(0.5 * model.loge))
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
@@ -568,7 +593,13 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             if locDiff: actionPool = np.append(actionPool, [11, 12])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
-        model_new = model
+        #### - Temp: test loge only - ####
+        if test_loge:
+            actions = np.array([10])
+        ####
+
+        # model_new = model
+        model_new = copy.deepcopy(model)
         applied_actions = []  # Track successful actions (not yet accepted)
 
         for iAction in actions:
@@ -616,15 +647,15 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
                 CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model_new.loge)
                 new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
             else:
-                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
+                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv=None, sigma=prior.sigma * np.exp(0.5 * model_new.loge))
         if normOpt == 2:
             if CDinv is not None:
                 CDinv_c = CDinv * np.exp(-model_new.loge)
                 new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
             else:
-                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv)
+                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=None, sigma=prior.sigma * np.exp(0.5 * model_new.loge))
 
-        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
+        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + 0.5 * U_obs.size * (model.loge - model_new.loge)
         
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
@@ -636,6 +667,7 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             for iAction in applied_actions:
                 action_success[iAction].append(0)
 
+        loge_trace.append(model.loge)
         logL_trace.append(logL)
         Nphase.append(model.Nphase)
 
@@ -705,4 +737,4 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-    return samples, logL_trace, Nphase
+    return samples, logL_trace, loge_trace, Nphase

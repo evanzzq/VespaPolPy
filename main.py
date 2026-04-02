@@ -44,16 +44,17 @@ def run_chain(chain_id, exp_vars):
 
     # Run RJMCMC
     if is3c:
-        samples, logL_trace, Nphase = rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
+        samples, logL_trace, loge_trace, Nphase = rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
                                            stf, prior, bookkeeping, save_dir)
     else:
-        samples, logL_trace, Nphase = rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
+        samples, logL_trace, loge_trace, Nphase = rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime,
                                          stf, prior, bookkeeping, save_dir)
 
     # Save outputs
     with open(os.path.join(save_dir, "ensemble.pkl"), "wb") as f:
         pickle.dump(samples, f)
     np.savetxt(os.path.join(save_dir, "log_likelihood.txt"), logL_trace)
+    np.savetxt(os.path.join(save_dir, "loge.txt"), loge_trace)
     np.savetxt(os.path.join(save_dir, "Nphase.txt"), Nphase)
 
     return samples
@@ -78,6 +79,7 @@ if __name__ == "__main__":
         nSaveModels = params["nSaveModels"]
         actionsPerStep = params["actionsPerStep"]
         maxN       = params["maxN"]
+        sigma      = params["sigma"]
 
         man_stf = params["man_stf"]
 
@@ -131,13 +133,13 @@ if __name__ == "__main__":
         # else:
         if is3c:
             prior = Prior3c(
-                minSpace=stf_wid, maxN=maxN,
+                minSpace=stf_wid, maxN=maxN, sigma=sigma,
                 timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                 slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
             )
         else:
             prior = Prior(
-                timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
+                sigma=sigma, timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                 slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
             )
         save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)

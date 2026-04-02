@@ -37,6 +37,7 @@ class Prior:
     timeRange: tuple
 
     maxN: int = 5
+    sigma: float = 0.05
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
@@ -132,14 +133,15 @@ class Prior3c:
     timeRange: tuple
 
     maxN: int = 5
+    sigma: float = 0.05
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)
     aziRange: tuple = (-90, 90)
     ph_hhRange: tuple = (0, 180)
     ph_vhRange: tuple = (-90, 90)
-    attsRange: tuple = (0, 4)
-    logeRange: tuple = (0., 2.)
+    attsRange: tuple = (1., 1.)
+    logeRange: tuple = (0., 10.)
     distDiffRange: tuple = (-1, 1)
     bazDiffRange: tuple = (-10, 10)
 
@@ -168,7 +170,7 @@ class Prior3c:
         if self.attsStd is None:
             self.attsStd = 0.2 * (self.attsRange[1] - self.attsRange[0])
         if self.logeStd is None:
-            self.logeStd = 0.1 * (self.logeRange[1] - self.logeRange[0])
+            self.logeStd = 0.2 * (self.logeRange[1] - self.logeRange[0])
         if self.distDiffStd is None:
             self.distDiffStd = 0.2 * (self.distDiffRange[1] - self.distDiffRange[0])
         if self.bazDiffStd is None:

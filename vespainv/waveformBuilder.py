@@ -328,7 +328,7 @@ def tstar_conv_freqdomain(W: np.ndarray, freqs: np.ndarray, t_star: float) -> np
     return W_attenuated
 
 
-def PVH_to_ZRT(P, SV, SH, slw, a0=6.3, b0=3.6, radius=6371.):
+def PVH_to_ZRT(P, SV, SH, slw, a0=6.571, b0=4.1, radius=6371.):
     """
     Transform PVH components to ZRT components.
     

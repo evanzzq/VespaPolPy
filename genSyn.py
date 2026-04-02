@@ -10,15 +10,15 @@ from vespainv.utils import dest_point
 filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 modname = "model12"
-Nphase = 5
-maxN = 10 # will be written into Prior
-is3c = False
+Nphase = 3
+maxN = 20 # will be written into Prior
+is3c = True
 ampRange = (0, 1)
 slwRange = (-2., 2.)
 
 # Parameter setup: stf
 f0 = 0.2
-dt = 0.1
+dt = 0.2
 
 # Parameter setup: time vector
 tmax = 100
@@ -39,14 +39,14 @@ bazDiff  = np.random.uniform(-3.0, 3.0, Ntrace)
 
 # Parameter setup: arrival times
 defAll = True
-arr = np.array([10,42,50,58,90])
-slw = np.array([0., 0, 0.2, -0.2, 1])
-amp = np.array([0.8, 0.8, 1.0, 0.7, 0.5])
-azi = np.array([0,20,0,0,0]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
-ph_hh = np.array([0,30,0,0,0]) # N/A for P and pure SV?
-ph_vh = np.array([20,60,0,0,10]) # N/A for pure SH 
-atts = np.array([1,1,1,1,1])
-wvtype = np.array([1, 0, 1, 0, 1])
+arr = np.array([25, 50, 75])
+slw = np.array([-1., 0., 1.])
+amp = np.array([1., 0.4, 0.8])
+azi = np.array([0, 20, 60]) # N/A for P type; for S, 0 means pure SV and 90 means pure SH
+ph_hh = np.array([0, 10, 50]) # N/A for P and pure SV?
+ph_vh = np.array([0, 15, 20]) # N/A for pure SH 
+atts = np.array([1, 1, 1])
+wvtype = np.array([1, 0, 0])
 
 synDir = os.path.join(filedir, "SynData", modname)
 os.makedirs(synDir, exist_ok=True)
@@ -83,7 +83,7 @@ if is3c:
     model = VespaModel3c.create_random(
         Nphase=Nphase, Ntrace=Ntrace, time=time, prior=prior, arr=arr
         ) if not defAll else VespaModel3c(
-            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype
+            Nphase=Nphase, Ntrace=Ntrace, arr=arr, slw=slw, amp=amp, azi=azi, ph_hh=ph_hh, ph_vh=ph_vh, atts=atts, wvtype=wvtype, loge=0.
         )
 else:
     prior = Prior(maxN=maxN, timeRange=(time[0],time[-1]), ampRange=ampRange, slwRange=slwRange)
@@ -114,6 +114,9 @@ with open(os.path.join(synDir, "model_details.txt"), "w") as ftxt:
     ftxt.write(np.array2string(model.slw, separator=", ") + "\n\n")
     ftxt.write("--- Amplitudes ---\n")
     ftxt.write(np.array2string(model.amp, separator=", ") + "\n\n")
+    if hasattr(model, 'azi'):
+        ftxt.write("--- S polarization beta ---\n")
+        ftxt.write(np.array2string(model.azi, separator=", ") + "\n\n")
     if hasattr(model, 'ph_hh'):
         ftxt.write("--- Phase Difference: HH ---\n")
         ftxt.write(np.array2string(model.ph_hh, separator=", ") + "\n\n")
@@ -138,7 +141,7 @@ with open(os.path.join(synDir, "Prior.pkl"), "wb") as f2:
     pickle.dump(prior, f2)
 
 # Generate U, plot, and save
-bookkeeping = Bookkeeping(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, fitAtts=False, fitPhase=True, isMars=False)
+bookkeeping = Bookkeeping(refLat=refLat, refLon=refLon, refBaz=base_baz, srcLat=srcLat, srcLon=srcLon, fitAtts=False, fitPhase=True, fitLoge=True, isMars=False)
 with open(os.path.join(synDir, "Bookkeeping_0.pkl"), "wb") as f:
     pickle.dump(bookkeeping, f)
 if is3c:

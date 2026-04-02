@@ -1,10 +1,11 @@
 # ---- universal defaults ----
 defaults:
-  # filedir: "H:/My Drive/Research/VespaPolPy"
-  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  filedir: "H:/My Drive/Research/VespaPolPy"
+  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
+  sigma: 0.02
   num_chains: 8
   totalSteps: 1000000
   burnInSteps: 800000
@@ -32,18 +33,62 @@ defaults:
 # ---- experiment specifics ----
 experiments:
 
-  - modname: "Tolu_SS_new_manstf"
-    runname: run2_L2_maxN5_man_stf
-    is3c: false # for synthetic this will be overriden
-    comp: "R" # only applies to real data
-    man_stf: true
+  # - modname: "201111221848_P_45_48_0.2Hz"
+  #   runname: run2_L1_maxN10_vs4.1
+  #   slwRange: [2., 10.]
+  #   ampRange: [-1., 1.]
+  #   maxN: 10
+  #   man_stf: false
+  #   CDopt: 3
+  #   normOpt: 1
+  #   fitAtts: true
+  #   fitLoge: true
+  #   num_chains: 8
+
+  - modname: "model_test_P_5_long_noisy_L1"
+    runname: run1_L1_maxN10
     slwRange: [-2., 2.]
-    ampRange: [0., 1.]
-    maxN: 5
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: true
+    CDopt: 0
+    normOpt: 1
+    fitAtts: false
+    fitLoge: true
+    num_chains: 8
+  
+  - modname: "model_test_P_5_long_noisy_L1"
+    runname: run1_L2_maxN10
+    slwRange: [-2., 2.]
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: true
     CDopt: 0
     normOpt: 2
-    fitAtts: true
-    fitLoge: false
-    totalSteps: 200000
-    burnInSteps: 160000
+    fitAtts: false
+    fitLoge: true
+    num_chains: 8
+  
+  - modname: "model_test_P_5_long_noisy_L2"
+    runname: run1_L1_maxN10
+    slwRange: [-2., 2.]
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: true
+    CDopt: 0
+    normOpt: 1
+    fitAtts: false
+    fitLoge: true
+    num_chains: 8
+  
+  - modname: "model_test_P_5_long_noisy_L2"
+    runname: run1_L2_maxN10
+    slwRange: [-2., 2.]
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: true
+    CDopt: 0
+    normOpt: 2
+    fitAtts: false
+    fitLoge: true
     num_chains: 8
