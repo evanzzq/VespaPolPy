@@ -521,6 +521,13 @@ def create_stf(f0, dt):
     stf = stf / np.max(np.abs(stf))
     return np.column_stack([stf_time, stf])
 
+def create_stf_gaussian(f0, dt):
+    stf_time = np.arange(-2 / f0, 2 / f0 + dt, dt)
+    sigma = 1 / (2 * np.pi * f0)
+    stf = np.exp(-stf_time**2 / (2 * sigma**2))
+    stf = stf / np.max(np.abs(stf))
+    return np.column_stack([stf_time, stf])
+
 def est_stf_wid(stf, threshold=0.01):
     stf_time = stf[:,0]
     stf_data = stf[:,1]

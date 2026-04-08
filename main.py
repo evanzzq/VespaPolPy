@@ -2,7 +2,7 @@ import os, time, pickle, argparse, yaml
 import numpy as np
 import multiprocessing as mp
 from vespainv.model import Bookkeeping, Prior, Prior3c
-from vespainv.utils import calc_array_center, create_stf, est_stf_wid, est_dom_freq, prep_data
+from vespainv.utils import calc_array_center, create_stf, create_stf_gaussian, est_stf_wid, est_dom_freq, prep_data
 
 # ---- Parse config file ----
 parser = argparse.ArgumentParser()
@@ -82,6 +82,7 @@ if __name__ == "__main__":
         sigma      = params["sigma"]
 
         man_stf = params["man_stf"]
+        stfshape = params["stfshape"]
 
         ampRange   = tuple(params["ampRange"])
         slwRange   = tuple(params["slwRange"])
@@ -119,7 +120,10 @@ if __name__ == "__main__":
         if isSyn or man_stf:
             stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
         else:
-            stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1/dt), dt)
+            if stfshape == "dGaussian":
+                stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1/dt), dt)
+            elif stfshape == "Gaussian":
+                stf = create_stf_gaussian(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1/dt), dt)
             stf_path = os.path.join(datadir, modname, "stf.csv")
             np.savetxt(stf_path, stf, delimiter=",", header="time,stf", comments="")
 
@@ -139,7 +143,8 @@ if __name__ == "__main__":
             )
         else:
             prior = Prior(
-                sigma=sigma, timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
+                minSpace=stf_wid, maxN=maxN, sigma=sigma, 
+                timeRange=(Utime[0], Utime[-1]), ampRange=ampRange,
                 slwRange=slwRange, distDiffRange=distDiffRange, bazDiffRange=bazDiffRange
             )
         save_dir = os.path.join(filedir, "runs/syn" if isSyn else "runs/data", modname, runname)

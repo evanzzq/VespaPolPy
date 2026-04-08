@@ -6,7 +6,7 @@ from vespainv.utils import generate_arr
 
 import numpy as np
 
-def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.05):
+def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.01):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
     
@@ -319,25 +319,26 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
     trace_shape = (trace_len, n_traces)
     samples = []
     logL_trace = []
+    loge_trace = []
 
     U_model = np.zeros(trace_shape)
+    
     if normOpt == 1: 
         if CD_sqrt_inv is not None:      
             CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
             logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv_c)
         else:
-            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv)
+            logL = compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None, sigma=prior.sigma * np.exp(0.5 * model.loge))
     if normOpt == 2:
         if CDinv is not None:
             CDinv_c = CDinv * np.exp(-model.loge)
             logL = compute_log_likelihood(U_obs, U_model, CDinv_c)
         else:
-            logL = compute_log_likelihood(U_obs, U_model, CDinv)
+            logL = compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=prior.sigma * np.exp(0.5 * model.loge))
 
     start_time = time.time()
     checkpoint_interval = totalSteps // 100
 
-    maxN = prior.maxN
     Nphase = []
 
     # --- Sliding window setup ---
@@ -357,13 +358,13 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
         if model.Nphase == 0:
             actions = [0]
         else:
-            actionPool = np.arange(4)
+            actionPool = np.arange(5)
             if fitAtts: actionPool = np.append(actionPool, [5])
             if fitLoge: actionPool = np.append(actionPool, [6])
             if locDiff: actionPool = np.append(actionPool, [7, 8])
             actions = np.random.choice(actionPool, size=actionsPerStep, replace=False)
 
-        model_new = model
+        model_new = copy.deepcopy(model)
         applied_actions = []  # Track successful actions (not yet accepted)
 
         for iAction in actions:
@@ -399,25 +400,26 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
         
         if normOpt == 1: 
             if CD_sqrt_inv is not None:      
-                CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model_new.loge)
+                CD_sqrt_inv_c = CD_sqrt_inv * np.exp(-0.5 * model.loge)
                 new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv_c)
             else:
-                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv)
+                new_logL = compute_log_likelihood_L1(U_obs, U_model_new, CD_sqrt_inv=None, sigma=prior.sigma * np.exp(0.5 * model_new.loge))
         if normOpt == 2:
             if CDinv is not None:
-                CDinv_c = CDinv * np.exp(-model_new.loge)
+                CDinv_c = CDinv * np.exp(-model.loge)
                 new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv_c)
             else:
-                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv)
+                new_logL = compute_log_likelihood(U_obs, U_model_new, CDinv=None, sigma=prior.sigma * np.exp(0.5 * model_new.loge))
 
-        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + trace_len * (model.loge - model_new.loge)
-        
+        log_accept_ratio = (new_logL - logL) + np.log((model.Nphase + 1) / (model_new.Nphase + 1)) + 0.5 * U_obs.size * (model.loge - model_new.loge)
+
         if np.log(np.random.rand()) < log_accept_ratio:
             model = model_new
             U_model = U_model_new
             logL = new_logL
 
         logL_trace.append(logL)
+        loge_trace.append(model.loge)
         Nphase.append(model.Nphase)
 
         # Compute sliding-window acceptance ratios
@@ -486,7 +488,7 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
             with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
                 f.write(f"[{now}] Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
 
-    return samples, logL_trace, Nphase
+    return samples, logL_trace, loge_trace, Nphase
 
 def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeeping, saveDir):
 
@@ -544,10 +546,6 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
     ####
 
     U_model = create_U_from_model_3c_freqdomain(model, metadata, Utime, stf_time, stf_data, bookkeeping)
-
-    np.savetxt("UZ_tmp.csv", U_model[:, :, 0], delimiter=",")
-    np.savetxt("UR_tmp.csv", U_model[:, :, 1], delimiter=",")
-    np.savetxt("UT_tmp.csv", U_model[:, :, 2], delimiter=",")
     
     if normOpt == 1: 
         if CD_sqrt_inv is not None:      

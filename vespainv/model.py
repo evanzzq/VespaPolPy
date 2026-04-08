@@ -11,6 +11,8 @@ class Bookkeeping:
     # src Lat/Lon refers to source in receiver array, station in source array
     srcLat: float
     srcLon: float
+    # stf shape
+    stfshape: str = "dGaussian" # dGaussian or Gaussian
     # inversion setup
     totalSteps:     int = 1e6
     burnInSteps:    int = None
@@ -37,7 +39,7 @@ class Prior:
     timeRange: tuple
 
     maxN: int = 5
-    sigma: float = 0.05
+    sigma: float = 0.01
     minSpace: float = 1.0
     slwRange: tuple = (-0.2, 0.2)
     ampRange: tuple = (-1, 1)

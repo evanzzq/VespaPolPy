@@ -81,17 +81,18 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     cond = np.linalg.cond(C)
     print(cond)
 
-    if cond > 1e3:  # 1e3 euristic threshold: covariance nearly singular
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    if cond > 1e2:
         print("Covariance nearly singular – using 2D histogram instead of KDE.")
-        # --- your existing 2D hist code here ---
-        xRange = [np.min(Utime), np.max(Utime)]
-        yRange = prior.slwRange
-        nBins = 50
+        from scipy.ndimage import gaussian_filter
+
+        nBins = 150
         xEdges = np.linspace(xRange[0], xRange[1], nBins)
         yEdges = np.linspace(yRange[0], yRange[1], nBins)
 
         if amp_weighted:
-            histCounts = np.zeros((nBins - 1, nBins - 1), dtype=np.float32)
+            histCounts = np.zeros((nBins - 1, nBins - 1), dtype=float)
             for i in range(len(arrAll)):
                 xIdx = np.searchsorted(xEdges, arrAll[i]) - 1
                 yIdx = np.searchsorted(yEdges, slwAll[i]) - 1
@@ -99,29 +100,36 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
                     histCounts[xIdx, yIdx] += ampAll[i]
         else:
             histCounts, _, _ = np.histogram2d(arrAll, slwAll, bins=[xEdges, yEdges])
-            histCounts = histCounts.astype(np.float32)
+            histCounts = histCounts.astype(float)
 
-        plt.figure(figsize=(8, 6))
-        vmax = np.nanmax(np.abs(histCounts))
-        h = plt.imshow(
-            histCounts.T,
-            extent=[xEdges[0], xEdges[-1], yEdges[0], yEdges[-1]],
-            origin='lower',
-            aspect='auto',
-            cmap='seismic',
-            vmin=-vmax, vmax=vmax
+        sigma = 2.0
+        histSmooth = gaussian_filter(histCounts, sigma=sigma)
+
+        from matplotlib.colors import TwoSlopeNorm
+
+        gamma = 0.5
+        histPlot = np.sign(histSmooth) * (np.abs(histSmooth) ** gamma)
+
+        vmax = np.nanmax(np.abs(histPlot))
+
+        norm = TwoSlopeNorm(vmin=-vmax, vcenter=0.0, vmax=vmax)
+
+        h = ax.pcolormesh(
+            xEdges,
+            yEdges,
+            histPlot.T,
+            shading="auto",
+            cmap="RdBu_r",
+            norm=norm
         )
-        plt.colorbar(label="Amplitude Weighted Counts" if amp_weighted else "Counts")
-        plt.xlabel("Arrival Time (s)")
-        plt.ylabel("Slowness (s/deg)")
-        plt.title("Ensemble Vespagram (Hist)")
-        plt.grid(True)
-        if true_model is not None:
-            plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
-            plt.legend()
-        plt.show(block=False)
+
+        fig.colorbar(
+            h, ax=ax,
+            label="Smoothed amplitude-weighted counts" if amp_weighted else "Smoothed counts"
+        )
+        ax.set_title("Ensemble Vespagram (Smoothed Histogram)")
+
     else:
-        # --- safe to do KDE ---
         kde = gaussian_kde(xy, weights=weights)
         xx, yy = np.meshgrid(
             np.linspace(xRange[0], xRange[1], 200),
@@ -130,25 +138,29 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         zz = kde(np.vstack([xx.ravel(), yy.ravel()])).reshape(xx.shape)
         zz *= total_weight
 
-        plt.figure(figsize=(8, 6))
-        h = plt.contourf(xx, yy, zz, levels=100, cmap=cmap.to_mpl())
-        plt.colorbar(h, label="Density" if not amp_weighted else "Amp-weighted density")
-        plt.xlabel("Arrival Time (s)")
-        plt.ylabel("Slowness (s/deg)")
-        plt.title("Ensemble Vespagram (KDE)")
-        plt.grid(True)
-        plt.scatter([25.61, 49.29], [6.1509, 4.1895], c='k', marker='x', s=80, label='True model')
-        if true_model is not None:
-            plt.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
-            plt.legend()
-        plt.show(block=False)
+        h = ax.contourf(xx, yy, zz, levels=100, cmap=cmap.to_mpl())
+        fig.colorbar(h, ax=ax, label="Density" if not amp_weighted else "Amp-weighted density")
+        ax.set_title("Ensemble Vespagram (KDE)")
 
-    # Get posterior plot range from two clicks
+    if true_model is not None:
+        ax.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
+        ax.legend()
+
+    ax.set_xlabel("Arrival Time (s)")
+    ax.set_ylabel("Slowness (s/deg)")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+
     print("Click twice to define a box (first lower-left, then upper-right):")
-    pts = plt.ginput(2)
-    (tmin, pmin), (tmax, pmax) = sorted(pts)
+    pts = plt.ginput(2, timeout=-1)
+
+    (t1, p1), (t2, p2) = pts
+    tmin, tmax = sorted([t1, t2])
+    pmin, pmax = sorted([p1, p2])
+
     print(f"Selected range: arrival time {tmin:.2f} to {tmax:.2f} s, slowness {pmin:.2f} to {pmax:.2f} s/deg.\n")
 
+    plt.show()
     # Get moveout correction point from one click
     if third_click:
         print("Click once to select arrival time - slowness pair to apply moveout correction:")

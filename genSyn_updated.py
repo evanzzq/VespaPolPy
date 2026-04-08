@@ -17,7 +17,7 @@ from vespainv.utils import dest_point
 filedir = "H:/My Drive/Research/VespaPolPy"
 # filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
-modname = "model_test_P_5_long"
+modname = "model_test_P_5_long0"
 Nphase = 5
 maxN = 20
 is3c = True
@@ -49,7 +49,7 @@ bazDiff = np.random.uniform(-3.0, 3.0, Ntrace)
 # NOTE: This script no longer saves Prior/Bookkeeping objects with the dataset.
 defAll = True
 arr = np.array([20,30,40,50,60])
-slw = np.array([-1,-0.5,0,0.5,1])
+slw = np.array([0,0,0,0,0])
 amp = np.array([0.5,-0.3,0.8,0.4,-0.5])
 azi = np.array([0,0,0,0,0])
 ph_hh = np.array([0,0,0,0,0])

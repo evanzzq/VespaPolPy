@@ -402,7 +402,13 @@ def create_U_from_model(
     fitAtts = bookkeeping.fitAtts
 
     n_traces = metadata.shape[0]
-    U_model = np.zeros((len(time), n_traces))
+
+    # build synthetic on padded time axis to avoid edge problem
+    dt = time[1] - time[0]
+    tbuf_left = abs(stf_time[0])
+    tbuf_right = abs(stf_time[-1])
+    time_pad = np.arange(time[0] - tbuf_left, time[-1] + tbuf_right + dt, dt)
+    U_model_pad = np.zeros((len(time_pad), n_traces))
 
     if model.Nphase == 0:
         return U_model
@@ -425,7 +431,7 @@ def create_U_from_model(
             dx = (trDist - refDist) * np.sin(np.radians(trBaz))
             dy = (trDist - refDist) * np.cos(np.radians(trBaz))
 
-        trace = np.zeros(len(time))
+        trace = np.zeros(len(time_pad))
 
         for iph in range(model.Nphase):
             
@@ -439,19 +445,24 @@ def create_U_from_model(
 
             tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
-            if fitAtts: stf = tstar_conv(stf, stf_time, model.atts[iph])
+            stf_use = stf.copy()
+            if fitAtts: stf_use = tstar_conv(stf_use, stf_time, model.atts[iph])
 
             shifted = interp1d(
                 stf_time + tshift,
-                stf,
+                stf_use,
                 kind="linear",
                 bounds_error=False,
                 fill_value=0.0
-            )(time)
+            )(time_pad)
 
             trace += model.amp[iph] * shifted
 
-        U_model[:, itrace] = trace
+        U_model_pad[:, itrace] = trace
+    
+    # then crop back
+    mask = (time_pad >= time[0]) & (time_pad <= time[-1])
+    U_model = U_model_pad[mask, :]
 
     return U_model
 
@@ -481,7 +492,13 @@ def create_U_from_model_3c(
     from scipy.signal import hilbert
 
     n_traces = metadata.shape[0]
-    U_model = np.zeros((len(time), n_traces, 3))
+
+    # build synthetic on padded time axis to avoid edge problem
+    dt = time[1] - time[0]
+    tbuf_left = abs(stf_time[0])
+    tbuf_right = abs(stf_time[-1])
+    time_pad = np.arange(time[0] - tbuf_left, time[-1] + tbuf_right + dt, dt)
+    U_model_pad = np.zeros((len(time_pad), n_traces, 3))
 
     if model.Nphase == 0:
         return U_model
@@ -503,9 +520,9 @@ def create_U_from_model_3c(
         dx = (trDist - refDist) * np.sin(np.radians(trBaz))
         dy = (trDist - refDist) * np.cos(np.radians(trBaz))
 
-        traceZ = np.zeros(len(time))
-        traceR = np.zeros(len(time))
-        traceT = np.zeros(len(time))
+        traceZ = np.zeros(len(time_pad))
+        traceR = np.zeros(len(time_pad))
+        traceT = np.zeros(len(time_pad))
 
         for iph in range(model.Nphase):
             
@@ -524,7 +541,7 @@ def create_U_from_model_3c(
                 kind="linear",
                 bounds_error=False,
                 fill_value=0.0
-            )(time)
+            )(time_pad)
 
             S_shifted = interp1d(
                 stf_time + tshift,
@@ -532,7 +549,7 @@ def create_U_from_model_3c(
                 kind="linear",
                 bounds_error=False,
                 fill_value=0.0
-            )(time)
+            )(time_pad)
 
             if model.wvtype[iph] == 1:
                 P = model.amp[iph] * P_shifted
@@ -561,9 +578,13 @@ def create_U_from_model_3c(
             traceR += R
             traceT += T
 
-        U_model[:, itrace, 0] = traceZ
-        U_model[:, itrace, 1] = traceR
-        U_model[:, itrace, 2] = traceT
+        U_model_pad[:, itrace, 0] = traceZ
+        U_model_pad[:, itrace, 1] = traceR
+        U_model_pad[:, itrace, 2] = traceT
+    
+    # then crop back
+    mask = (time_pad >= time[0]) & (time_pad <= time[-1])
+    U_model = U_model_pad[mask, :, :]
 
     return U_model
 

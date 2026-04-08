@@ -2,13 +2,14 @@
 defaults:
   filedir: "H:/My Drive/Research/VespaPolPy"
   # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  stfshape: "dGaussian"
   isSyn: false
   is3c: true # for synthetic this will be overriden
   comp: "Z" # only applies to real data
   sigma: 0.02
   num_chains: 8
-  totalSteps: 1000000
-  burnInSteps: 800000
+  totalSteps: 200000
+  burnInSteps: 150000
   nSaveModels: 200
   actionsPerStep: 1
   maxN: 10
@@ -45,50 +46,60 @@ experiments:
   #   fitLoge: true
   #   num_chains: 8
 
-  - modname: "model_test_P_5_long_noisy_L1"
-    runname: run1_L1_maxN10
+  - modname: "Steve_deconv"
+    runname: run1_L1_maxN10_G_loge
+    is3c: false
+    comp: "T"
+    slwRange: [-2., 2.]
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: false
+    stfshape: "Gaussian"
+    CDopt: 0
+    normOpt: 1
+    fitAtts: true
+    fitLoge: true
+    num_chains: 8
+
+  - modname: "Steve_deconv"
+    runname: run1_L2_maxN10_G_loge
+    is3c: false
+    comp: "T"
+    slwRange: [-2., 2.]
+    ampRange: [-1., 1.]
+    maxN: 10
+    man_stf: false
+    stfshape: "Gaussian"
+    CDopt: 0
+    normOpt: 2
+    fitAtts: true
+    fitLoge: true
+    num_chains: 8
+
+  - modname: "Steve_deconv"
+    runname: run1_L1_maxN10_loge
+    is3c: false
+    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10
     man_stf: true
     CDopt: 0
     normOpt: 1
-    fitAtts: false
+    fitAtts: true
     fitLoge: true
     num_chains: 8
-  
-  - modname: "model_test_P_5_long_noisy_L1"
-    runname: run1_L2_maxN10
+
+  - modname: "Steve_deconv"
+    runname: run1_L2_maxN10_loge
+    is3c: false
+    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10
     man_stf: true
     CDopt: 0
     normOpt: 2
-    fitAtts: false
-    fitLoge: true
-    num_chains: 8
-  
-  - modname: "model_test_P_5_long_noisy_L2"
-    runname: run1_L1_maxN10
-    slwRange: [-2., 2.]
-    ampRange: [-1., 1.]
-    maxN: 10
-    man_stf: true
-    CDopt: 0
-    normOpt: 1
-    fitAtts: false
-    fitLoge: true
-    num_chains: 8
-  
-  - modname: "model_test_P_5_long_noisy_L2"
-    runname: run1_L2_maxN10
-    slwRange: [-2., 2.]
-    ampRange: [-1., 1.]
-    maxN: 10
-    man_stf: true
-    CDopt: 0
-    normOpt: 2
-    fitAtts: false
+    fitAtts: true
     fitLoge: true
     num_chains: 8
