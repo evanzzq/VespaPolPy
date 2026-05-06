@@ -1,0 +1,36 @@
+defaults:
+  filedir: "."
+  stfshape: "dGaussian"
+  isSyn: true
+  is3c: false
+  comp: "Z"
+  sigma: 0.02
+  num_chains: 1
+  totalSteps: 1000
+  burnInSteps: 500
+  nSaveModels: 50
+  actionsPerStep: 1
+  maxN: 5
+  man_stf: true
+  ampRange: [-1.0, 1.0]
+  slwRange: [-2.0, 2.0]
+  minSpace: 1.0
+  CDopt: 0
+  locDiff: false
+  distDiffRange: [-5.0, 5.0]
+  bazDiffRange: [-5.0, 5.0]
+  fitAtts: false
+  fitLoge: true
+  fitPhase: false
+  normOpt: 2
+  isMars: false
+  srcArray: false
+  pref: 0.0
+  ref_manual: false
+  refLat: 0.0
+  refLon: 0.0
+  refBaz: 0.0
+
+experiments:
+  - modname: "example_model"
+    runname: "example_run"

@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tapir"
+version = "0.1.0"
+description = "Transdimensional array-based phase inversion research toolbox"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "Evan Zhang" }
+]
+dependencies = [
+  "numpy",
+  "scipy",
+  "matplotlib",
+  "PyYAML",
+  "psutil",
+  "cmap",
+  "obspy",
+  "scikit-learn",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+  "black",
+]
+
+[project.scripts]
+tapir = "vespainv.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["vespainv*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]

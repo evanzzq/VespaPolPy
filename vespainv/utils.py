@@ -10,6 +10,12 @@ def dest_point(la1, lo1, az, delta):
     lod = lo1 + np.arctan2(np.sin(az)*np.sin(delta)*np.cos(la1), np.cos(delta)-np.sin(la1)*np.sin(lad))
     return lad/d2r, lod/d2r
 
+
+def circular_mean_deg(angles: np.ndarray) -> float:
+    angles = np.asarray(angles, dtype=float)
+    radians = np.radians(angles)
+    return np.degrees(np.arctan2(np.mean(np.sin(radians)), np.mean(np.cos(radians)))) % 360.0
+
 def generate_arr(timeRange: np.ndarray, existing_arr: np.ndarray, min_space: float) -> float:
     """
     Generate a random arrival time within the time range,
@@ -456,12 +462,12 @@ def bandpass(data, fs, fmin, fmax, corners=4, zerophase=True):
 
 import numpy as np
 
-def calc_array_center(metadata, srcLat, srcLon, srcArray):
+def calc_array_center(metadata, srcLat, srcLon, srcArray, metadata_format="latlon"):
     """
     Calculate approximate center of an array and its geometric relation to the source.
 
     Inputs:
-      metadata : np.ndarray of shape (n_station, 2) in (lat, lon)
+      metadata : np.ndarray of shape (n_station, 2)
       srcLat, srcLon : float
           Source (or station, if srcArray=True) latitude and longitude in degrees
       srcArray : bool
@@ -475,6 +481,18 @@ def calc_array_center(metadata, srcLat, srcLon, srcArray):
         centerBaz : azimuth from station→center if srcArray=True,
                     or center→source (back-azimuth) if srcArray=False
     """
+
+    if metadata_format == "distbaz":
+        if not srcArray:
+            raise ValueError("dist/baz metadata are only supported for source-array geometry.")
+        dists = np.array(metadata[:, 0], dtype=float)
+        bazs = np.array(metadata[:, 1], dtype=float)
+        centerDist = float(np.mean(dists))
+        centerBaz = circular_mean_deg(bazs)
+        centerLat, centerLon = dest_point(srcLat, srcLon, centerBaz, centerDist)
+        return centerLat, centerLon, centerDist, centerBaz
+    if metadata_format != "latlon":
+        raise ValueError(f"Unsupported metadata format: {metadata_format}")
 
     # --- Compute array geometric center ---
     lats = np.array(metadata[:, 0])
@@ -511,6 +529,20 @@ def calc_array_center(metadata, srcLat, srcLon, srcArray):
     ) * r2d
 
     return centerLat, centerLon, centerDist, centerBaz
+
+
+def load_metadata(datadir, modname, is_mars):
+    import os
+
+    metadata_name = "station_metadata_db.csv" if is_mars else "station_metadata.csv"
+    metadata = np.loadtxt(
+        os.path.join(datadir, modname, metadata_name),
+        delimiter=",",
+        skiprows=1,
+    )
+    if metadata.ndim == 1:
+        metadata = metadata[np.newaxis, :]
+    return metadata
 
 
 def create_stf(f0, dt):
@@ -643,19 +675,16 @@ def inv_sqrt(C):
     D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
     return eigvecs @ D_inv_sqrt @ eigvecs.T
 
-def prep_data(datadir, modname, is3c, comp, CDopt):
+def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False):
     import os
     import numpy as np
     from scipy.linalg import fractional_matrix_power
 
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
-            response = input("U.csv in data directory, changing to 1c. Proceed? [y/n]").strip().lower()
-            if response == "y":
-                is3c = False
-            else:
-                print("Aborted.")
-                return
+            raise ValueError(
+                f"Requested 3C inversion for '{modname}', but only 1C data file U.csv is present."
+            )
         U_obs = np.loadtxt(os.path.join(datadir, modname, "U.csv"), delimiter=",")
     else:
         if is3c:
@@ -676,14 +705,9 @@ def prep_data(datadir, modname, is3c, comp, CDopt):
 
     CDinv = None
     if CDopt:
-        if CDopt == 1:
-            robust_handle = ''
-        elif CDopt == 2:
-            robust_handle = '_robust'
-        elif CDopt == 3:
-            robust_handle = "_fit"
-        else:
-            raise ValueError(f"Invalid CDopt value: {CDopt}. Must be 0 (False), 1 (Empirical), or 2 (Robust).")
+        if CDopt != 3:
+            raise ValueError("CDopt must be 0 (use sigma only) or 3 (use fitted covariance).")
+        robust_handle = "_fit"
 
         if is3c:
             CD_Z = np.loadtxt(os.path.join(datadir, modname, "CD_UZ" + robust_handle + ".csv"), delimiter=",")
@@ -700,15 +724,6 @@ def prep_data(datadir, modname, is3c, comp, CDopt):
         CDinv, CD_sqrt_inv = None, None
 
     Utime = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")
-    metadata = np.loadtxt(
-        os.path.join(datadir, modname, "station_metadata.csv"),
-        delimiter=",",
-        skiprows=1
-    )
-
-    if metadata.ndim == 1:
-        metadata = metadata[np.newaxis, :]
-
-    dt = Utime[1] - Utime[0]
+    metadata = load_metadata(datadir, modname, is_mars)
 
     return U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c

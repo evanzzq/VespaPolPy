@@ -1,0 +1,9 @@
+data_dir: /path/to/event_sac
+output_dir: /path/to/RealData/my_event
+noise_dir: /path/to/noise_sac
+bandpass: [0.02, 0.2]
+downsample_hz: 5
+time_window: [0, 300]
+snr_component: UZ
+snr_threshold: 0
+outliers: []

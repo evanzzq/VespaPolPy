@@ -1,35 +1,57 @@
-from vespainv.visualization import plot_ensemble_vespagram, plot_seismogram_compare, phase_count_distribution_by_model
+from vespainv.visualization import (
+    plot_ensemble_vespagram,
+    plot_seismogram_compare,
+    phase_count_distribution_by_model,
+    plot_chain_convergence_by_region,
+)
 from vespainv.utils import prep_data
 import pickle, os, re, argparse, yaml
 import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+# filedir = "H:\My Drive\Research\VespaPolPy"
+filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
 third_click = False
 
+# ---- Plot modes ----
+run_standard_plots = False
+run_convergence_analysis = True
+
 # ---- Manually input model and run OR select from yaml setup file? ----
-use_manual = False
+use_manual = True
 seis_mode = "P" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "201111221848_P_45_48_1Hz_single"
-runname    = "run1_L1_maxN20"
+modname    = "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240_VEL_0.1_1.0Hz"
+runname    = "run2_L1_N50_atts_loge_1e6"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
-CDopt      = 0 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+CDopt      = 0 # 0 - use sigma only, 3 - use fitted covariance
+isMars     = False
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
 fitAtts    = True
 fitPhase   = True
 
 # -------- Selection options --------
-chains_to_plot = None          # Example: [0, 2] to select specific chains by index
+chains_to_plot = None          # Example: [0, 2] to select specific chains by index; None uses all chains
 likelihood_threshold = None #-5.5e4     # Example: -5000 to select chains with final LL > threshold
+
+# ---- Code-defined convergence boxes ----
+# Set any bound to None to use the corresponding prior range. For 3C inversions,
+# wave_type can be "P", "S", or None.
+convergence_regions = [
+    {"name": "S", "tmin": 20.0, "tmax": 40.0, "pmin": 10., "pmax": 12., "wave_type": "S"},
+    {"name": "SdS", "tmin": 35.0, "tmax": 50.0, "pmin": 8., "pmax": 10., "wave_type": "S"},
+    {"name": "ScS", "tmin": 50.0, "tmax": 65.0, "pmin": 7., "pmax": 10., "wave_type": "S"},
+    # {"name": "PcP", "tmin": 45, "tmax": 60.0, "pmin": 3., "pmax": 5., "wave_type": "P"}
+]
+convergence_bins = 20
+save_convergence_plots = False
 
 if not use_manual:
     # ---- Parse config file ----
@@ -73,6 +95,7 @@ if not use_manual:
     is3c       = selected_params["is3c"]
     comp       = selected_params["comp"]
     CDopt      = selected_params["CDopt"]
+    isMars     = selected_params["isMars"]
     fitAtts    = selected_params["fitAtts"]
 
 print(f"Selected: {modname}, {runname}")
@@ -89,7 +112,8 @@ with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
 # ---- Detect chains ----
 chain_dirs = sorted(
     [os.path.join(run_path, d) for d in os.listdir(run_path)
-     if os.path.isdir(os.path.join(run_path, d)) and re.match(r"chain_\d+", d)]
+     if os.path.isdir(os.path.join(run_path, d)) and re.match(r"chain_\d+", d)],
+    key=lambda d: int(re.search(r"chain_(\d+)", d).group(1))
 )
 
 # ---- Select chains ----
@@ -145,14 +169,17 @@ else:
 
 # ---- Load ensemble(s) ----
 ensembles = []
+chain_labels = []
 if selected_dirs:
     for cdir in selected_dirs:
         with open(os.path.join(cdir, "ensemble.pkl"), "rb") as f:
             ensembles.append(pickle.load(f))
+        chain_labels.append(int(re.search(r"chain_(\d+)", cdir).group(1)))
 else:
     # single-chain case
     with open(os.path.join(run_path, "ensemble.pkl"), "rb") as f:
         ensembles.append(pickle.load(f))
+    chain_labels.append("single")
 
 # Combine all ensembles into one list
 ensemble = sum(ensembles, [])
@@ -165,9 +192,12 @@ if isSyn:
     with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f:
         model = pickle.load(f)
 
-# ---- Load observed data & STF ----
-U_obs, Utime, _, _, metadata, is3c_flag = prep_data(datadir, modname, is3c, comp, CDopt)
-stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
+# ---- Load observed data & STF only when needed for standard plots ----
+if run_standard_plots:
+    U_obs, Utime, _, _, metadata, is3c_flag = prep_data(
+        datadir, modname, is3c, comp, CDopt, is_mars=bookkeeping.isMars
+    )
+    stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 
 # ---- Extract burn-in and total steps ONCE (same for all chains) ----
 burn = bookkeeping.burnInSteps
@@ -283,20 +313,35 @@ fig.tight_layout()
 
 # print(summary)
 
+if run_convergence_analysis:
+    convergence_save_dir = (
+        os.path.join(run_path, "convergence_plots")
+        if save_convergence_plots else None
+    )
+    convergence_summary = plot_chain_convergence_by_region(
+        ensembles=ensembles,
+        chain_labels=chain_labels,
+        regions=convergence_regions,
+        prior=prior,
+        is3c=is3c,
+        bins=convergence_bins,
+        save_dir=convergence_save_dir,
+    )
 
-# ---- Plot ----
-moveout_pt = plot_ensemble_vespagram(
-    ensemble, Utime, prior,
-    amp_weighted=True,
-    true_model=model,
-    is3c=is3c_flag,
-    third_click=third_click
-)
-plot_seismogram_compare(
-    U=U_obs, time=Utime, offset=1.5,
-    ensemble=ensemble, prior=prior, metadata=metadata,
-    stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt, mode=seis_mode
-)
+if run_standard_plots:
+    # ---- Plot ----
+    moveout_pt = plot_ensemble_vespagram(
+        ensemble, Utime, prior,
+        amp_weighted=True,
+        true_model=model,
+        is3c=is3c_flag,
+        third_click=third_click
+    )
+    plot_seismogram_compare(
+        U=U_obs, time=Utime, offset=1.5,
+        ensemble=ensemble, prior=prior, metadata=metadata,
+        stf=stf, bookkeeping=bookkeeping, moveout_pt=moveout_pt, mode=seis_mode
+    )
 # plot_seismogram_compare(
 #     U=U_obs, time=Utime, offset=1.5,
 #     ensemble=[ensemble[4]], prior=prior, metadata=metadata,

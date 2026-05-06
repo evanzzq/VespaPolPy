@@ -1,4 +1,4 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import numpy as np
 from vespainv.utils import generate_arr
 
@@ -7,8 +7,8 @@ class Bookkeeping:
     # array geometry
     refLat: float
     refLon: float
-    refBaz: float # always lit. baz, i.e., station --> source
-    # src Lat/Lon refers to source in receiver array, station in source array
+    refBaz: float  # reference bazimuth: station->source for receiver arrays
+    # src Lat/Lon refers to source in receiver arrays, station in source arrays
     srcLat: float
     srcLon: float
     # stf shape
@@ -25,9 +25,8 @@ class Bookkeeping:
     srcArray:       bool = False # receiver or source array
     normOpt:        int = 2
     isMars:         bool = False
-    # pref and tref for phase-aligned case (relative slowness), default to zero
-    pref:           float = 0.0 # also serves as flag
-    tref:           float = 0.0
+    # pref converts relative slowness to absolute slowness for the 3C PVH->ZRT step
+    pref:           float = 0.0
 
     def __post_init__(self):
         if self.burnInSteps is None:

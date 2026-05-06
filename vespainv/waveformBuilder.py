@@ -6,6 +6,20 @@ from vespainv.utils import dest_point, apply_constant_phase_shift
 from obspy.geodetics.base import locations2degrees, gps2dist_azimuth
 
 
+def _reference_slowness_components(slow, src_array, ref_baz):
+    if src_array:
+        return slow * np.sin(np.radians(ref_baz)), slow * np.cos(np.radians(ref_baz))
+    ref_az = (ref_baz + 180) % 360
+    return slow * np.sin(np.radians(ref_az)), slow * np.cos(np.radians(ref_az))
+
+
+def _metadata_to_latlon(metadata_row, src_lat, src_lon, is_mars):
+    if is_mars:
+        tr_dist, tr_baz = metadata_row
+        return dest_point(src_lat, src_lon, tr_baz, tr_dist)
+    return metadata_row
+
+
 def create_U_from_model_freqdomain(
     model: VespaModel,
     metadata: np.ndarray,  # shape (n_traces, 2): [lat, lon] per row; if isMars, [dist, baz] per row
@@ -33,9 +47,6 @@ def create_U_from_model_freqdomain(
     isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
     locDiff = bookkeeping.locDiff
     srcArray = bookkeeping.srcArray
-    pref = bookkeeping.pref
-    tref = bookkeeping.tref
-
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces))
 
@@ -46,8 +57,6 @@ def create_U_from_model_freqdomain(
     refLon = bookkeeping.refLon
     
     refBaz = bookkeeping.refBaz
-    refAz = (refBaz + 180)%360
-    
     srcLat = bookkeeping.srcLat
     srcLon = bookkeeping.srcLon
 
@@ -56,24 +65,8 @@ def create_U_from_model_freqdomain(
     stf_W = fft(stf)
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
-    # if pref (input data aligned at a phase), pre-calculate pref_x/y
-    # not need for an if condition, because pref = 0.0 if not used
-    if srcArray:
-        pref_x = pref * np.sin(np.radians(refBaz))
-        pref_y = pref * np.cos(np.radians(refBaz))
-    else:
-        pref_x = pref * np.sin(np.radians(refAz))
-        pref_y = pref * np.cos(np.radians(refAz))
-
     for itrace in range(n_traces):
-        # print(f"Trace {itrace}")
-        # if isMars, then metadata is in (dist, baz), and default to source array
-        if isMars:
-            trDist, trBaz = metadata[itrace]
-            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
-        # else, metadata is in (lat, lon)
-        else:
-            trLat, trLon = metadata[itrace]
+        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars)
 
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
@@ -90,26 +83,12 @@ def create_U_from_model_freqdomain(
         dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
         dy = (trLat - refLat)
 
-        # if pref (input data aligned at a phase), calculate shift time to be subtracted
-        tshift_sub = pref_x * dx + pref_y * dy
-
         # initialize
         trace_W = np.zeros(len(time), dtype=complex)
 
         for iph in range(model.Nphase):
-            
-            slow = model.slw[iph]
-            slow += pref
-
-            if srcArray:
-                slow_x = slow * np.sin(np.radians(refBaz))
-                slow_y = slow * np.cos(np.radians(refBaz))
-            else:
-                slow_x = slow * np.sin(np.radians(refAz))
-                slow_y = slow * np.cos(np.radians(refAz))
-
-            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
-            # print(f"    Phase {iph}, arr = {tshift}, slw = {slow}, amp = {model.amp[iph]}")
+            slow_x, slow_y = _reference_slowness_components(model.slw[iph], srcArray, refBaz)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
             wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
 
@@ -156,7 +135,6 @@ def create_U_from_model_3c_freqdomain(
     locDiff = bookkeeping.locDiff
     srcArray = bookkeeping.srcArray
     pref = bookkeeping.pref
-    tref = bookkeeping.tref
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
@@ -168,8 +146,6 @@ def create_U_from_model_3c_freqdomain(
     refLon = bookkeeping.refLon
     
     refBaz = bookkeeping.refBaz
-    refAz = (refBaz + 180)%360
-    
     srcLat = bookkeeping.srcLat
     srcLon = bookkeeping.srcLon
 
@@ -178,24 +154,8 @@ def create_U_from_model_3c_freqdomain(
     stf_W = fft(stf)
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
-    # if pref (input data aligned at a phase), pre-calculate pref_x/y
-    # no need for an if condition, because pref = 0.0 if not used
-    if srcArray:
-        pref_x = pref * np.sin(np.radians(refBaz))
-        pref_y = pref * np.cos(np.radians(refBaz))
-    else:
-        pref_x = pref * np.sin(np.radians(refAz))
-        pref_y = pref * np.cos(np.radians(refAz))
-
     for itrace in range(n_traces):
-        
-        # if isMars, then metadata is in (dist, baz), and default to source array
-        if isMars:
-            trDist, trBaz = metadata[itrace]
-            trLat, trLon = dest_point(srcLat, srcLon, trBaz, trDist) # trBaz used here because the geometry is reversed
-        # else, metadata is in (lat, lon)
-        else:
-            trLat, trLon = metadata[itrace]
+        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars)
 
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
@@ -212,27 +172,16 @@ def create_U_from_model_3c_freqdomain(
         dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
         dy = (trLat - refLat)
 
-        # if pref (input data aligned at a phase), calculate shift time to be subtracted
-        tshift_sub = pref_x * dx + pref_y * dy
-
         # initialize
         traceZ_W = np.zeros(len(time), dtype=complex)
         traceR_W = np.zeros(len(time), dtype=complex)
         traceT_W = np.zeros(len(time), dtype=complex)
 
         for iph in range(model.Nphase):
-            
-            slow = model.slw[iph]
-            slow += pref
-
-            if srcArray:
-                slow_x = slow * np.sin(np.radians(refBaz))
-                slow_y = slow * np.cos(np.radians(refBaz))
-            else:
-                slow_x = slow * np.sin(np.radians(refAz))
-                slow_y = slow * np.cos(np.radians(refAz))
-
-            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy) - tshift_sub
+            rel_slow = model.slw[iph]
+            abs_slow = rel_slow + pref
+            slow_x, slow_y = _reference_slowness_components(rel_slow, srcArray, refBaz)
+            tshift = model.arr[iph] + (slow_x * dx + slow_y * dy)
 
             P_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]*0.25) if fitAtts else stf_W
             S_wvlt_W = tstar_conv_freqdomain(stf_W, stf_freq, model.atts[iph]) if fitAtts else stf_W
@@ -257,9 +206,9 @@ def create_U_from_model_3c_freqdomain(
             
             # use absolute slowness in FST
             if isMars:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, slow, a0=5.0, b0=3.0, radius=3389.5)
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, abs_slow, a0=5.0, b0=3.0, radius=3389.5)
             else:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, slow)
+                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, abs_slow)
 
             if fitPhase:
                 R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))

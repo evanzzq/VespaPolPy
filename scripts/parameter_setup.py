@@ -20,7 +20,7 @@ ampRange = (-1., 1.) # only applies to real data
 slwRange = (0., 3.) # only applies to real data
 minSpace = 3.0
 
-CDopt = 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+CDopt = 3 # 0 - use sigma only, 3 - use fitted covariance
 
 isbp = False
 freqs = (0.02, 1.0)

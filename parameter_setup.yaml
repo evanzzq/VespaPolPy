@@ -1,7 +1,7 @@
 # ---- universal defaults ----
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
-  # filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+  # filedir: "H:/My Drive/Research/VespaPolPy"
+  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   stfshape: "dGaussian"
   isSyn: false
   is3c: true # for synthetic this will be overriden
@@ -16,7 +16,7 @@ defaults:
   man_stf: false
   ampRange: [-1., 1.] # only applies to real data
   minSpace: 1.0
-  CDopt: 3 # 0 - False (single Sigma value), 1 - Empirical, 2 - Robust, 3 - Fit
+  CDopt: 3 # 0 - use sigma only, 3 - use fitted covariance
   locDiff: false
   distDiffRange: [-5.0, -5.0]
   bazDiffRange: [-5.0, -5.0]
@@ -26,7 +26,6 @@ defaults:
   isMars: false
   srcArray: false
   pref: 0.0
-  tref: 0.0
   ref_manual: false
   refLat: 9.48
   refLon: 163.03

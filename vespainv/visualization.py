@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import re
 from cmap import Colormap
 from vespainv.model import Bookkeeping
 from vespainv.utils import dest_point
@@ -83,7 +84,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    if cond > 1e2:
+    if cond > 1:
         print("Covariance nearly singular – using 2D histogram instead of KDE.")
         from scipy.ndimage import gaussian_filter
 
@@ -107,7 +108,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
         from matplotlib.colors import TwoSlopeNorm
 
-        gamma = 0.5
+        gamma = 0.8
         histPlot = np.sign(histSmooth) * (np.abs(histSmooth) ** gamma)
 
         vmax = np.nanmax(np.abs(histPlot))
@@ -688,3 +689,193 @@ def phase_count_distribution_by_model(
         plt.show()
 
     return summary
+
+
+def _region_bounds(region, prior=None):
+    tmin = region.get("tmin")
+    tmax = region.get("tmax")
+    pmin = region.get("pmin")
+    pmax = region.get("pmax")
+
+    if (tmin is None or tmax is None) and prior is not None:
+        tmin = prior.timeRange[0] if tmin is None else tmin
+        tmax = prior.timeRange[1] if tmax is None else tmax
+    if (pmin is None or pmax is None) and prior is not None:
+        pmin = prior.slwRange[0] if pmin is None else pmin
+        pmax = prior.slwRange[1] if pmax is None else pmax
+
+    if tmin is None or tmax is None or pmin is None or pmax is None:
+        raise ValueError(
+            "Each convergence region needs tmin, tmax, pmin, and pmax. "
+            "Set pmin/pmax to None only when passing prior."
+        )
+
+    tmin, tmax = sorted([float(tmin), float(tmax)])
+    pmin, pmax = sorted([float(pmin), float(pmax)])
+    return tmin, tmax, pmin, pmax
+
+
+def _extract_region_arr_slw(ensemble, region, is3c=False):
+    tmin, tmax, pmin, pmax = region["_bounds"]
+    wave_type = region.get("wave_type")
+    wave_type = None if wave_type is None else str(wave_type).upper()
+
+    arr_samples = []
+    slw_samples = []
+
+    for m in ensemble:
+        arr = np.asarray(m.arr, dtype=float)
+        slw = np.asarray(m.slw, dtype=float)
+        valid = ~np.isnan(arr) & ~np.isnan(slw)
+
+        if is3c and wave_type in ("P", "S"):
+            wvtype = np.asarray(m.wvtype)
+            valid &= ~np.isnan(wvtype)
+            if wave_type == "P":
+                valid &= (wvtype == 1)
+            else:
+                valid &= (wvtype == 0)
+
+        in_region = (
+            valid &
+            (arr >= tmin) & (arr <= tmax) &
+            (slw >= pmin) & (slw <= pmax)
+        )
+        if np.any(in_region):
+            arr_samples.append(arr[in_region])
+            slw_samples.append(slw[in_region])
+
+    if not arr_samples:
+        return np.array([]), np.array([])
+
+    return np.concatenate(arr_samples), np.concatenate(slw_samples)
+
+
+def plot_chain_convergence_by_region(
+    ensembles,
+    chain_labels,
+    regions,
+    prior=None,
+    is3c=False,
+    bins=40,
+    save_dir=None,
+):
+    """
+    Plot chain-by-chain posterior samples inside code-defined arrival boxes.
+
+    For each region, this makes overlaid 1D density histograms for arrival
+    time and slowness. Individual chains are thin and semi-transparent; the
+    pooled all-chain distribution is shown as a thicker black reference.
+
+    Parameters
+    ----------
+    ensembles : list of list
+        One posterior-model ensemble per chain.
+    chain_labels : list
+        Labels for each chain, e.g. [0, 1, 2] or ["single"].
+    regions : list of dict
+        Each dict should have name, tmin, tmax, pmin, pmax, and optionally
+        wave_type ("P" or "S" for 3C inversions).
+    prior : Prior or Prior3c, optional
+        Used only to fill missing bounds when a region value is None.
+    is3c : bool
+        If True, region wave_type filters model.wvtype.
+    bins : int
+        Histogram bin count for the 1D plots.
+    save_dir : str, optional
+        If provided, save figures as PNGs in this directory.
+
+    Returns
+    -------
+    summaries : list of dict
+        Per-region, per-chain sample counts.
+    """
+    if len(ensembles) != len(chain_labels):
+        raise ValueError("ensembles and chain_labels must have the same length.")
+
+    if not regions:
+        print("No convergence regions defined; skipping convergence plots.")
+        return []
+
+    if save_dir is not None:
+        import os
+        os.makedirs(save_dir, exist_ok=True)
+
+    cmap = plt.get_cmap("tab20", max(len(ensembles), 1))
+    summaries = []
+
+    for iregion, raw_region in enumerate(regions):
+        region = dict(raw_region)
+        region["_bounds"] = _region_bounds(region, prior=prior)
+        tmin, tmax, pmin, pmax = region["_bounds"]
+        name = region.get("name", f"region_{iregion + 1}")
+        wave_type = region.get("wave_type")
+        suffix = f", {wave_type}" if wave_type else ""
+
+        chain_samples = []
+        counts = {}
+        for ensemble, label in zip(ensembles, chain_labels):
+            arr, slw = _extract_region_arr_slw(ensemble, region, is3c=is3c)
+            chain_samples.append((arr, slw))
+            counts[label] = int(arr.size)
+
+        summaries.append({
+            "name": name,
+            "box": {"tmin": tmin, "tmax": tmax, "pmin": pmin, "pmax": pmax},
+            "wave_type": wave_type,
+            "counts": counts,
+        })
+
+        print(f"\nConvergence region '{name}' ({tmin:.2f}-{tmax:.2f} s, "
+              f"{pmin:.2f}-{pmax:.2f} s/deg{suffix})")
+        for label, count in counts.items():
+            print(f"  Chain {label}: {count} samples")
+
+        arr_pooled = []
+        slw_pooled = []
+        fig, axs = plt.subplots(1, 2, figsize=(11, 4), sharey=False)
+        for ichain, (label, (arr, slw)) in enumerate(zip(chain_labels, chain_samples)):
+            if arr.size == 0:
+                continue
+            color = cmap(ichain)
+            arr_pooled.append(arr)
+            slw_pooled.append(slw)
+            axs[0].hist(
+                arr, bins=bins, range=(tmin, tmax), density=True,
+                histtype="step", linewidth=1.2, color=color,
+                linestyle="--", alpha=0.65,
+            )
+            axs[1].hist(
+                slw, bins=bins, range=(pmin, pmax), density=True,
+                histtype="step", linewidth=1.2, color=color,
+                linestyle="--", alpha=0.65,
+            )
+
+        if arr_pooled:
+            arr_pooled = np.concatenate(arr_pooled)
+            slw_pooled = np.concatenate(slw_pooled)
+            axs[0].hist(
+                arr_pooled, bins=bins, range=(tmin, tmax), density=True,
+                histtype="step", linewidth=2.2, color="black",
+            )
+            axs[1].hist(
+                slw_pooled, bins=bins, range=(pmin, pmax), density=True,
+                histtype="step", linewidth=2.2, color="black",
+            )
+
+        axs[0].set_xlabel("Arrival Time (s)")
+        axs[0].set_ylabel("Density")
+        axs[0].set_title(f"{name}: Arrival Time")
+        axs[1].set_xlabel("Slowness (s/deg)")
+        axs[1].set_ylabel("Density")
+        axs[1].set_title(f"{name}: Slowness")
+        for ax in axs:
+            ax.grid(True, alpha=0.3)
+        fig.tight_layout()
+
+        if save_dir is not None:
+            import os
+            safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(name)).strip("_")
+            fig.savefig(os.path.join(save_dir, f"{safe_name}_1d_hist.png"), dpi=200)
+
+    return summaries
