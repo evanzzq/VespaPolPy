@@ -1,6 +1,9 @@
 # TAPIR
 
-![TAPIR LOGO](docs/images/tapir_logo.png)
+<p align="center">
+  <img src="docs/images/tapir_logo.png" alt="TAPIR logo" width="300">
+</p>
+
 
 TAPIR is a Python toolbox for transdimensional array-based phase inversion, synthetic waveform generation, and ensemble-based analysis of array data.
 
