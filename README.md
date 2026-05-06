@@ -1,6 +1,6 @@
 # TAPIR
 
-![TAPIR LOGO](docs/images/tapir_logo_.png)
+![TAPIR LOGO](docs/images/tapir_logo.png)
 
 TAPIR is a Python toolbox for transdimensional array-based phase inversion and related synthetic/visualization workflows. This repository is being cleaned up from a research-code layout into a more reusable open-source package while preserving the current inversion core.
 
