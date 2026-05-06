@@ -2,11 +2,7 @@
 
 ![TAPIR LOGO](docs/images/tapir_logo.png)
 
-TAPIR is a Python toolbox for transdimensional array-based phase inversion and related synthetic/visualization workflows. This repository is being cleaned up from a research-code layout into a more reusable open-source package while preserving the current inversion core.
-
-## Current Status
-
-The core inversion modules live in [`vespainv/`](/Users/evanzhang/Documents/Research/VespaPolPy/vespainv). Legacy exploratory notebooks and helper scripts are kept in [`notebooks/`](/Users/evanzhang/Documents/Research/VespaPolPy/notebooks) and [`scripts/`](/Users/evanzhang/Documents/Research/VespaPolPy/scripts) so they do not define the package surface.
+TAPIR is a Python toolbox for transdimensional array-based phase inversion, synthetic waveform generation, and ensemble-based analysis of array data.
 
 ## Installation
 
@@ -22,108 +18,94 @@ pip install -e .[dev]
 
 ## Quick Start
 
-Prepare Earth SAC files into TAPIR inputs:
+Prepare Earth SAC files into TAPIR-ready inputs:
 
 ```bash
 tapir prep-earth --config configs/example_prep_earth.yaml
 ```
 
-Then run an inversion from a YAML config:
+Run an inversion:
 
 ```bash
 tapir run --config configs/example_parameter_setup.yaml
 ```
 
-The compatibility wrapper still works too:
+The compatibility entrypoint also works:
 
 ```bash
 python main.py --config configs/example_parameter_setup.yaml
 ```
 
-## Repository Layout
+## Workflows
 
-- [`vespainv/`](/Users/evanzhang/Documents/Research/VespaPolPy/vespainv): importable package code
-- [`configs/`](/Users/evanzhang/Documents/Research/VespaPolPy/configs): shareable example configs
-- [`scripts/`](/Users/evanzhang/Documents/Research/VespaPolPy/scripts): legacy and exploratory helper scripts
-- [`notebooks/`](/Users/evanzhang/Documents/Research/VespaPolPy/notebooks): research notebooks not required for package use
-- [`tests/`](/Users/evanzhang/Documents/Research/VespaPolPy/tests): lightweight regression tests
+### Earth Data
 
-## Configuration
+Use `tapir prep-earth` to convert SAC files into the CSV-based input format expected by the inversion workflow. The preprocessing step can apply optional bandpass filtering, downsampling, noise-based covariance estimation, and trace rejection.
 
-The runner currently expects a config with:
+The typical Earth workflow is:
 
-- `defaults`: shared settings
-- `experiments`: one or more experiment overrides
+1. Gather SAC files for one event.
+2. Prepare the event directory with `tapir prep-earth`.
+3. Review or adjust the inversion YAML config.
+4. Run `tapir run --config your_config.yaml`.
 
-The `filedir` field should point to a directory containing data folders such as `SynData/`, `RealData/`, and `runs/`.
+Example preprocessing settings are provided in `configs/example_prep_earth.yaml`.
 
-See [`configs/example_parameter_setup.yaml`](/Users/evanzhang/Documents/Research/VespaPolPy/configs/example_parameter_setup.yaml).
+### Mars Data
 
-## Workflow
+Mars preprocessing is expected to be handled externally. TAPIR can then run inversion on manually prepared files placed in an event directory.
 
-### Earth workflow
+For Mars runs, provide:
 
-1. Start from SAC files for one event.
-2. Run `tapir prep-earth` to generate TAPIR-ready inputs.
-   Example:
-   `tapir prep-earth --config configs/example_prep_earth.yaml`
-3. Confirm the event directory contains:
-   - `UZ.csv`, `UR.csv`, `UT.csv` for 3C, or `U?.csv` for 1C
-   - `time.csv`
-   - `station_metadata.csv` in `lat,lon`
-   - `station_metadata_db.csv` in `dist_deg,baz`
-   - `eventinfo.csv`
-   - optional fitted covariance files such as `CD_UZ_fit.csv`
-4. Create a config YAML pointing `filedir` at the workspace containing `RealData/`.
-5. Run `tapir run --config your_config.yaml`.
-
-`prepare_inputs_from_sac()` is the underlying Python function used by `tapir prep-earth`. It is intended for Earth data preprocessing from SAC and can still be called directly in Python, but the CLI is now the preferred entrypoint.
-
-See [`configs/example_prep_earth.yaml`](/Users/evanzhang/Documents/Research/VespaPolPy/configs/example_prep_earth.yaml) for the preprocessing config format.
-
-### Mars workflow
-
-Mars preprocessing is not wrapped by TAPIR at the moment. Prepare the files externally, then place them in the expected event directory yourself:
-
-- `UZ.csv`, `UR.csv`, `UT.csv` for 3C, or `U.csv` for 1C
+- `UZ.csv`, `UR.csv`, `UT.csv` for 3C data, or `U.csv` for 1C data
 - `time.csv`
 - `station_metadata_db.csv` in `dist_deg,baz`
 - `eventinfo.csv`
-- optional fitted covariance files if `CDopt: 3`
-- `stf.csv` if `man_stf: true`
+- optional fitted covariance files when `CDopt: 3`
+- `stf.csv` when `man_stf: true`
 
-Then set `isMars: true` in the config and run `tapir run --config your_config.yaml`.
+Set `isMars: true` in the inversion config. In this mode, TAPIR interprets metadata as `dist/baz`, enforces source-array geometry, and uses Mars-specific geometry constants in the 3C transform.
 
-When `isMars: true`, TAPIR now treats the metadata as `dist/baz`, enforces source-array geometry, and uses Mars-specific geometry constants in the 3C transform.
+## Configuration
 
-## Internal Loaders
+Inversion runs use YAML configuration files with:
 
-`prep_data()` is now an internal loader used by the inversion runner. In normal use you should not need to call it directly. The intended flow is:
+- `defaults`: shared settings
+- `experiments`: one or more experiment-specific overrides
 
-- `tapir prep-earth` for Earth SAC preprocessing
-- manual file preparation for Mars
-- `tapir run` for inversion
+Example inversion settings are provided in `configs/example_parameter_setup.yaml`.
 
-## Data and Outputs
+For Earth preprocessing, `tapir prep-earth` can also read a separate YAML file such as `configs/example_prep_earth.yaml`.
 
-This repository does not package example seismic datasets. Expected runtime data directories are ignored by Git:
+## Expected Data Layout
+
+TAPIR expects runtime data to live in workspace directories such as:
 
 - `RealData/`
 - `SynData/`
 - `runs/`
 
-## Legacy Material
+An Earth event prepared for inversion typically contains:
 
-Several notebooks and scripts are intentionally retained for personal experiments and reproducibility, but they should be treated as auxiliary materials rather than the TAPIR public API.
+- waveform CSVs
+- `time.csv`
+- `station_metadata.csv`
+- `station_metadata_db.csv`
+- `eventinfo.csv`
+- optional fitted covariance files
+
+## Repository Layout
+
+- `vespainv/`: core package code
+- `configs/`: example configuration files
+- `scripts/`: helper and legacy scripts
+- `notebooks/`: exploratory notebooks
+- `tests/`: lightweight regression tests
+
+## Notes
+
+The `prep_data()` loader is intended for internal use by the inversion runner. In normal use, the public entrypoints are `tapir prep-earth` and `tapir run`.
 
 ## License
 
-No license file has been added in this pass because license choice has real downstream consequences. Pick one explicitly before public release.
-
-## README Figure
-
-Put your README image in [`docs/images/`](/Users/evanzhang/Documents/Research/VespaPolPy/docs/images), for example as `tapir-overview.png`, and then replace the placeholder comment at the top of this README with:
-
-```md
-![TAPIR overview](docs/images/tapir-overview.png)
-```
+A project license has not been added yet.
