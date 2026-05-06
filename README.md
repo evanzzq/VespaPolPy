@@ -1,7 +1,7 @@
 # TAPIR
 
 <p align="center">
-  <img src="docs/images/tapir_logo.png" alt="TAPIR logo" width="300">
+  <img src="docs/images/tapir_logo.png" alt="TAPIR logo" width="500">
 </p>
 
 
