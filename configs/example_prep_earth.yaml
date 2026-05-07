@@ -1,9 +1,27 @@
-data_dir: /path/to/event_sac
-output_dir: /path/to/RealData/my_event
-noise_dir: /path/to/noise_sac
-bandpass: [0.02, 0.2]
+# Example configuration for:
+#   tapir prep-earth --config configs/example_prep_earth.yaml
+#
+# Required:
+# - data_dir: directory containing one event's SAC files (*.sac)
+#   TAPIR reads all SAC files and uses the channel header to determine components,
+#   but in practice this directory should ideally contain only the Z/R/T files you want to prepare.
+# - output_dir: directory where TAPIR-ready CSV files will be written
+#
+# Optional:
+# - noise_dir: directory containing matching noise SAC files named *.noise.sac
+# - bandpass: [freqmin, freqmax] in Hz; omit this key or set it to null to skip filtering
+# - downsample_hz: target sampling rate in Hz; omit this key or set it to null to keep the original rate
+# - time_window: [t0, t1] in seconds from each trace start; omit this key or set it to null to use the full trace
+# - snr_component: component used for SNR-based rejection when noise_dir is provided: UZ, UR, UT, or min
+# - snr_threshold: minimum SNR required when noise_dir is provided; omit this key or set it to null to disable SNR rejection
+#   When noise_dir is provided, prep-earth writes only the fitted covariance files CD_UZ_fit.csv, CD_UR_fit.csv, and CD_UT_fit.csv.
+# - plot_summary: true to save prep_summary.pdf in output_dir for quick QC
+data_dir: /Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy/data_download/event_download/201111221848_P_45_48
+output_dir: /Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy/RealData/201111221848_P_45_48_TAPIR
+noise_dir: /Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy/data_download/noise_download/201111221848_P_45_48
+bandpass: [0.02, 0.5]
 downsample_hz: 5
-time_window: [0, 300]
+time_window: [0, 100]
 snr_component: UZ
 snr_threshold: 0
-outliers: []
+plot_summary: true

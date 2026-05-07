@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from .config import load_yaml_mapping
 from .runner import run_config
-from .utils import prepare_inputs_from_sac
+from .utils import plot_prep_summary, prepare_inputs_from_sac
 
 
 def _parse_pair(value: str, name: str) -> tuple[float, float]:
@@ -17,15 +18,6 @@ def _parse_pair(value: str, name: str) -> tuple[float, float]:
         raise argparse.ArgumentTypeError(f"{name} must contain numeric values.") from exc
 
 
-def _parse_int_list(value: str) -> list[int]:
-    if not value.strip():
-        return []
-    try:
-        return [int(part.strip()) for part in value.split(",") if part.strip()]
-    except ValueError as exc:
-        raise argparse.ArgumentTypeError("outliers must be a comma-separated list of integers.") from exc
-
-
 def _normalize_pair(value, name: str):
     if value is None:
         return None
@@ -36,12 +28,27 @@ def _normalize_pair(value, name: str):
     raise ValueError(f"{name} must be given as a two-item sequence or 'a,b' string.")
 
 
-def _normalize_int_list(value):
+def _normalize_optional_float(value, name: str):
     if value is None:
         return None
+    normalized = float(value)
+    if normalized <= 0:
+        raise ValueError(f"{name} must be positive when provided.")
+    return normalized
+
+
+def _normalize_optional_bool(value, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
     if isinstance(value, str):
-        return _parse_int_list(value)
-    return [int(item) for item in value]
+        lowered = value.strip().lower()
+        if lowered in {"true", "yes", "1", "on"}:
+            return True
+        if lowered in {"false", "no", "0", "off"}:
+            return False
+    raise ValueError("Boolean settings must be true/false when provided.")
 
 
 def _resolve_prep_earth_args(args) -> dict:
@@ -55,7 +62,7 @@ def _resolve_prep_earth_args(args) -> dict:
         "time_window": args.time_window,
         "snr_component": args.snr_component,
         "snr_threshold": args.snr_threshold,
-        "outliers": args.outliers,
+        "plot_summary": args.plot_summary,
     }
     resolved = {}
     for key, cli_value in cli_values.items():
@@ -70,7 +77,11 @@ def _resolve_prep_earth_args(args) -> dict:
 
     resolved["bandpass"] = _normalize_pair(resolved.get("bandpass"), "bandpass")
     resolved["time_window"] = _normalize_pair(resolved.get("time_window"), "time-window")
-    resolved["outliers"] = _normalize_int_list(resolved.get("outliers"))
+    resolved["downsample_hz"] = _normalize_optional_float(resolved.get("downsample_hz"), "downsample-hz")
+    resolved["plot_summary"] = _normalize_optional_bool(
+        resolved.get("plot_summary"),
+        default=False,
+    )
     resolved["snr_component"] = resolved.get("snr_component", "UZ")
     return resolved
 
@@ -122,7 +133,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     prep_parser.add_argument(
         "--snr-component",
-        default="UZ",
+        default=None,
         help="Component to threshold on when noise data are provided: UZ, UR, UT, or min",
     )
     prep_parser.add_argument(
@@ -132,12 +143,27 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional SNR threshold for outlier rejection when noise data are provided",
     )
     prep_parser.add_argument(
-        "--outliers",
-        type=_parse_int_list,
+        "--plot-summary",
+        action=argparse.BooleanOptionalAction,
         default=None,
-        help="Optional comma-separated trace indices to remove manually",
+        help="Optionally save a quick-look prep summary figure into the output directory",
     )
 
+    plot_prep_parser = subparsers.add_parser(
+        "plot-prep",
+        help="Create a prep summary figure from an existing prepared event directory",
+    )
+    plot_prep_parser.add_argument(
+        "output_dir",
+        nargs="?",
+        default=None,
+        help="Prepared event directory containing time.csv, station_metadata_db.csv, and waveform CSVs",
+    )
+    plot_prep_parser.add_argument(
+        "--config",
+        default=None,
+        help="Optional YAML file; if provided and output_dir is omitted, use its output_dir setting",
+    )
     return parser
 
 
@@ -158,6 +184,14 @@ def main(argv: list[str] | None = None) -> None:
             output_dir=prep_args["output_dir"],
             snr_component=prep_args["snr_component"],
             snr_threshold=prep_args["snr_threshold"],
-            outliers_manual=prep_args["outliers"],
             twin=prep_args["time_window"],
+            plot_summary=prep_args["plot_summary"],
         )
+    elif args.command == "plot-prep":
+        output_dir = args.output_dir
+        if output_dir is None and args.config:
+            config = load_yaml_mapping(args.config)
+            output_dir = config.get("output_dir")
+        if not output_dir:
+            raise ValueError("plot-prep requires an output directory either as an argument or via --config.")
+        plot_prep_summary(str(Path(output_dir)))

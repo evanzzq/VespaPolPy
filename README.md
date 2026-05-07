@@ -27,6 +27,12 @@ Prepare Earth SAC files into TAPIR-ready inputs:
 tapir prep-earth --config configs/example_prep_earth.yaml
 ```
 
+Regenerate a QC summary figure from an existing prepared event directory:
+
+```bash
+tapir plot-prep /path/to/RealData/my_event
+```
+
 Run an inversion:
 
 ```bash
@@ -43,7 +49,9 @@ python main.py --config configs/example_parameter_setup.yaml
 
 ### Earth Data
 
-Use `tapir prep-earth` to convert SAC files into the CSV-based input format expected by the inversion workflow. The preprocessing step can apply optional bandpass filtering, downsampling, noise-based covariance estimation, and trace rejection.
+Use `tapir prep-earth` to convert SAC files into the CSV-based input format expected by the inversion workflow. The preprocessing step can apply optional bandpass filtering, optional downsampling, optional time-window trimming, noise-based covariance estimation, and automatic trace rejection based on noise statistics and SNR. It can also optionally save a quick-look QC PDF into the prepared event directory.
+
+`prep-earth` reads all SAC files in the event directory and uses the SAC channel header to identify components, but in practice the directory should ideally contain only the Z/R/T files intended for preparation. When a noise directory is provided, the prep step now writes only the fitted covariance outputs (`CD_UZ_fit.csv`, `CD_UR_fit.csv`, `CD_UT_fit.csv`) for downstream use.
 
 The typical Earth workflow is:
 

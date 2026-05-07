@@ -66,33 +66,199 @@ def apply_constant_phase_shift(W: np.ndarray, phase_rad: float) -> np.ndarray:
 
     return W * phase_shift
 
-def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, outliers_manual=None, twin=None):
+
+def _save_prep_summary_plot(output_dir, time, traces, dists, traces_noise=None, cd_fits=None):
     import os
     import numpy as np
     import matplotlib.pyplot as plt
+
+    comps = ["UZ", "UR", "UT"]
+    has_noise = traces_noise is not None
+    has_cd_fit = cd_fits is not None
+    ncols = 1 + int(has_noise) + int(has_cd_fit)
+    fig, axes = plt.subplots(
+        3,
+        ncols,
+        figsize=(6 * ncols, 10),
+        sharex="col",
+    )
+
+    if ncols == 1:
+        axes = np.asarray(axes).reshape(3, 1)
+
+    dists = np.asarray(dists, dtype=float)
+    dist_span = np.ptp(dists) if len(dists) > 1 else 1.0
+    trace_scale = 0.35 * dist_span if dist_span > 0 else 1.0
+
+    def _plot_panel(ax, matrix, title, color):
+        for idx in range(matrix.shape[1]):
+            trace = matrix[:, idx].astype(float)
+            max_abs = np.max(np.abs(trace))
+            if max_abs > 0:
+                trace = trace / max_abs
+            ax.plot(time, trace * trace_scale + dists[idx], lw=0.7, color=color, alpha=0.9)
+        ax.set_title(title)
+        ax.set_ylabel("Dist (deg)")
+        ax.grid(True, linestyle="--", alpha=0.3)
+
+    for row, comp in enumerate(comps):
+        col = 0
+        _plot_panel(axes[row, col], traces[comp], f"{comp} data", "black")
+        col += 1
+        if has_noise:
+            _plot_panel(axes[row, col], traces_noise[comp], f"{comp} noise", "gray")
+            col += 1
+        if has_cd_fit:
+            im = axes[row, col].imshow(cd_fits[comp], cmap="viridis", origin="lower", aspect="auto")
+            axes[row, col].set_title(f"{comp} CD fit")
+            axes[row, col].set_xlabel("Sample")
+            axes[row, col].set_ylabel("Sample")
+            fig.colorbar(im, ax=axes[row, col], shrink=0.8)
+
+    for ax in axes[-1, : 1 + int(has_noise)]:
+        ax.set_xlabel("Time (s)")
+
+    fig.suptitle("TAPIR prep-earth summary", fontsize=14)
+    fig.tight_layout()
+    fig.subplots_adjust(top=0.94)
+
+    figure_path = os.path.join(output_dir, "prep_summary.pdf")
+    fig.savefig(figure_path, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Saved prep summary figure: {figure_path}")
+
+
+def plot_prep_summary(output_dir):
+    import os
+    import numpy as np
+
+    comps = ["UZ", "UR", "UT"]
+    time = np.loadtxt(os.path.join(output_dir, "time.csv"), delimiter=",")
+    metadata_db = np.loadtxt(
+        os.path.join(output_dir, "station_metadata_db.csv"),
+        delimiter=",",
+        skiprows=1,
+    )
+    if metadata_db.ndim == 1:
+        metadata_db = metadata_db[np.newaxis, :]
+    dists = metadata_db[:, 0]
+
+    traces = {}
+    traces_noise = {}
+    cd_fits = {}
+    has_noise = True
+    has_cd_fit = True
+    for comp in comps:
+        data = np.loadtxt(os.path.join(output_dir, f"{comp}.csv"), delimiter=",")
+        if data.ndim == 1:
+            data = data[:, np.newaxis]
+        traces[comp] = data
+
+        noise_path = os.path.join(output_dir, f"{comp}_noise.csv")
+        if os.path.exists(noise_path):
+            noise = np.loadtxt(noise_path, delimiter=",")
+            if noise.ndim == 1:
+                noise = noise[:, np.newaxis]
+            traces_noise[comp] = noise
+        else:
+            has_noise = False
+
+        cd_fit_path = os.path.join(output_dir, f"CD_{comp}_fit.csv")
+        if os.path.exists(cd_fit_path):
+            cd_fits[comp] = np.loadtxt(cd_fit_path, delimiter=",")
+        else:
+            has_cd_fit = False
+
+    _save_prep_summary_plot(
+        output_dir=output_dir,
+        time=time,
+        traces=traces,
+        dists=dists,
+        traces_noise=traces_noise if has_noise else None,
+        cd_fits=cd_fits if has_cd_fit else None,
+    )
+
+
+def _trim_trace_to_available_window(tr, twin, label, warning_cache=None):
+    requested_start, requested_end = twin
+    available_start = 0.0
+    available_end = tr.stats.delta * (tr.stats.npts - 1)
+    clipped_start = max(requested_start, available_start)
+    clipped_end = min(requested_end, available_end)
+
+    if requested_start < available_start or requested_end > available_end:
+        warning_key = (twin, round(available_start, 6), round(available_end, 6))
+        if warning_cache is None or warning_key not in warning_cache:
+            print(
+                "\n[prep-earth][WARN] Requested time_window "
+                f"{twin} exceeds available range for {label} "
+                f"(available: [{available_start:.2f}, {available_end:.2f}] s). "
+                f"Using [{clipped_start:.2f}, {clipped_end:.2f}] s instead."
+            )
+            if warning_cache is not None:
+                warning_cache.add(warning_key)
+
+    if clipped_start >= clipped_end:
+        print(
+            "\n[prep-earth][WARN] Requested time_window "
+            f"{twin} does not overlap available data for {label}. "
+            "Skipping this trace."
+        )
+        return False
+
+    tr.trim(
+        tr.stats.starttime + clipped_start,
+        tr.stats.starttime + clipped_end,
+        pad=False,
+    )
+    return True
+
+
+def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_dir=None, output_dir=None, snr_component='UZ', snr_threshold=None, twin=None, plot_summary=False):
+    import os
+    import numpy as np
     from obspy import read
     from obspy.geodetics import gps2dist_azimuth
     from glob import glob
-    from sklearn.covariance import MinCovDet
     from scipy.signal import correlate
     from scipy.linalg import toeplitz
     from scipy.optimize import curve_fit
 
     os.makedirs(output_dir, exist_ok=True)
+    print(f"[prep-earth] Output directory: {output_dir}")
+    print(f"[prep-earth] Data directory: {data_dir}")
+    if noise_dir:
+        print(f"[prep-earth] Noise directory: {noise_dir}")
 
     sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
+    if not sac_files:
+        raise ValueError(f"No SAC files found in {data_dir}")
     traces = {"UZ": [], "UR": [], "UT": []}
     traces_noise = {"UZ": [], "UR": [], "UT": []} if noise_dir else None
     dists, bazs, stlas, stlos = [], [], [], []
+    valid_channels = {"Z", "R", "T"}
+    ignored_channel_count = 0
+    trim_warning_cache = set()
 
     stations = {}
     evla = evlo = None
+    reference_npts = None
+    reference_dt = None
 
-    for f in sac_files:
+    for ifile, f in enumerate(sac_files, start=1):
         tr = read(f)[0]
         if twin is not None:
-            tr.trim(tr.stats.starttime + twin[0], tr.stats.starttime + twin[1], pad=True, fill_value=0)
+            if not _trim_trace_to_available_window(
+                tr,
+                twin,
+                os.path.basename(f),
+                warning_cache=trim_warning_cache,
+            ):
+                continue
         ch = tr.stats.channel[-1]  # Z/R/T
+        if ch not in valid_channels:
+            ignored_channel_count += 1
+            continue
         net, sta = tr.stats.network, tr.stats.station
         key = f"{net}.{sta}"
 
@@ -110,22 +276,37 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             if os.path.exists(fnoise):
                 tr_noise = read(fnoise)[0]
                 if twin is not None:
-                    tr_noise.trim(tr_noise.stats.starttime + twin[0], tr_noise.stats.starttime + twin[1], pad=True, fill_value=0)
+                    if not _trim_trace_to_available_window(
+                        tr_noise,
+                        twin,
+                        os.path.basename(fnoise),
+                        warning_cache=trim_warning_cache,
+                    ):
+                        continue
                 if isbp and freqs:
                     tr_noise.filter("bandpass", freqmin=freqs[0], freqmax=freqs[1], corners=2, zerophase=True)
                 stations[key][f"{ch}_noise"] = tr_noise
             else:
                 print(f"Missing noise file for {f}")
+    print(
+        f"[prep-earth] Found {len(sac_files)} SAC files, "
+        f"grouped into {len(stations)} stations, "
+        f"ignored {ignored_channel_count} non-Z/R/T files."
+    )
 
+    kept_station_count = 0
     for key, comps in stations.items():
         trZ, trR, trT = comps["Z"], comps["R"], comps["T"]
         if None in (trZ, trR, trT):
-            print(f"Skipping incomplete station {key}")
             continue
 
         # Check consistency
         if not (len(trZ.data) == len(trR.data) == len(trT.data)):
-            print(f"Skipping inconsistent trace lengths for {key}")
+            continue
+        if reference_npts is None:
+            reference_npts = len(trZ.data)
+            reference_dt = trZ.stats.delta
+        if len(trZ.data) != reference_npts or trZ.stats.delta != reference_dt:
             continue
 
         # Normalize traces
@@ -142,15 +323,16 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             evla, evlo = trZ.stats.sac.evla, trZ.stats.sac.evlo
 
             # Downsample time axis
+            factor = 1
             if isds:
-                factor = int(round((1 / dt) / isds))
-            if isds and factor > 1:
+                factor = max(1, int(round((1 / dt) / isds)))
+            if factor > 1:
                 time = time[::factor]
                 dt = time[1] - time[0]
             np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
 
         # Downsample data
-        if isds:
+        if factor > 1:
             trZ.data = trZ.data[::factor]
             trR.data = trR.data[::factor]
             trT.data = trT.data[::factor]
@@ -168,6 +350,7 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         stlos.append(stlo)
         dists.append(dist_deg)
         bazs.append(baz)
+        kept_station_count += 1
 
         if noise_dir:
             for ch, comp in zip(["Z", "R", "T"], ["UZ", "UR", "UT"]):
@@ -176,9 +359,15 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
                     raise ValueError(f"Missing noise for {key} component {ch}")
                 tr_noise.data /= norm
                 # Downsample noise
-                if isds and factor > 1:
+                if factor > 1:
                     tr_noise.data = tr_noise.data[::factor]
                 traces_noise[comp].append(tr_noise.data)
+
+    if kept_station_count == 0:
+        raise ValueError(
+            "No complete Z/R/T stations were retained during prep-earth. "
+            "Check component naming and SAC contents."
+        )
 
     # Sort by distance
     idx = np.argsort(dists)
@@ -200,14 +389,7 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
             max_amps = np.max(np.abs(noise_matrix), axis=0)
             threshold = np.median(max_amps) + 5 * np.std(max_amps)
             bad = np.where(max_amps > threshold)[0]
-            print(f"[{comp}] High-amplitude noise traces: {bad}")
             outlier_indices.update(bad.tolist())
-
-        if outliers_manual: outlier_indices.update(outliers_manual)
-        print(f"\n>>> Removing {len(outlier_indices)} outlier trace(s):", outlier_indices)
-
-        # --- SNR-based outlier detection ---
-        print(f"\n>>> Applying SNR threshold: {snr_threshold} (component: {snr_component})")
 
         n_traces = len(traces["UZ"])
         for i in range(n_traces):
@@ -228,7 +410,6 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
 
             if snr_check < snr_threshold:
                 outlier_indices.add(i)
-                print(f"Trace {i}: SNRs={snr_vals} → flagged (used {snr_check:.2f})")
         
         # Remove bad traces
         for comp in ["UZ", "UR", "UT"]:
@@ -239,6 +420,7 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         bazs = [b for i, b in enumerate(bazs) if i not in outlier_indices]
         stlas = [s for i, s in enumerate(stlas) if i not in outlier_indices]
         stlos = [s for i, s in enumerate(stlos) if i not in outlier_indices]
+    print(f"[prep-earth] {len(dists)} stations retained after SNR/noise rejection.")
 
 
     # Save output
@@ -247,25 +429,9 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
         if noise_dir:
             noise_stack = np.column_stack(traces_noise[comp])
             np.savetxt(os.path.join(output_dir, f"{comp}_noise.csv"), np.column_stack(traces_noise[comp]), delimiter=",")
-            np.savetxt(os.path.join(output_dir, f"CD_{comp}.csv"), np.cov(noise_stack), delimiter=",")
 
-            ### Robust covariance matrix: truncated version
-            # RCM from MinCovDet
+            ### Noise parameterization from Kolb and Lekic (2014)
             n_samples = len(traces[comp][0])
-            n_seconds_noise_for_cov = 50
-            n_samples_noise_for_cov = int(n_seconds_noise_for_cov / dt)
-            noise_stack_for_cov = noise_stack[:n_samples_noise_for_cov, :].T
-            cov_mcd = MinCovDet(support_fraction=0.75).fit(noise_stack_for_cov).covariance_
-            # Estimate autocovariance from diagonals
-            avg_autocov = [np.mean(np.diag(cov_mcd, k=lag)) for lag in range(cov_mcd.shape[0])]
-            pad_width = n_samples - len(avg_autocov)
-            avg_autocov_padded = np.pad(avg_autocov, (0, pad_width), mode='constant')
-            # Build using toeplitz and save
-            CD_robust = toeplitz(avg_autocov_padded)
-            np.savetxt(os.path.join(output_dir, f"CD_{comp}_robust.csv"), CD_robust, delimiter=",")
-
-            ### Noise parameterization 3 from Kolb and Lekic (2014)
-            # Parameters
             n_samples, n_traces = noise_stack.shape
             max_lag_seconds = 50
             max_lag = int(max_lag_seconds / dt)
@@ -316,6 +482,33 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
                np.column_stack([stlas, stlos]), delimiter=",", header="lat,lon", comments='')
     np.savetxt(os.path.join(output_dir, "eventinfo.csv"),
                np.column_stack([evla, evlo]), delimiter=",", header="evla,evlo", comments='')
+
+    if plot_summary:
+        plot_traces = {
+            comp: np.column_stack(traces[comp])
+            for comp in ["UZ", "UR", "UT"]
+        }
+        plot_noise = None
+        if noise_dir:
+            plot_noise = {
+                comp: np.column_stack(traces_noise[comp])
+                for comp in ["UZ", "UR", "UT"]
+            }
+        plot_cd_fits = None
+        if noise_dir:
+            plot_cd_fits = {
+                comp: np.loadtxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), delimiter=",")
+                for comp in ["UZ", "UR", "UT"]
+            }
+        _save_prep_summary_plot(
+            output_dir=output_dir,
+            time=time,
+            traces=plot_traces,
+            dists=dists,
+            traces_noise=plot_noise,
+            cd_fits=plot_cd_fits,
+        )
+    print("[prep-earth] Done.")
 
 
 def make_vespagram(
