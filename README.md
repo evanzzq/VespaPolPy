@@ -27,6 +27,12 @@ Prepare Earth SAC files into TAPIR-ready inputs:
 tapir prep-earth --config configs/example_prep_earth.yaml
 ```
 
+Prepare Earth source-array SAC files, where one station records many events:
+
+```bash
+tapir prep-source-earth --config configs/example_prep_source_earth.yaml
+```
+
 Regenerate a QC summary figure from an existing prepared event directory:
 
 ```bash
@@ -62,6 +68,13 @@ The typical Earth workflow is:
 
 Example preprocessing settings are provided in `configs/example_prep_earth.yaml`.
 
+For source-array Earth data, use `tapir prep-source-earth` on SAC files named with
+the event id before the first underscore, such as
+`19940713114522_G.CRZF.00.BHZ.sac`. This mode groups Z/R/T traces by event,
+writes one waveform column per event, stores source/event coordinates in
+`station_metadata.csv`, and writes the single receiver station location to
+`eventinfo.csv`. Use an inversion config with `srcArray: true`.
+
 ### Mars Data
 
 Mars preprocessing is expected to be handled externally. TAPIR can then run inversion on manually prepared files placed in an event directory.
@@ -83,6 +96,10 @@ Inversion runs use YAML configuration files with:
 
 - `defaults`: shared settings
 - `experiments`: one or more experiment-specific overrides
+
+Relative `filedir` values are resolved relative to the YAML config file. For
+configs stored in `configs/`, use `filedir: ".."` to point at the repository
+root containing `RealData/`, `SynData/`, and `runs/`.
 
 Example inversion settings are provided in `configs/example_parameter_setup.yaml`.
 

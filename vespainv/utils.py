@@ -230,7 +230,10 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
     if noise_dir:
         print(f"[prep-earth] Noise directory: {noise_dir}")
 
-    sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
+    sac_files = sorted(
+        f for f in glob(os.path.join(data_dir, "*.sac"))
+        if not os.path.basename(f).endswith(".noise.sac")
+    )
     if not sac_files:
         raise ValueError(f"No SAC files found in {data_dir}")
     traces = {"UZ": [], "UR": [], "UT": []}
@@ -511,6 +514,345 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
     print("[prep-earth] Done.")
 
 
+def _source_event_id_from_trace_path(path):
+    import os
+
+    name = os.path.basename(path)
+    if "_" in name:
+        return name.split("_", 1)[0]
+    return os.path.splitext(name)[0]
+
+
+def _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt):
+    import os
+    import numpy as np
+    from scipy.linalg import toeplitz
+    from scipy.optimize import curve_fit
+    from scipy.signal import correlate
+
+    n_samples, n_traces = noise_stack.shape
+    max_lag_seconds = 50
+    max_lag = max(1, min(n_samples, int(max_lag_seconds / dt)))
+    noise_stack = noise_stack - np.mean(noise_stack, axis=0)
+
+    acovs = []
+    for i in range(n_traces):
+        trace = noise_stack[:, i]
+        acorr = correlate(trace, trace, mode="full")
+        acorr = acorr[n_samples - 1:]
+        acorr = acorr[:max_lag]
+        acorr /= n_samples
+        acovs.append(acorr)
+
+    avg_autocov = np.mean(acovs, axis=0)
+    if avg_autocov[0] == 0:
+        print(f"[WARN] Cannot fit covariance for {comp}: zero-lag autocovariance is zero.")
+        return
+
+    lags = np.arange(len(avg_autocov)) * dt
+    avg_autocov_norm = avg_autocov / avg_autocov[0]
+
+    def model(tau, a, lambd, omega0):
+        return a * np.exp(-lambd * tau) * np.cos(lambd * omega0 * tau)
+
+    try:
+        popt, _ = curve_fit(
+            model,
+            lags,
+            avg_autocov_norm,
+            p0=(1.0, 0.1, 2 * np.pi * 0.2),
+            maxfev=10000,
+        )
+        a_fit_norm, lambda_fit, omega0_fit = popt
+        a_fit = a_fit_norm * avg_autocov[0]
+    except RuntimeError as e:
+        print(f"[WARN] Fit failed for {comp}: {e}")
+        return
+
+    full_lags = np.arange(n_samples) * dt
+    acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
+    cd_fit = toeplitz(acov_fit)
+    np.savetxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), cd_fit, delimiter=",")
+
+
+def prepare_source_inputs_from_sac(
+    data_dir,
+    isbp=False,
+    isds=False,
+    freqs=None,
+    noise_dir=None,
+    output_dir=None,
+    snr_component="UZ",
+    snr_threshold=None,
+    twin=None,
+    plot_summary=False,
+):
+    import os
+    import numpy as np
+    from glob import glob
+    from obspy import read
+
+    os.makedirs(output_dir, exist_ok=True)
+    print(f"[prep-source-earth] Output directory: {output_dir}")
+    print(f"[prep-source-earth] Data directory: {data_dir}")
+    if noise_dir:
+        print(f"[prep-source-earth] Noise directory: {noise_dir}")
+
+    sac_files = sorted(glob(os.path.join(data_dir, "*.sac")))
+    if not sac_files:
+        raise ValueError(f"No SAC files found in {data_dir}")
+
+    valid_channels = {"Z", "R", "T"}
+    events = {}
+    ignored_channel_count = 0
+    trim_warning_cache = set()
+
+    for f in sac_files:
+        tr = read(f)[0]
+        if twin is not None:
+            if not _trim_trace_to_available_window(
+                tr,
+                twin,
+                os.path.basename(f),
+                warning_cache=trim_warning_cache,
+            ):
+                continue
+
+        ch = tr.stats.channel[-1].upper()
+        if ch not in valid_channels:
+            ignored_channel_count += 1
+            continue
+        if isbp and freqs:
+            tr.filter("bandpass", freqmin=freqs[0], freqmax=freqs[1], corners=2, zerophase=True)
+
+        event_id = _source_event_id_from_trace_path(f)
+        if event_id not in events:
+            events[event_id] = {"Z": None, "R": None, "T": None, "norm": None}
+        events[event_id][ch] = tr
+
+        if noise_dir:
+            fbase, fext = os.path.splitext(os.path.basename(f))
+            fnoise = os.path.join(noise_dir, fbase + ".noise" + fext)
+            if os.path.exists(fnoise):
+                tr_noise = read(fnoise)[0]
+                if twin is not None:
+                    if not _trim_trace_to_available_window(
+                        tr_noise,
+                        twin,
+                        os.path.basename(fnoise),
+                        warning_cache=trim_warning_cache,
+                    ):
+                        continue
+                if isbp and freqs:
+                    tr_noise.filter(
+                        "bandpass",
+                        freqmin=freqs[0],
+                        freqmax=freqs[1],
+                        corners=2,
+                        zerophase=True,
+                    )
+                events[event_id][f"{ch}_noise"] = tr_noise
+            else:
+                print(
+                    f"Missing noise file for {f}: expected {fnoise}. "
+                    "If this is an R/T component, rerun the downloader after the noise-rotation fix "
+                    "or rotate the noise directory."
+                )
+
+    print(
+        f"[prep-source-earth] Found {len(sac_files)} SAC files, "
+        f"grouped into {len(events)} events, "
+        f"ignored {ignored_channel_count} non-Z/R/T files."
+    )
+
+    traces = {"UZ": [], "UR": [], "UT": []}
+    traces_noise = {"UZ": [], "UR": [], "UT": []} if noise_dir else None
+    dists, bazs, evlas, evlos, event_ids = [], [], [], [], []
+    station_lat = station_lon = None
+    reference_npts = None
+    reference_dt = None
+    factor = 1
+    time = None
+
+    for event_id, comps in events.items():
+        trZ, trR, trT = comps["Z"], comps["R"], comps["T"]
+        if None in (trZ, trR, trT):
+            print(f"[prep-source-earth][WARN] Missing Z/R/T for {event_id}; skipping.")
+            continue
+        if not (len(trZ.data) == len(trR.data) == len(trT.data)):
+            print(f"[prep-source-earth][WARN] Component length mismatch for {event_id}; skipping.")
+            continue
+
+        if reference_npts is None:
+            reference_npts = len(trZ.data)
+            reference_dt = trZ.stats.delta
+            npts = len(trZ.data)
+            dt = trZ.stats.delta
+            time = np.arange(0, npts * dt, dt)
+            if isds:
+                factor = max(1, int(round((1 / dt) / isds)))
+            if factor > 1:
+                time = time[::factor]
+                dt = time[1] - time[0]
+            np.savetxt(os.path.join(output_dir, "time.csv"), time, delimiter=",")
+        elif len(trZ.data) != reference_npts or trZ.stats.delta != reference_dt:
+            print(f"[prep-source-earth][WARN] Sampling mismatch for {event_id}; skipping.")
+            continue
+
+        norm = max(np.max(np.abs(trZ.data)), np.max(np.abs(trR.data)), np.max(np.abs(trT.data)))
+        if norm == 0:
+            print(f"[prep-source-earth][WARN] Zero-amplitude event {event_id}; skipping.")
+            continue
+        for tr in (trZ, trR, trT):
+            tr.data = tr.data / norm
+
+        if factor > 1:
+            trZ.data = trZ.data[::factor]
+            trR.data = trR.data[::factor]
+            trT.data = trT.data[::factor]
+
+        sac = trZ.stats.sac
+        if station_lat is None:
+            station_lat = float(sac.stla)
+            station_lon = float(sac.stlo)
+        elif not np.allclose([station_lat, station_lon], [float(sac.stla), float(sac.stlo)]):
+            print(
+                f"[prep-source-earth][WARN] Station location changed for {event_id}; "
+                "keeping the first station location in eventinfo.csv."
+            )
+
+        traces["UZ"].append(trZ.data)
+        traces["UR"].append(trR.data)
+        traces["UT"].append(trT.data)
+        dists.append(float(sac.gcarc))
+        bazs.append(float(sac.baz))
+        evlas.append(float(sac.evla))
+        evlos.append(float(sac.evlo))
+        event_ids.append(event_id)
+
+        if noise_dir:
+            for ch, comp in zip(["Z", "R", "T"], ["UZ", "UR", "UT"]):
+                tr_noise = comps.get(f"{ch}_noise")
+                if tr_noise is None:
+                    raise ValueError(f"Missing noise for event {event_id} component {ch}")
+                tr_noise.data = tr_noise.data / norm
+                if factor > 1:
+                    tr_noise.data = tr_noise.data[::factor]
+                traces_noise[comp].append(tr_noise.data)
+
+    if not dists:
+        raise ValueError(
+            "No complete Z/R/T events were retained during prep-source-earth. "
+            "Check component naming and SAC contents."
+        )
+
+    idx = np.argsort(dists)
+    for comp in ["UZ", "UR", "UT"]:
+        traces[comp] = [traces[comp][i] for i in idx]
+    if noise_dir:
+        for comp in ["UZ", "UR", "UT"]:
+            traces_noise[comp] = [traces_noise[comp][i] for i in idx]
+    dists = [dists[i] for i in idx]
+    bazs = [bazs[i] for i in idx]
+    evlas = [evlas[i] for i in idx]
+    evlos = [evlos[i] for i in idx]
+    event_ids = [event_ids[i] for i in idx]
+
+    if noise_dir:
+        outlier_indices = set()
+        for comp in ["UZ", "UR", "UT"]:
+            noise_matrix = np.column_stack(traces_noise[comp])
+            max_amps = np.max(np.abs(noise_matrix), axis=0)
+            threshold = np.median(max_amps) + 5 * np.std(max_amps)
+            outlier_indices.update(np.where(max_amps > threshold)[0].tolist())
+
+        if snr_threshold is not None:
+            for i in range(len(traces["UZ"])):
+                snr_vals = {}
+                for comp in ["UZ", "UR", "UT"]:
+                    signal = traces[comp][i]
+                    noise = traces_noise[comp][i]
+                    signal_rms = np.sqrt(np.mean(signal ** 2))
+                    noise_rms = np.sqrt(np.mean(noise ** 2)) + 1e-10
+                    snr_vals[comp] = signal_rms / noise_rms
+                snr_key = snr_component.upper()
+                snr_check = min(snr_vals.values()) if snr_component.lower() == "min" else snr_vals[snr_key]
+                if snr_check < snr_threshold:
+                    outlier_indices.add(i)
+
+        for comp in ["UZ", "UR", "UT"]:
+            traces[comp] = [tr for i, tr in enumerate(traces[comp]) if i not in outlier_indices]
+            traces_noise[comp] = [
+                tr for i, tr in enumerate(traces_noise[comp]) if i not in outlier_indices
+            ]
+        dists = [d for i, d in enumerate(dists) if i not in outlier_indices]
+        bazs = [b for i, b in enumerate(bazs) if i not in outlier_indices]
+        evlas = [lat for i, lat in enumerate(evlas) if i not in outlier_indices]
+        evlos = [lon for i, lon in enumerate(evlos) if i not in outlier_indices]
+        event_ids = [eid for i, eid in enumerate(event_ids) if i not in outlier_indices]
+
+    if not dists:
+        raise ValueError("No source-array events remain after noise/SNR rejection.")
+
+    for comp in ["UZ", "UR", "UT"]:
+        np.savetxt(os.path.join(output_dir, f"{comp}.csv"), np.column_stack(traces[comp]), delimiter=",")
+        if noise_dir:
+            noise_stack = np.column_stack(traces_noise[comp])
+            np.savetxt(os.path.join(output_dir, f"{comp}_noise.csv"), noise_stack, delimiter=",")
+            _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt)
+
+    np.savetxt(
+        os.path.join(output_dir, "station_metadata_db.csv"),
+        np.column_stack([dists, bazs]),
+        delimiter=",",
+        header="dist_deg,baz",
+        comments="",
+    )
+    np.savetxt(
+        os.path.join(output_dir, "station_metadata.csv"),
+        np.column_stack([evlas, evlos]),
+        delimiter=",",
+        header="lat,lon",
+        comments="",
+    )
+    np.savetxt(
+        os.path.join(output_dir, "eventinfo.csv"),
+        np.column_stack([station_lat, station_lon]),
+        delimiter=",",
+        header="stla,stlo",
+        comments="",
+    )
+    with open(os.path.join(output_dir, "source_event_ids.txt"), "w", encoding="utf-8") as handle:
+        handle.write("\n".join(event_ids) + "\n")
+
+    print(f"[prep-source-earth] {len(dists)} events retained.")
+    if plot_summary:
+        plot_noise = None
+        if noise_dir:
+            plot_noise = {
+                comp: np.column_stack(traces_noise[comp])
+                for comp in ["UZ", "UR", "UT"]
+            }
+        plot_cd_fits = None
+        if noise_dir:
+            plot_cd_fits = {}
+            for comp in ["UZ", "UR", "UT"]:
+                cd_path = os.path.join(output_dir, f"CD_{comp}_fit.csv")
+                if os.path.exists(cd_path):
+                    plot_cd_fits[comp] = np.loadtxt(cd_path, delimiter=",")
+            if len(plot_cd_fits) != 3:
+                plot_cd_fits = None
+        _save_prep_summary_plot(
+            output_dir=output_dir,
+            time=time,
+            traces={comp: np.column_stack(traces[comp]) for comp in ["UZ", "UR", "UT"]},
+            dists=dists,
+            traces_noise=plot_noise,
+            cd_fits=plot_cd_fits,
+        )
+    print("[prep-source-earth] Done.")
+
+
 def make_vespagram(
     U: np.ndarray,                   # shape (n_time, n_traces)
     time: np.ndarray,               # shape (n_time,)
@@ -724,10 +1066,10 @@ def calc_array_center(metadata, srcLat, srcLon, srcArray, metadata_format="latlo
     return centerLat, centerLon, centerDist, centerBaz
 
 
-def load_metadata(datadir, modname, is_mars):
+def load_metadata(datadir, modname, is_mars, src_array=False):
     import os
 
-    metadata_name = "station_metadata_db.csv" if is_mars else "station_metadata.csv"
+    metadata_name = "station_metadata_db.csv" if (is_mars or src_array) else "station_metadata.csv"
     metadata = np.loadtxt(
         os.path.join(datadir, modname, metadata_name),
         delimiter=",",
@@ -868,7 +1210,7 @@ def inv_sqrt(C):
     D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
     return eigvecs @ D_inv_sqrt @ eigvecs.T
 
-def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False):
+def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False, src_array=False):
     import os
     import numpy as np
     from scipy.linalg import fractional_matrix_power
@@ -917,6 +1259,6 @@ def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False):
         CDinv, CD_sqrt_inv = None, None
 
     Utime = np.loadtxt(os.path.join(datadir, modname, "time.csv"), delimiter=",")
-    metadata = load_metadata(datadir, modname, is_mars)
+    metadata = load_metadata(datadir, modname, is_mars, src_array=src_array)
 
     return U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c

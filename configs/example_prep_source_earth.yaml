@@ -1,0 +1,29 @@
+# Example configuration for:
+#   tapir prep-source-earth --config configs/example_prep_source_earth.yaml
+#
+# Required:
+# - data_dir: directory containing source-array SAC files downloaded with
+#   scripts/source_array_download_rotate.py. The files should contain complete
+#   Z/R/T components for each event, with the event id before the first "_".
+# - output_dir: directory where TAPIR-ready CSV files will be written
+#
+# Optional:
+# - noise_dir: directory containing matching noise SAC files named *.noise.sac
+# - bandpass: [freqmin, freqmax] in Hz; omit this key or set it to null to skip filtering
+# - downsample_hz: target sampling rate in Hz; omit this key or set it to null to keep the original rate
+# - time_window: [t0, t1] in seconds from each trace start; omit this key or set it to null to use the full trace
+# - snr_component: component used for SNR-based rejection when noise_dir is provided: UZ, UR, UT, or min
+# - snr_threshold: minimum SNR required when noise_dir is provided; omit this key or set it to null to disable SNR rejection
+# - plot_summary: true to save prep_summary.pdf in output_dir for quick QC
+#
+# The output is intended for inversion configs with srcArray: true. In this
+# mode, eventinfo.csv stores the single receiver station location, while
+# station_metadata.csv stores source/event coordinates for each trace.
+data_dir: H:/My Drive/Research/VespaPolPy/data_download/source_array_event_download/IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750
+noise_dir: H:/My Drive/Research/VespaPolPy/data_download/source_array_noise_download/IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750
+output_dir: H:/My Drive/Research/VespaPolPy/RealData/IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750
+downsample_hz: 2
+bandpass: [0.02, 0.4]
+snr_component: UZ
+snr_threshold: 1.5
+plot_summary: true

@@ -153,7 +153,7 @@ def run_experiment(params: dict) -> None:
 
     datadir = os.path.join(filedir, "SynData") if is_syn else os.path.join(filedir, "RealData")
     U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c = prep_data(
-        datadir, modname, is3c, comp, CDopt, is_mars=isMars
+        datadir, modname, is3c, comp, CDopt, is_mars=isMars, src_array=srcArray
     )
     dt = Utime[1] - Utime[0]
 
@@ -189,7 +189,7 @@ def run_experiment(params: dict) -> None:
                 srcLat,
                 srcLon,
                 srcArray,
-                metadata_format="distbaz" if isMars else "latlon",
+                metadata_format="distbaz" if (isMars or srcArray) else "latlon",
             )
 
     bookkeeping = Bookkeeping(
@@ -259,7 +259,17 @@ def run_experiment(params: dict) -> None:
 
 
 def run_config(config_path: str | Path) -> None:
+    config_path = Path(config_path)
     config = load_config(config_path)
     defaults = config.get("defaults", {})
+    if "filedir" in defaults:
+        filedir = Path(defaults["filedir"])
+        if not filedir.is_absolute():
+            defaults["filedir"] = str((config_path.parent / filedir).resolve())
     for experiment in config["experiments"]:
-        run_experiment({**defaults, **experiment})
+        params = {**defaults, **experiment}
+        if "filedir" in experiment:
+            filedir = Path(experiment["filedir"])
+            if not filedir.is_absolute():
+                params["filedir"] = str((config_path.parent / filedir).resolve())
+        run_experiment(params)

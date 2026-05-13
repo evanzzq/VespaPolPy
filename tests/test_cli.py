@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from vespainv.cli import _resolve_prep_earth_args
+from vespainv.cli import _resolve_prep_earth_args, _resolve_prep_source_earth_args
 
 
 def test_resolve_prep_earth_args_allows_optional_processing_settings(tmp_path: Path):
@@ -101,3 +101,48 @@ def test_plot_prep_can_take_output_dir_from_config(tmp_path: Path):
     }
 
     assert config["output_dir"] in config_path.read_text(encoding="utf-8")
+
+
+def test_resolve_prep_source_earth_args_uses_config(tmp_path: Path):
+    config_path = tmp_path / "prep_source.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "data_dir: /tmp/source_sac",
+                "output_dir: /tmp/source_out",
+                "noise_dir: /tmp/source_noise",
+                "bandpass: [0.02, 0.5]",
+                "downsample_hz: 5",
+                "time_window: [0, 100]",
+                "snr_component: min",
+                "snr_threshold: 1.5",
+                "plot_summary: false",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    args = Namespace(
+        config=str(config_path),
+        data_dir=None,
+        output_dir=None,
+        noise_dir=None,
+        bandpass=None,
+        downsample_hz=None,
+        time_window=None,
+        snr_component=None,
+        snr_threshold=None,
+        plot_summary=None,
+    )
+
+    resolved = _resolve_prep_source_earth_args(args)
+
+    assert resolved["data_dir"] == "/tmp/source_sac"
+    assert resolved["output_dir"] == "/tmp/source_out"
+    assert resolved["noise_dir"] == "/tmp/source_noise"
+    assert resolved["bandpass"] == (0.02, 0.5)
+    assert resolved["downsample_hz"] == 5
+    assert resolved["time_window"] == (0, 100)
+    assert resolved["snr_component"] == "min"
+    assert resolved["snr_threshold"] == 1.5
+    assert resolved["plot_summary"] is False

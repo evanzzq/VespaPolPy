@@ -10,27 +10,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ---- File Dir (Mac/PC) override ----
-# filedir = "H:\My Drive\Research\VespaPolPy"
-filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+filedir = "H:\My Drive\Research\VespaPolPy"
+# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
 
 # ---- Moveout correction click ----
 third_click = False
 
 # ---- Plot modes ----
-run_standard_plots = False
-run_convergence_analysis = True
+run_standard_plots = True
+run_convergence_analysis = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = True
 seis_mode = "P" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "201205280507_R71_78_locbox_42_45N_93_90W_T1150_1240_VEL_0.1_1.0Hz"
-runname    = "run2_L1_N50_atts_loge_1e6"
+modname    = "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+runname    = "test_run_8c"
 isSyn      = False
 is3c       = True # for synthetic this will be overriden
 comp       = "Z" # only applies to real data
-CDopt      = 0 # 0 - use sigma only, 3 - use fitted covariance
+CDopt      = 3 # 0 - use sigma only, 3 - use fitted covariance
 isMars     = False
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
@@ -195,7 +195,7 @@ if isSyn:
 # ---- Load observed data & STF only when needed for standard plots ----
 if run_standard_plots:
     U_obs, Utime, _, _, metadata, is3c_flag = prep_data(
-        datadir, modname, is3c, comp, CDopt, is_mars=bookkeeping.isMars
+        datadir, modname, is3c, comp, CDopt, is_mars=bookkeeping.isMars, src_array=bookkeeping.srcArray
     )
     stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
 

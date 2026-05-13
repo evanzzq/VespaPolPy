@@ -1,28 +1,28 @@
 defaults:
-  filedir: "."
+  filedir: "H:/My Drive/Research/VespaPolPy"
   stfshape: "dGaussian"
-  isSyn: true
-  is3c: false
+  isSyn: false
+  is3c: true
   comp: "Z"
   sigma: 0.02
-  num_chains: 1
-  totalSteps: 1000
-  burnInSteps: 500
-  nSaveModels: 50
+  num_chains: 8
+  totalSteps: 1000000
+  burnInSteps: 600000
+  nSaveModels: 200
   actionsPerStep: 1
-  maxN: 5
-  man_stf: true
+  maxN: 20
+  man_stf: false
   ampRange: [-1.0, 1.0]
-  slwRange: [-2.0, 2.0]
+  slwRange: [2.0, 10.0]
   minSpace: 1.0
-  CDopt: 0
+  CDopt: 3
   locDiff: false
   distDiffRange: [-5.0, 5.0]
   bazDiffRange: [-5.0, 5.0]
-  fitAtts: false
+  fitAtts: true
   fitLoge: true
-  fitPhase: false
-  normOpt: 2
+  fitPhase: true
+  normOpt: 1
   isMars: false
   srcArray: false
   pref: 0.0
@@ -32,5 +32,6 @@ defaults:
   refBaz: 0.0
 
 experiments:
-  - modname: "example_model"
-    runname: "example_run"
+  - modname: "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+    runname: "test_run_8c"
+    srcArray: true

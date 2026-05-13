@@ -13,8 +13,8 @@ def _reference_slowness_components(slow, src_array, ref_baz):
     return slow * np.sin(np.radians(ref_az)), slow * np.cos(np.radians(ref_az))
 
 
-def _metadata_to_latlon(metadata_row, src_lat, src_lon, is_mars):
-    if is_mars:
+def _metadata_to_latlon(metadata_row, src_lat, src_lon, use_distbaz):
+    if use_distbaz:
         tr_dist, tr_baz = metadata_row
         return dest_point(src_lat, src_lon, tr_baz, tr_dist)
     return metadata_row
@@ -66,7 +66,7 @@ def create_U_from_model_freqdomain(
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
     for itrace in range(n_traces):
-        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars)
+        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars or srcArray)
 
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
@@ -155,7 +155,7 @@ def create_U_from_model_3c_freqdomain(
     stf_freq = fftfreq(len(stf), stf_time[1]-stf_time[0])
 
     for itrace in range(n_traces):
-        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars)
+        trLat, trLon = _metadata_to_latlon(metadata[itrace], srcLat, srcLon, isMars or srcArray)
 
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
