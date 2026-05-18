@@ -23,20 +23,18 @@ from .utils import (
 def _run_chain(chain_id: int, exp_vars: dict) -> list:
     from .rjmcmc import rjmcmc_run, rjmcmc_run3c
 
-    filedir = exp_vars["filedir"]
-    modname = exp_vars["modname"]
+    data_name = exp_vars["dataset"]
     runname = exp_vars["runname"]
     is3c = exp_vars["is3c"]
-    is_syn = exp_vars["isSyn"]
     num_chains = exp_vars["num_chains"]
+    runs_root = exp_vars["runs_root"]
 
     if num_chains == 1:
-        save_dir = os.path.join(filedir, "runs/syn" if is_syn else "runs/data", modname, runname)
+        save_dir = os.path.join(runs_root, data_name, runname)
     else:
         save_dir = os.path.join(
-            filedir,
-            "runs/syn" if is_syn else "runs/data",
-            modname,
+            runs_root,
+            data_name,
             runname,
             f"chain_{chain_id}",
         )
@@ -76,9 +74,9 @@ def _run_chain(chain_id: int, exp_vars: dict) -> list:
     return samples
 
 
-def _prepare_stf(datadir: str, modname: str, is_syn: bool, man_stf: bool, stfshape: str, U_obs, is3c, dt):
-    if is_syn or man_stf:
-        return np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
+def _prepare_stf(data_dir: str, man_stf: bool, stfshape: str, U_obs, is3c, dt):
+    if man_stf:
+        return np.loadtxt(os.path.join(data_dir, "stf.csv"), delimiter=",", skiprows=1)
     if stfshape == "dGaussian":
         return create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1 / dt), dt)
     if stfshape == "Gaussian":
@@ -112,10 +110,10 @@ def _physical_cpu_count() -> int:
 
 
 def run_experiment(params: dict) -> None:
-    filedir = params["filedir"]
-    modname = params["modname"]
+    data_name = params.get("dataset")
+    if not data_name:
+        raise ValueError("Each experiment must define 'dataset'.")
     runname = params["runname"]
-    is_syn = params["isSyn"]
     is3c = params["is3c"]
     comp = params["comp"]
     num_chains = params["num_chains"]
@@ -149,48 +147,46 @@ def run_experiment(params: dict) -> None:
     if isMars:
         srcArray = True
 
-    print(f"\n=== Running experiment: {modname} / {runname} ===")
+    data_root = params.get("data_root") or params.get("paths", {}).get("real_data_root")
+    runs_root = params.get("runs_root") or params.get("paths", {}).get("runs_root")
+    if not data_root or not runs_root:
+        raise ValueError(
+            "Run config must provide data_root and runs_root, either directly or via workspace paths."
+        )
 
-    datadir = os.path.join(filedir, "SynData") if is_syn else os.path.join(filedir, "RealData")
+    print(f"\n=== Running experiment: {data_name} / {runname} ===")
+
     U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c = prep_data(
-        datadir, modname, is3c, comp, CDopt, is_mars=isMars, src_array=srcArray
+        data_root, data_name, is3c, comp, CDopt, is_mars=isMars, src_array=srcArray
     )
     dt = Utime[1] - Utime[0]
 
-    stf = _prepare_stf(datadir, modname, is_syn, man_stf, stfshape, U_obs, is3c, dt)
-    if not (is_syn or man_stf):
-        stf_path = os.path.join(datadir, modname, "stf.csv")
+    dataset_dir = os.path.join(data_root, data_name)
+    stf = _prepare_stf(dataset_dir, man_stf, stfshape, U_obs, is3c, dt)
+    if not man_stf:
+        stf_path = os.path.join(dataset_dir, "stf.csv")
         np.savetxt(stf_path, stf, delimiter=",", header="time,stf", comments="")
     stf_wid = minSpace if minSpace is not None else est_stf_wid(stf)
 
     prior = _prepare_prior(
         is3c, stf_wid, maxN, sigma, Utime, ampRange, slwRange, distDiffRange, bazDiffRange
     )
-    save_dir = os.path.join(filedir, "runs/syn" if is_syn else "runs/data", modname, runname)
+    save_dir = os.path.join(runs_root, data_name, runname)
     os.makedirs(save_dir, exist_ok=True)
     prior_path = os.path.join(save_dir, "Prior.pkl")
     if not os.path.exists(prior_path):
         with open(prior_path, "wb") as handle:
             pickle.dump(prior, handle)
 
-    if is_syn:
-        with open(os.path.join(datadir, modname, "Bookkeeping_0.pkl"), "rb") as handle:
-            bookkeeping_0 = pickle.load(handle)
-        srcLat = bookkeeping_0.srcLat
-        srcLon = bookkeeping_0.srcLon
-        refLat = bookkeeping_0.refLat
-        refLon = bookkeeping_0.refLon
-        refBaz = bookkeeping_0.refBaz
-    else:
-        srcLat, srcLon = np.loadtxt(os.path.join(datadir, modname, "eventinfo.csv"), delimiter=",", skiprows=1)
-        if not ref_manual:
-            refLat, refLon, _, refBaz = calc_array_center(
-                metadata,
-                srcLat,
-                srcLon,
-                srcArray,
-                metadata_format="distbaz" if (isMars or srcArray) else "latlon",
-            )
+    srcLat, srcLon = np.loadtxt(os.path.join(dataset_dir, "eventinfo.csv"), delimiter=",", skiprows=1)
+    if not ref_manual:
+        refLat, refLon, _, refBaz = calc_array_center(
+            metadata,
+            srcLat,
+            srcLon,
+            srcArray,
+            metadata_format="distbaz" if (isMars or srcArray) else "latlon",
+        )
 
     bookkeeping = Bookkeeping(
         totalSteps=totalSteps,
@@ -238,12 +234,11 @@ def run_experiment(params: dict) -> None:
         "stf": stf,
         "prior": prior,
         "bookkeeping": bookkeeping,
-        "filedir": filedir,
-        "modname": modname,
+        "dataset": data_name,
         "runname": runname,
         "is3c": is3c,
-        "isSyn": is_syn,
         "num_chains": num_chains,
+        "runs_root": runs_root,
     }
 
     start = time.time()
@@ -262,14 +257,16 @@ def run_config(config_path: str | Path) -> None:
     config_path = Path(config_path)
     config = load_config(config_path)
     defaults = config.get("defaults", {})
+    workspace_paths = config.get("paths", {})
+    if workspace_paths:
+        defaults.setdefault("data_root", workspace_paths.get("real_data_root"))
+        defaults.setdefault("runs_root", workspace_paths.get("runs_root"))
+        defaults.setdefault("paths", workspace_paths)
     if "filedir" in defaults:
-        filedir = Path(defaults["filedir"])
-        if not filedir.is_absolute():
-            defaults["filedir"] = str((config_path.parent / filedir).resolve())
+        raise ValueError("The 'filedir' setting is no longer supported. Use workspace paths instead.")
     for experiment in config["experiments"]:
         params = {**defaults, **experiment}
         if "filedir" in experiment:
-            filedir = Path(experiment["filedir"])
-            if not filedir.is_absolute():
-                params["filedir"] = str((config_path.parent / filedir).resolve())
+            raise ValueError("Experiment-level 'filedir' is no longer supported. Use workspace paths instead.")
+        params.setdefault("paths", workspace_paths)
         run_experiment(params)

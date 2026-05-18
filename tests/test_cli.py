@@ -11,14 +11,17 @@ def test_resolve_prep_earth_args_allows_optional_processing_settings(tmp_path: P
     config_path.write_text(
         "\n".join(
             [
-                "data_dir: /tmp/data",
-                "output_dir: /tmp/out",
-                "bandpass: null",
-                "downsample_hz: null",
-                "time_window: null",
-                "snr_component: min",
-                "snr_threshold: null",
-                "plot_summary: true",
+                "dataset:",
+                "  input_dir: /tmp/data",
+                "  output_dir: /tmp/out",
+                "processing:",
+                "  bandpass: null",
+                "  downsample_hz: null",
+                "  time_window: null",
+                "qc:",
+                "  snr_component: min",
+                "  snr_threshold: null",
+                "  plot_summary: true",
             ]
         ),
         encoding="utf-8",
@@ -88,8 +91,9 @@ def test_plot_prep_can_take_output_dir_from_config(tmp_path: Path):
     config_path.write_text(
         "\n".join(
             [
-                "data_dir: /tmp/data",
-                f"output_dir: {tmp_path / 'prepared'}",
+                "dataset:",
+                "  input_dir: /tmp/data",
+                f"  output_dir: {tmp_path / 'prepared'}",
             ]
         ),
         encoding="utf-8",
@@ -108,15 +112,18 @@ def test_resolve_prep_source_earth_args_uses_config(tmp_path: Path):
     config_path.write_text(
         "\n".join(
             [
-                "data_dir: /tmp/source_sac",
-                "output_dir: /tmp/source_out",
-                "noise_dir: /tmp/source_noise",
-                "bandpass: [0.02, 0.5]",
-                "downsample_hz: 5",
-                "time_window: [0, 100]",
-                "snr_component: min",
-                "snr_threshold: 1.5",
-                "plot_summary: false",
+                "dataset:",
+                "  input_dir: /tmp/source_sac",
+                "  output_dir: /tmp/source_out",
+                "  noise_dir: /tmp/source_noise",
+                "processing:",
+                "  bandpass: [0.02, 0.5]",
+                "  downsample_hz: 5",
+                "  time_window: [0, 100]",
+                "qc:",
+                "  snr_component: min",
+                "  snr_threshold: 1.5",
+                "  plot_summary: false",
             ]
         ),
         encoding="utf-8",

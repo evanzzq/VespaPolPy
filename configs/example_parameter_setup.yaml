@@ -1,7 +1,7 @@
+workspace: workspace.yaml
+
 defaults:
-  filedir: "H:/My Drive/Research/VespaPolPy"
   stfshape: "dGaussian"
-  isSyn: false
   is3c: true
   comp: "Z"
   sigma: 0.02
@@ -32,6 +32,6 @@ defaults:
   refBaz: 0.0
 
 experiments:
-  - modname: "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+  - dataset: "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
     runname: "test_run_8c"
     srcArray: true

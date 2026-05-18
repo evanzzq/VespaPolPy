@@ -1,11 +1,9 @@
-# ---- universal defaults ----
+workspace: configs/workspace.yaml
+
 defaults:
-  # filedir: "H:/My Drive/Research/VespaPolPy"
-  filedir: "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
   stfshape: "dGaussian"
-  isSyn: false
-  is3c: true # for synthetic this will be overriden
-  comp: "Z" # only applies to real data
+  is3c: false
+  comp: "T"
   sigma: 0.02
   num_chains: 8
   totalSteps: 200000
@@ -23,32 +21,18 @@ defaults:
   fitAtts: true
   fitLoge: true
   fitPhase: true
+  normOpt: 1
   isMars: false
   srcArray: false
   pref: 0.0
   ref_manual: false
-  refLat: 9.48
-  refLon: 163.03
-  refBaz: 78.1
-# ---- experiment specifics ----
+  refLat: 0.0
+  refLon: 0.0
+  refBaz: 0.0
+
 experiments:
-
-  # - modname: "201111221848_P_45_48_0.2Hz"
-  #   runname: run2_L1_maxN10_vs4.1
-  #   slwRange: [2., 10.]
-  #   ampRange: [-1., 1.]
-  #   maxN: 10
-  #   man_stf: false
-  #   CDopt: 3
-  #   normOpt: 1
-  #   fitAtts: true
-  #   fitLoge: true
-  #   num_chains: 8
-
-  - modname: "Steve_deconv"
+  - dataset: "Steve_deconv"
     runname: run1_L1_maxN10_G_loge
-    is3c: false
-    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10
@@ -60,10 +44,8 @@ experiments:
     fitLoge: true
     num_chains: 8
 
-  - modname: "Steve_deconv"
+  - dataset: "Steve_deconv"
     runname: run1_L2_maxN10_G_loge
-    is3c: false
-    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10
@@ -75,10 +57,8 @@ experiments:
     fitLoge: true
     num_chains: 8
 
-  - modname: "Steve_deconv"
+  - dataset: "Steve_deconv"
     runname: run1_L1_maxN10_loge
-    is3c: false
-    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10
@@ -89,10 +69,8 @@ experiments:
     fitLoge: true
     num_chains: 8
 
-  - modname: "Steve_deconv"
+  - dataset: "Steve_deconv"
     runname: run1_L2_maxN10_loge
-    is3c: false
-    comp: "T"
     slwRange: [-2., 2.]
     ampRange: [-1., 1.]
     maxN: 10

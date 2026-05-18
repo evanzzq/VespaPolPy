@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .config import load_yaml_mapping
+from .config import load_yaml_with_workspace
 from .runner import run_config
 from .utils import plot_prep_summary, prepare_inputs_from_sac, prepare_source_inputs_from_sac
 
@@ -51,8 +51,28 @@ def _normalize_optional_bool(value, default: bool = False) -> bool:
     raise ValueError("Boolean settings must be true/false when provided.")
 
 
+def _flatten_prep_config(config: dict) -> dict:
+    if any(key in config for key in ("dataset", "processing", "qc")):
+        dataset = config.get("dataset", {})
+        processing = config.get("processing", {})
+        qc = config.get("qc", {})
+        flattened = {
+            "data_dir": dataset.get("input_dir", config.get("data_dir")),
+            "output_dir": dataset.get("output_dir", config.get("output_dir")),
+            "noise_dir": dataset.get("noise_dir", config.get("noise_dir")),
+            "bandpass": processing.get("bandpass", config.get("bandpass")),
+            "downsample_hz": processing.get("downsample_hz", config.get("downsample_hz")),
+            "time_window": processing.get("time_window", config.get("time_window")),
+            "snr_component": qc.get("snr_component", config.get("snr_component")),
+            "snr_threshold": qc.get("snr_threshold", config.get("snr_threshold")),
+            "plot_summary": qc.get("plot_summary", config.get("plot_summary")),
+        }
+        return flattened
+    return config
+
+
 def _resolve_prep_earth_args(args) -> dict:
-    config = load_yaml_mapping(args.config) if args.config else {}
+    config = _flatten_prep_config(load_yaml_with_workspace(args.config)) if args.config else {}
     cli_values = {
         "data_dir": args.data_dir,
         "output_dir": args.output_dir,
@@ -87,7 +107,7 @@ def _resolve_prep_earth_args(args) -> dict:
 
 
 def _resolve_prep_source_earth_args(args) -> dict:
-    config = load_yaml_mapping(args.config) if args.config else {}
+    config = _flatten_prep_config(load_yaml_with_workspace(args.config)) if args.config else {}
     cli_values = {
         "data_dir": args.data_dir,
         "output_dir": args.output_dir,
@@ -294,7 +314,7 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "plot-prep":
         output_dir = args.output_dir
         if output_dir is None and args.config:
-            config = load_yaml_mapping(args.config)
+            config = _flatten_prep_config(load_yaml_with_workspace(args.config))
             output_dir = config.get("output_dir")
         if not output_dir:
             raise ValueError("plot-prep requires an output directory either as an argument or via --config.")

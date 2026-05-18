@@ -5,7 +5,7 @@
 </p>
 
 
-TAPIR is a Python toolbox for transdimensional array-based phase inversion, synthetic waveform generation, and ensemble-based analysis of array data.
+TAPIR is a Python toolbox for transdimensional array-based phase inversion, data preparation, and ensemble-based analysis of array data.
 
 ## Installation
 
@@ -94,14 +94,18 @@ Set `isMars: true` in the inversion config. In this mode, TAPIR interprets metad
 
 Inversion runs use YAML configuration files with:
 
+- `workspace`: shared path roots for the local machine or project clone
 - `defaults`: shared settings
 - `experiments`: one or more experiment-specific overrides
 
-Relative `filedir` values are resolved relative to the YAML config file. For
-configs stored in `configs/`, use `filedir: ".."` to point at the repository
-root containing `RealData/`, `SynData/`, and `runs/`.
+The recommended layout is:
+
+- one workspace YAML for local path roots
+- one prep YAML per preparation job
+- one run YAML per inversion campaign
 
 Example inversion settings are provided in `configs/example_parameter_setup.yaml`.
+Example workspace settings are provided in `configs/workspace.yaml`.
 
 For Earth preprocessing, `tapir prep-earth` can also read a separate YAML file such as `configs/example_prep_earth.yaml`.
 
@@ -110,7 +114,6 @@ For Earth preprocessing, `tapir prep-earth` can also read a separate YAML file s
 TAPIR expects runtime data to live in workspace directories such as:
 
 - `RealData/`
-- `SynData/`
 - `runs/`
 
 An Earth event prepared for inversion typically contains:

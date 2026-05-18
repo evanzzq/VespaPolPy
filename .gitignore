@@ -12,4 +12,4 @@ build/
 *.egg-info/
 runs/
 RealData/
-SynData/
+configs/workspace.local.yaml

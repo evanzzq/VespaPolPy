@@ -4,14 +4,15 @@ from vespainv.visualization import (
     phase_count_distribution_by_model,
     plot_chain_convergence_by_region,
 )
+from vespainv.config import load_config, load_workspace
 from vespainv.utils import prep_data
-import pickle, os, re, argparse, yaml
+import pickle, os, re, argparse
 import numpy as np
 import matplotlib.pyplot as plt
 
-# ---- File Dir (Mac/PC) override ----
-filedir = "H:\My Drive\Research\VespaPolPy"
-# filedir = "/Users/evanzhang/zzq@umd.edu - Google Drive/My Drive/Research/VespaPolPy"
+workspace = load_workspace("configs/workspace.yaml")
+data_root = workspace["paths"]["real_data_root"]
+runs_root = workspace["paths"]["runs_root"]
 
 # ---- Moveout correction click ----
 third_click = False
@@ -25,12 +26,11 @@ use_manual = True
 seis_mode = "P" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-modname    = "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+dataset    = "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
 runname    = "test_run_8c"
-isSyn      = False
-is3c       = True # for synthetic this will be overriden
-comp       = "Z" # only applies to real data
-CDopt      = 3 # 0 - use sigma only, 3 - use fitted covariance
+is3c       = True
+comp       = "Z"
+CDopt      = 3
 isMars     = False
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
@@ -59,11 +59,12 @@ if not use_manual:
     parser.add_argument("--config", type=str, default="parameter_setup.yaml", help="YAML config file")
     args = parser.parse_args()
 
-    with open(args.config, "r") as f:
-        config = yaml.safe_load(f)
-
+    config = load_config(args.config)
     defaults = config.get("defaults", {})
     experiments = config["experiments"]
+    paths = config.get("paths", {})
+    data_root = defaults.get("data_root", paths.get("real_data_root", data_root))
+    runs_root = defaults.get("runs_root", paths.get("runs_root", runs_root))
 
     all_exp_names = [None] * len(experiments)
 
@@ -71,10 +72,10 @@ if not use_manual:
         # Merge defaults + experiment
         params = {**defaults, **exp}
         # Unpack parameters
-        modname = params["modname"]
+        dataset = params["dataset"]
         runname = params["runname"]
 
-        all_exp_names[iexp] = f"{modname}: {runname}"
+        all_exp_names[iexp] = f"{dataset}: {runname}"
 
     # ---- Print and ask for selection ----
     print("\nAvailable experiments:")
@@ -89,21 +90,20 @@ if not use_manual:
     selected_params = {**defaults, **experiments[choice]}
 
     # Unpack parameters
-    modname    = selected_params["modname"]
+    dataset    = selected_params["dataset"]
     runname    = selected_params["runname"]
-    isSyn      = selected_params["isSyn"]
     is3c       = selected_params["is3c"]
     comp       = selected_params["comp"]
     CDopt      = selected_params["CDopt"]
     isMars     = selected_params["isMars"]
     fitAtts    = selected_params["fitAtts"]
 
-print(f"Selected: {modname}, {runname}")
+print(f"Selected: {dataset}, {runname}")
 
 # ---- Paths ----
-datadir = os.path.join(filedir, "SynData") if isSyn else os.path.join(filedir, "RealData")
-resdir = os.path.join(filedir, "runs/syn") if isSyn else os.path.join(filedir, "runs/data")
-run_path = os.path.join(resdir, modname, runname)
+datadir = data_root
+resdir = runs_root
+run_path = os.path.join(resdir, dataset, runname)
 
 # ---- Load Bookkeeping ----
 with open(os.path.join(run_path, "Bookkeeping.pkl"), "rb") as f:
@@ -184,20 +184,17 @@ else:
 # Combine all ensembles into one list
 ensemble = sum(ensembles, [])
 
-# ---- Load prior and (if synthetic) true model ----
+# ---- Load prior ----
 with open(os.path.join(run_path, "Prior.pkl"), "rb") as f:
     prior = pickle.load(f)
 model = None
-if isSyn:
-    with open(os.path.join(datadir, modname, "Model.pkl"), "rb") as f:
-        model = pickle.load(f)
 
 # ---- Load observed data & STF only when needed for standard plots ----
 if run_standard_plots:
     U_obs, Utime, _, _, metadata, is3c_flag = prep_data(
-        datadir, modname, is3c, comp, CDopt, is_mars=bookkeeping.isMars, src_array=bookkeeping.srcArray
+        datadir, dataset, is3c, comp, CDopt, is_mars=bookkeeping.isMars, src_array=bookkeeping.srcArray
     )
-    stf = np.loadtxt(os.path.join(datadir, modname, "stf.csv"), delimiter=",", skiprows=1)
+    stf = np.loadtxt(os.path.join(datadir, dataset, "stf.csv"), delimiter=",", skiprows=1)
 
 # ---- Extract burn-in and total steps ONCE (same for all chains) ----
 burn = bookkeeping.burnInSteps
