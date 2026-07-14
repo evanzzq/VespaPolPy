@@ -84,7 +84,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    if cond > 1:
+    if cond > 1e5:
         print("Covariance nearly singular – using 2D histogram instead of KDE.")
         from scipy.ndimage import gaussian_filter
 

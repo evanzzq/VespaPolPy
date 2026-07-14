@@ -23,15 +23,15 @@ run_convergence_analysis = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = True
-seis_mode = "P" # P, S, or All - show selected wave type in waveforms
+seis_mode = "S" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-dataset    = "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+dataset    = "InSight_S1133c_VEL_0p200_0p600Hz_5Hz"
 runname    = "test_run_8c"
 is3c       = True
 comp       = "Z"
 CDopt      = 3
-isMars     = False
+isMars     = True
 isbp       = False
 freqs      = (0.02, 0.5)    # Bandpass frequencies
 fitAtts    = True

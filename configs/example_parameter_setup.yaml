@@ -32,6 +32,8 @@ defaults:
   refBaz: 0.0
 
 experiments:
-  - dataset: "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
-    runname: "test_run_8c"
+  - dataset: "InSight_S1133c_VEL_0p200_0p600Hz_5Hz"
+    isMars: true
     srcArray: true
+    CDopt: 3
+    runname: "test_run_8c"
