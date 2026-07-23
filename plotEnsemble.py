@@ -23,10 +23,10 @@ run_convergence_analysis = False
 
 # ---- Manually input model and run OR select from yaml setup file? ----
 use_manual = True
-seis_mode = "S" # P, S, or All - show selected wave type in waveforms
+seis_mode = "P" # P, S, or All - show selected wave type in waveforms
 
 # The following will be overridden if use_manual == False
-dataset    = "InSight_S1133c_VEL_0p200_0p600Hz_5Hz"
+dataset    = "InSight_S0235b_VEL_0p200_0p700Hz_5Hz_20b_30a_P"
 runname    = "test_run_8c"
 is3c       = True
 comp       = "Z"

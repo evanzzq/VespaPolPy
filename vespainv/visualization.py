@@ -6,9 +6,17 @@ from vespainv.model import Bookkeeping
 from vespainv.utils import dest_point
 from scipy.stats import gaussian_kde
 
+def _window_start_offset(time):
+    time = np.asarray(time, dtype=float)
+    if time.size == 0:
+        return 0.0
+    return float(time[0])
+
+
 def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_model=None, is3c=False, third_click=False):
 
     cmap = Colormap('matlab:hot')
+    time_offset = _window_start_offset(Utime)
 
     # Initialize as None; if third_click == True, this will be update
     selected_pt = None
@@ -18,6 +26,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     ampAll = np.concatenate([m.amp for m in ensemble])
     attsAll = np.concatenate([m.atts for m in ensemble])
     valid = ~np.isnan(arrAll) & ~np.isnan(slwAll) & ~np.isnan(ampAll)
+    arrAll_plot = arrAll - time_offset
 
     # --- Histogram of loge across ALL models in the ensemble ---
     logeAll = np.array([m.loge for m in ensemble], dtype=float)
@@ -57,19 +66,21 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
             aziAll[mask_wave], ph_hhAll[mask_wave], ph_vhAll[mask_wave], 
             attsAll[mask_wave], isP_All[mask_wave]
         )
+        arrAll_plot = arrAll - time_offset
 
     else:  # Non-3c case
         arrAll, slwAll, ampAll = (
             arrAll[valid], slwAll[valid], ampAll[valid]
         )
+        arrAll_plot = arrAll - time_offset
     
     # Kernel density estimation
 
     # Define bins
-    xRange = [np.min(Utime), np.max(Utime)]
+    xRange = [np.min(Utime) - time_offset, np.max(Utime) - time_offset]
     yRange = prior.slwRange
 
-    xy = np.vstack([arrAll, slwAll])
+    xy = np.vstack([arrAll_plot, slwAll])
     if amp_weighted:
         weights = np.abs(ampAll)
         total_weight = np.sum(weights)
@@ -144,10 +155,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         ax.set_title("Ensemble Vespagram (KDE)")
 
     if true_model is not None:
-        ax.scatter(true_model.arr, true_model.slw, c='k', marker='x', s=80, label='True model')
+        ax.scatter(true_model.arr - time_offset, true_model.slw, c='k', marker='x', s=80, label='True model')
         ax.legend()
 
-    ax.set_xlabel("Arrival Time (s)")
+    ax.set_xlabel("Arrival Time (s from window start)")
     ax.set_ylabel("Slowness (s/deg)")
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -155,19 +166,33 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
     print("Click twice to define a box (first lower-left, then upper-right):")
     pts = plt.ginput(2, timeout=-1)
 
-    (t1, p1), (t2, p2) = pts
-    tmin, tmax = sorted([t1, t2])
+    (t1_plot, p1), (t2_plot, p2) = pts
+    tmin_plot, tmax_plot = sorted([t1_plot, t2_plot])
     pmin, pmax = sorted([p1, p2])
+    tmin = tmin_plot + time_offset
+    tmax = tmax_plot + time_offset
 
-    print(f"Selected range: arrival time {tmin:.2f} to {tmax:.2f} s, slowness {pmin:.2f} to {pmax:.2f} s/deg.\n")
+    print(
+        f"Selected display range: arrival time {tmin_plot:.2f} to {tmax_plot:.2f} s "
+        f"(window-start coordinates), slowness {pmin:.2f} to {pmax:.2f} s/deg."
+    )
+    print(
+        f"Actual model range: arrival time {tmin:.2f} to {tmax:.2f} s, "
+        f"slowness {pmin:.2f} to {pmax:.2f} s/deg.\n"
+    )
 
     plt.show()
     # Get moveout correction point from one click
     if third_click:
         print("Click once to select arrival time - slowness pair to apply moveout correction:")
         selected_pt_tmp = plt.ginput(1)
-        selected_pt = selected_pt_tmp[0]
-        print(f"Selected point: arrival time {selected_pt[0]:.2f} s, slowness {selected_pt[1]:.2f} s/deg.")
+        selected_pt_plot = selected_pt_tmp[0]
+        selected_pt = (selected_pt_plot[0] + time_offset, selected_pt_plot[1])
+        print(
+            f"Selected display point: arrival time {selected_pt_plot[0]:.2f} s "
+            f"(window-start coordinates), slowness {selected_pt_plot[1]:.2f} s/deg."
+        )
+        print(f"Actual model point: arrival time {selected_pt[0]:.2f} s, slowness {selected_pt[1]:.2f} s/deg.")
 
     # Get indices inside the selected box
     mask_box = (arrAll >= tmin) & (arrAll <= tmax) & (slwAll >= pmin) & (slwAll <= pmax)
@@ -332,7 +357,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         # True model phases within click range
         if true_model:
             idx = np.where((true_model.arr >= tmin) & (true_model.arr <= tmax))[0]
-            arrTrue = true_model.arr[idx]
+            arrTrue = true_model.arr[idx] - time_offset
             slwTrue = true_model.slw[idx]
             ampTrue = true_model.amp[idx]
             bazTrue = true_model.baz[idx]
@@ -344,7 +369,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         fig, axs = plt.subplots(3, 3, figsize=(8, 8))
         axs = axs.flatten()
 
-        plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
+        plot_kde(
+            axs[0], arrAll_plot, 'Arrival Time (s from window start)',
+            [tmin_plot, tmax_plot], true_value=arrTrue if true_model else None
+        )
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
         plot_kde(axs[3], aziAll, 'Pol. Az.', prior.aziRange, true_value=aziTrue if true_model else None, circular=True)
@@ -380,7 +408,7 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         # True model phases within click range
         if true_model:
             idx = np.where((true_model.arr >= tmin) & (true_model.arr <= tmax))[0]
-            arrTrue = true_model.arr[idx]
+            arrTrue = true_model.arr[idx] - time_offset
             slwTrue = true_model.slw[idx]
             ampTrue = true_model.amp[idx]
             attsTrue = true_model.atts[idx]
@@ -389,7 +417,10 @@ def plot_ensemble_vespagram(ensemble, Utime, prior, amp_weighted=False, true_mod
         fig, axs = plt.subplots(2, 3, figsize=(16, 6))
         axs = axs.flatten()
 
-        plot_kde(axs[0], arrAll, 'Arrival Time (s)', [tmin, tmax], true_value=arrTrue if true_model else None)
+        plot_kde(
+            axs[0], arrAll_plot, 'Arrival Time (s from window start)',
+            [tmin_plot, tmax_plot], true_value=arrTrue if true_model else None
+        )
         plot_kde(axs[1], slwAll, 'Rel. Slowness (s/deg)', [pmin, pmax], true_value=slwTrue if true_model else None)
         plot_kde(axs[2], ampAll, 'Amplitude', prior.ampRange, true_value=ampTrue if true_model else None)
         plot_kde(axs[3], attsAll, 't* (s)', prior.attsRange, true_value=attsTrue if true_model else None) ############ tmp fix!!!!!!!!!
@@ -405,6 +436,8 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
 
     isMars = bookkeeping.isMars # if isMars, ref location should be S0794a (CF impact)
     srcArray = bookkeeping.srcArray
+    time_offset = _window_start_offset(time)
+    time_plot = np.asarray(time, dtype=float) - time_offset
 
     is3c = True if U.ndim == 3 else False
     n_traces = U.shape[1]
@@ -512,14 +545,14 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
             ax = axs[comp]
             for i in range(n_traces):
                 trace = U[:, i, comp]
-                ax.plot(time, trace + i * offset, color='black')
+                ax.plot(time_plot, trace + i * offset, color='black')
                 if U_model is not None:
                     trace_model = U_model[:, i, comp]
-                    ax.plot(time, trace_model + i * offset, color='red')
+                    ax.plot(time_plot, trace_model + i * offset, color='red')
                 if moveout_pt:
-                    ax.axvline(x=arr, color='r', linestyle='--')
+                    ax.axvline(x=arr - time_offset, color='r', linestyle='--')
             ax.set_title(f"Component {comp_labels[comp]}")
-            ax.set_xlabel("Time (s)")
+            ax.set_xlabel("Time (s from window start)")
         axs[0].set_ylabel("Trace Index")
 
         # tmp: partical motion plot
@@ -537,14 +570,14 @@ def plot_seismogram_compare(U, time, offset=1.5, ensemble=None, prior=None, meta
         for i in range(n_traces):
             dist, baz = metadata[i,:]
             trace = U[:, i]
-            plt.plot(time, trace + i * offset, color='black')
+            plt.plot(time_plot, trace + i * offset, color='black')
             if U_model is not None:
                 trace_model = U_model[:, i]
-                plt.plot(time, trace_model + i * offset, color='red')
+                plt.plot(time_plot, trace_model + i * offset, color='red')
             if moveout_pt:
-                    ax.axvline(x=arr, color='r', linestyle='--')
-            plt.text(time[-1] + 0.5, i * offset, f"{dist:.2f}°, {baz:.2f}°", va='center', fontsize=8)
-        plt.xlabel("Time (s)")
+                    plt.axvline(x=arr - time_offset, color='r', linestyle='--')
+            plt.text(time_plot[-1] + 0.5, i * offset, f"{dist:.2f}°, {baz:.2f}°", va='center', fontsize=8)
+        plt.xlabel("Time (s from window start)")
         plt.ylabel("Trace Index")
         plt.title("Input Seismogram")
 

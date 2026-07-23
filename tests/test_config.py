@@ -6,8 +6,8 @@ from vespainv.config import load_config
 def test_load_config_reads_example_config():
     config = load_config(Path("configs/example_parameter_setup.yaml"))
     assert "defaults" in config
-    assert len(config["experiments"]) == 1
-    assert config["experiments"][0]["dataset"] == "IU_RSSD_locbox_-30_-20_-65_-55_depth_600_T_600_750"
+    assert len(config["experiments"]) == 4
+    assert config["experiments"][0]["dataset"] == "InSight_S1133c_VEL_0p200_0p600Hz_5Hz_20b_30a_P"
     assert "paths" in config
 
 

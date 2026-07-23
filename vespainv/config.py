@@ -18,6 +18,16 @@ def load_yaml_mapping(path: str | Path) -> dict:
     return config
 
 
+def _merge_mappings(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _merge_mappings(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
+
 _PLACEHOLDER_PATTERN = re.compile(r"\$\{([^}]+)\}")
 _PATHLIKE_KEYS = {"filedir", "workspace"}
 _PATHLIKE_SUFFIXES = ("_dir", "_root", "_path", "_file")
@@ -69,6 +79,10 @@ def _resolve_path_fields(value: Any, base_dir: Path, parent_key: str | None = No
 def load_workspace(path: str | Path) -> dict:
     workspace_path = Path(path)
     workspace = load_yaml_mapping(workspace_path)
+    local_override_path = workspace_path.with_name(f"{workspace_path.stem}.local{workspace_path.suffix}")
+    if local_override_path.exists():
+        local_override = load_yaml_mapping(local_override_path)
+        workspace = _merge_mappings(workspace, local_override)
     paths = workspace.get("paths")
     if not isinstance(paths, dict):
         raise ValueError(f"Workspace config at {workspace_path} must contain a 'paths' mapping.")

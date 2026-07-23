@@ -6,8 +6,8 @@ defaults:
   comp: "Z"
   sigma: 0.02
   num_chains: 8
-  totalSteps: 1000000
-  burnInSteps: 600000
+  totalSteps: 500000
+  burnInSteps: 400000
   nSaveModels: 200
   actionsPerStep: 1
   maxN: 20
@@ -32,7 +32,25 @@ defaults:
   refBaz: 0.0
 
 experiments:
-  - dataset: "InSight_S1133c_VEL_0p200_0p600Hz_5Hz"
+  - dataset: "InSight_S1133c_VEL_0p200_0p600Hz_5Hz_20b_30a_P"
+    isMars: true
+    srcArray: true
+    CDopt: 3
+    runname: "test_run_8c"
+
+  - dataset: "InSight_S0820a_VEL_0p200_0p500Hz_5Hz_20b_30a_P"
+    isMars: true
+    srcArray: true
+    CDopt: 3
+    runname: "test_run_8c"
+
+  - dataset: "GlitchNet_S1222a_VEL_FROM_DISP_0p200_0p600Hz_5Hz"
+    isMars: true
+    srcArray: true
+    CDopt: 3
+    runname: "test_run_8c"
+
+  - dataset: "InSight_S0235b_VEL_0p200_0p700Hz_5Hz_20b_30a_P"
     isMars: true
     srcArray: true
     CDopt: 3

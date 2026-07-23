@@ -472,7 +472,8 @@ def prepare_inputs_from_sac(data_dir, isbp=False, isds=False, freqs=None, noise_
                 print(f"[WARN] Fit failed for {comp}: {e}")
                 continue
             # Generate full fitted autocovariance
-            full_lags = np.arange(n_samples) * dt
+            target_n_samples = len(traces[comp][0]) if traces[comp] else n_samples
+            full_lags = np.arange(target_n_samples) * dt
             acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
             # Toeplitz covariance matrix
             CD_fit = toeplitz(acov_fit)
@@ -523,7 +524,7 @@ def _source_event_id_from_trace_path(path):
     return os.path.splitext(name)[0]
 
 
-def _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt):
+def _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt, target_n_samples=None):
     import os
     import numpy as np
     from scipy.linalg import toeplitz
@@ -531,6 +532,7 @@ def _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt):
     from scipy.signal import correlate
 
     n_samples, n_traces = noise_stack.shape
+    target_n_samples = n_samples if target_n_samples is None else int(target_n_samples)
     max_lag_seconds = 50
     max_lag = max(1, min(n_samples, int(max_lag_seconds / dt)))
     noise_stack = noise_stack - np.mean(noise_stack, axis=0)
@@ -569,7 +571,7 @@ def _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt):
         print(f"[WARN] Fit failed for {comp}: {e}")
         return
 
-    full_lags = np.arange(n_samples) * dt
+    full_lags = np.arange(target_n_samples) * dt
     acov_fit = a_fit * np.exp(-lambda_fit * full_lags) * np.cos(lambda_fit * omega0_fit * full_lags)
     cd_fit = toeplitz(acov_fit)
     np.savetxt(os.path.join(output_dir, f"CD_{comp}_fit.csv"), cd_fit, delimiter=",")
@@ -799,7 +801,10 @@ def prepare_source_inputs_from_sac(
         if noise_dir:
             noise_stack = np.column_stack(traces_noise[comp])
             np.savetxt(os.path.join(output_dir, f"{comp}_noise.csv"), noise_stack, delimiter=",")
-            _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt)
+            target_n_samples = noise_stack.shape[0]
+            if traces[comp]:
+                target_n_samples = len(traces[comp][0])
+            _write_fitted_noise_covariance(output_dir, comp, noise_stack, dt, target_n_samples=target_n_samples)
 
     np.savetxt(
         os.path.join(output_dir, "station_metadata_db.csv"),
@@ -1140,7 +1145,35 @@ def est_dom_freq(data, fs):
 import numpy as np
 from scipy.linalg import toeplitz
 
-def compute_toeplitz_CDinv(CD, eps=1e-6):
+def _symmetric_inverse_factors(CD, rcond=1e-10):
+    """Return stable inverse and inverse-square-root factors for a covariance.
+
+    Empirical/fitted covariance matrices can have tiny negative eigenvalues
+    whose treatment varies across SciPy and BLAS implementations.  Projecting
+    onto the symmetric positive-semidefinite cone makes whitening portable.
+    """
+    CD = np.asarray(CD, dtype=np.float64)
+    if CD.ndim != 2 or CD.shape[0] != CD.shape[1]:
+        raise ValueError(f"Covariance must be a square matrix; got shape {CD.shape}.")
+    if not np.all(np.isfinite(CD)):
+        raise ValueError("Covariance contains NaN or infinite values.")
+
+    symmetric = (CD + CD.T) / 2.0
+    eigvals, eigvecs = np.linalg.eigh(symmetric)
+    scale = max(float(np.max(np.abs(eigvals))), np.finfo(np.float64).tiny)
+    cutoff = scale * rcond
+    keep = eigvals > cutoff
+    if not np.any(keep):
+        raise ValueError("Covariance has no positive eigenvalues above the numerical cutoff.")
+
+    vectors = eigvecs[:, keep]
+    values = eigvals[keep]
+    inverse = (vectors / values) @ vectors.T
+    inverse_sqrt = (vectors / np.sqrt(values)) @ vectors.T
+    return inverse, inverse_sqrt
+
+
+def compute_toeplitz_CDinv(CD, eps=1e-10):
     """
     From a full empirical covariance matrix CD, compute the inverse of the
     nearest PSD Toeplitz matrix formed by averaging diagonals and zeroing
@@ -1163,10 +1196,13 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
 
     # Step 3: Eigenvalue decomposition
     eigvals, eigvecs = np.linalg.eigh(CD_toep)
-    eigvals_clipped = np.clip(eigvals, a_min=eps, a_max=None)
+    scale = max(float(np.max(np.abs(eigvals))), np.finfo(np.float64).tiny)
+    eigvals_clipped = np.where(eigvals > scale * eps, eigvals, 0.0)
 
     # Step 3: Compute total energy and sort eigenvalues in descending order of energy contribution
     total_energy = np.sum(eigvals_clipped ** 2)
+    if not np.isfinite(total_energy) or total_energy <= 0:
+        raise ValueError("Fitted covariance has no finite positive spectral energy.")
     sorted_indices = np.argsort(eigvals_clipped)[::-1]
     eigvals_sorted = eigvals_clipped[sorted_indices]
     eigvecs_sorted = eigvecs[:, sorted_indices]
@@ -1204,16 +1240,11 @@ def compute_toeplitz_CDinv(CD, eps=1e-6):
     return CDinv
 
 def inv_sqrt(C):
-    from scipy.linalg import eigh
-    # eigendecomposition for symmetric positive-definite matrix
-    eigvals, eigvecs = eigh(C)
-    D_inv_sqrt = np.diag(1.0 / np.sqrt(eigvals))
-    return eigvecs @ D_inv_sqrt @ eigvecs.T
+    return _symmetric_inverse_factors(C)[1]
 
 def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False, src_array=False):
     import os
     import numpy as np
-    from scipy.linalg import fractional_matrix_power
 
     if os.path.isfile(os.path.join(datadir, modname, "U.csv")):
         if is3c:
@@ -1254,7 +1285,7 @@ def prep_data(datadir, modname, is3c, comp, CDopt, is_mars=False, src_array=Fals
             CDname = "CD_U" + comp + robust_handle + ".csv"
             CD = np.loadtxt(os.path.join(datadir, modname, CDname), delimiter=",")
             CDinv = compute_toeplitz_CDinv(CD)
-            CD_sqrt_inv = fractional_matrix_power(CD, -0.5)
+            CD_sqrt_inv = inv_sqrt(CD)
     else:
         CDinv, CD_sqrt_inv = None, None
 
