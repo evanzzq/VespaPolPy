@@ -24,15 +24,19 @@ def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.01):
         log_likelihood : float
     """
     residual = U_obs - U_model
+    if not np.all(np.isfinite(residual)):
+        return -np.inf
 
     if CDinv is None:
-        return -0.5 * np.sum((residual / sigma)**2)
+        value = -0.5 * np.sum((residual / sigma)**2)
+        return float(value) if np.isfinite(value) else -np.inf
 
     # One-component case
     if residual.ndim == 2:
         # residual: (T, N), CDinv: (T, T)
         term = residual.T @ CDinv @ residual  # shape: (N, N)
-        return -0.5 * np.trace(term)
+        value = -0.5 * np.trace(term)
+        return float(value) if np.isfinite(value) else -np.inf
 
     # Three-component case
     elif residual.ndim == 3:
@@ -42,7 +46,7 @@ def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.01):
             CDinv_i = CDinv[i]       # shape: (T, T)
             term = r_i.T @ CDinv_i @ r_i  # shape: (N, N)
             log_like += -0.5 * np.trace(term)
-        return log_like
+        return float(log_like) if np.isfinite(log_like) else -np.inf
 
     else:
         raise ValueError("U_obs must be 2D or 3D array.")
@@ -68,6 +72,8 @@ def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None, sigma=None):
         L1 log-likelihood (up to additive constant).
     """
     residual = U_obs - U_model
+    if not np.all(np.isfinite(residual)):
+        return -np.inf
 
     if CD_sqrt_inv is None:
         whitened = residual / sigma
@@ -80,7 +86,8 @@ def compute_log_likelihood_L1(U_obs, U_model, CD_sqrt_inv=None, sigma=None):
     else:
         raise ValueError("U_obs must be 2D or 3D array.")
 
-    return -np.sum(np.abs(whitened))
+    value = -np.sum(np.abs(whitened))
+    return float(value) if np.isfinite(value) else -np.inf
 
 def birth(model, prior):
     model_new = copy.deepcopy(model)

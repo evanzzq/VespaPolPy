@@ -19,6 +19,13 @@ For development:
 pip install -e .[dev]
 ```
 
+For reproducible experiment environments, install the tested dependency set:
+
+```bash
+python -m pip install -r requirements-lock.txt
+python -m pip install -e . --no-deps
+```
+
 ## Quick Start
 
 Prepare Earth SAC files into TAPIR-ready inputs:
@@ -106,6 +113,8 @@ The recommended layout is:
 
 Example inversion settings are provided in `configs/example_parameter_setup.yaml`.
 Example workspace settings are provided in `configs/workspace.yaml`.
+Keep machine-specific paths in `configs/workspace.local.yaml`; it is ignored by
+Git and automatically overrides the shared workspace file.
 
 For Earth preprocessing, `tapir prep-earth` can also read a separate YAML file such as `configs/example_prep_earth.yaml`.
 
