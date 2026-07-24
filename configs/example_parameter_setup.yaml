@@ -26,6 +26,10 @@ defaults:
   isMars: false
   srcArray: false
   pref: 0.0
+  # Effective half-space velocities (km/s) for the P-SV-SH -> Z-R-T
+  # free-surface transform. Defaults: Earth 6.571/4.1, Mars 5.0/3.0.
+  fstVp: null
+  fstVs: null
   ref_manual: false
   refLat: 0.0
   refLon: 0.0

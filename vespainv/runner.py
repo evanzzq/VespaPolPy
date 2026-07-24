@@ -139,6 +139,8 @@ def run_experiment(params: dict) -> None:
     isMars = params["isMars"]
     srcArray = params["srcArray"]
     pref = params.get("pref", 0.0)
+    fstVp = params.get("fstVp")
+    fstVs = params.get("fstVs")
     ref_manual = params["ref_manual"]
     refLat = params["refLat"]
     refLon = params["refLon"]
@@ -206,6 +208,8 @@ def run_experiment(params: dict) -> None:
         refLon=refLon,
         refBaz=refBaz,
         pref=pref,
+        fstVp=fstVp,
+        fstVs=fstVs,
     )
     bk_path = os.path.join(save_dir, "Bookkeeping.pkl")
     if not os.path.exists(bk_path):
