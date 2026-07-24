@@ -135,6 +135,8 @@ def create_U_from_model_3c_freqdomain(
     locDiff = bookkeeping.locDiff
     srcArray = bookkeeping.srcArray
     pref = bookkeeping.pref
+    fst_vp = bookkeeping.fstVp
+    fst_vs = bookkeeping.fstVs
 
     n_traces = metadata.shape[0]
     U_model = np.zeros((len(time), n_traces, 3))
@@ -206,9 +208,15 @@ def create_U_from_model_3c_freqdomain(
             
             # use absolute slowness in FST
             if isMars:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, abs_slow, a0=5.0, b0=3.0, radius=3389.5)
+                Z_W, R_W, T_W = PVH_to_ZRT(
+                    P_W, SV_W, SH_W, abs_slow,
+                    a0=fst_vp, b0=fst_vs, radius=3389.5
+                )
             else:
-                Z_W, R_W, T_W = PVH_to_ZRT(P_W, SV_W, SH_W, abs_slow)
+                Z_W, R_W, T_W = PVH_to_ZRT(
+                    P_W, SV_W, SH_W, abs_slow,
+                    a0=fst_vp, b0=fst_vs
+                )
 
             if fitPhase:
                 R_W = apply_constant_phase_shift(R_W, np.radians(model.ph_vh[iph]))

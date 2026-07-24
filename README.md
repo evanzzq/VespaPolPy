@@ -95,7 +95,7 @@ For Mars runs, provide:
 - optional fitted covariance files when `CDopt: 3`
 - `stf.csv` when `man_stf: true`
 
-Set `isMars: true` in the inversion config. In this mode, TAPIR interprets metadata as `dist/baz`, enforces source-array geometry, and uses Mars-specific geometry constants in the 3C transform.
+Set `isMars: true` in the inversion config. In this mode, TAPIR interprets metadata as `dist/baz`, enforces source-array geometry, and uses Mars-specific geometry constants in the 3C transform. The effective half-space velocities used by the free-surface transform can be set with `fstVp` and `fstVs` (in km/s). If omitted, they default to 6.571/4.1 for Earth and 5.0/3.0 for Mars.
 
 ## Configuration
 

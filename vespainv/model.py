@@ -27,10 +27,22 @@ class Bookkeeping:
     isMars:         bool = False
     # pref converts relative slowness to absolute slowness for the 3C PVH->ZRT step
     pref:           float = 0.0
+    # Effective half-space velocities used by the 3C free-surface transform.
+    # When omitted, preserve the historical Earth/Mars defaults.
+    fstVp:           float = None
+    fstVs:           float = None
 
     def __post_init__(self):
         if self.burnInSteps is None:
             self.burnInSteps = self.totalSteps // 2
+        if self.fstVp is None:
+            self.fstVp = 5.0 if self.isMars else 6.571
+        if self.fstVs is None:
+            self.fstVs = 3.0 if self.isMars else 4.1
+        if self.fstVp <= 0 or self.fstVs <= 0:
+            raise ValueError("fstVp and fstVs must be positive.")
+        if self.fstVs >= self.fstVp:
+            raise ValueError("fstVs must be smaller than fstVp.")
 
 @dataclass
 class Prior:
