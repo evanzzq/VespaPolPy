@@ -8,8 +8,20 @@ version = "0.1.0"
 description = "Transdimensional array-based phase inversion research toolbox"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = ["seismology", "array processing", "Bayesian inversion", "RJMCMC"]
 authors = [
   { name = "Evan Zhang" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Physics",
 ]
 dependencies = [
   "numpy",
@@ -27,7 +39,14 @@ dev = [
   "pytest",
   "ruff",
   "black",
+  "build",
+  "twine",
 ]
+
+[project.urls]
+Homepage = "https://github.com/evanzzq/TAPIR"
+Repository = "https://github.com/evanzzq/TAPIR"
+Issues = "https://github.com/evanzzq/TAPIR/issues"
 
 [project.scripts]
 tapir = "vespainv.cli:main"

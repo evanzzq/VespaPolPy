@@ -1,14 +1,31 @@
 from pathlib import Path
 
-from vespainv.config import load_config
+from vespainv.config import load_config, load_dataset_manifest, write_dataset_manifest
 
 
 def test_load_config_reads_example_config():
     config = load_config(Path("configs/example_parameter_setup.yaml"))
     assert "defaults" in config
-    assert len(config["experiments"]) == 4
-    assert config["experiments"][0]["dataset"] == "InSight_S1133c_VEL_0p200_0p600Hz_5Hz_20b_30a_P"
-    assert "paths" in config
+    assert len(config["experiments"]) == 2
+    assert config["experiments"][0]["dataset"] == "earth_receiver_minimal"
+    assert config["experiments"][1]["dataset"] == "mars_minimal"
+
+
+def test_dataset_manifest_round_trip(tmp_path: Path):
+    write_dataset_manifest(
+        tmp_path,
+        body="earth",
+        array_type="source",
+        bandpass=(0.02, 0.4),
+        downsample_hz=2.0,
+        time_window=(10.0, 30.0),
+    )
+
+    manifest = load_dataset_manifest(tmp_path)
+
+    assert manifest["body"] == "earth"
+    assert manifest["array_type"] == "source"
+    assert manifest["processing"]["bandpass"] == [0.02, 0.4]
 
 
 def test_load_config_resolves_workspace_placeholders(tmp_path: Path):

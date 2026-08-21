@@ -3,7 +3,6 @@ from scipy.fft import fft, ifft, fftfreq
 from scipy.interpolate import interp1d
 from vespainv.model import VespaModel, Prior, Bookkeeping
 from vespainv.utils import dest_point, apply_constant_phase_shift
-from obspy.geodetics.base import locations2degrees, gps2dist_azimuth
 
 
 def _reference_slowness_components(slow, src_array, ref_baz):
@@ -71,6 +70,8 @@ def create_U_from_model_freqdomain(
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
         if (isMars or srcArray) and locDiff:
+            from obspy.geodetics.base import locations2degrees, gps2dist_azimuth
+
             # radius of Mars w/ zero flattening
             # in Mars & source array case, trLat/Lon refers to source coordinates, srcLat/Lon refers to station (InSight)
             # coordinates; therefore trBaz is the azimuth of station-->source, i.e., back azimuth
@@ -104,8 +105,6 @@ def create_U_from_model_freqdomain(
 
 import numpy as np
 from scipy.fft import fft, ifft, fftfreq
-from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
-
 def create_U_from_model_3c_freqdomain(
     model: VespaModel,
     metadata: np.ndarray,  # shape (n_traces, 2): [lat, lon] per row; if isMars, [dist, baz] per row
@@ -162,6 +161,8 @@ def create_U_from_model_3c_freqdomain(
         # it doesn't make sense to do locDiff in receiver array
         # in source array setting, srcLat/srcLon is actually station coordinates
         if (isMars or srcArray) and locDiff:
+            from obspy.geodetics.base import gps2dist_azimuth, locations2degrees
+
             # radius of Mars w/ zero flattening
             # in Mars & source array case, trLat/Lon refers to source coordinates, srcLat/Lon refers to station (InSight)
             # coordinates; therefore trBaz is the azimuth of station-->source, i.e., back azimuth
@@ -297,8 +298,8 @@ def PVH_to_ZRT(P, SV, SH, slw, a0=6.571, b0=4.1, radius=6371.):
     Returns:
     - Z, R, T: numpy arrays
     """
-    from obspy.geodetics import degrees2kilometers
-    slw /= degrees2kilometers(1, radius) # s/deg to s/km
+    kilometers_per_degree = 2.0 * np.pi * radius / 360.0
+    slw /= kilometers_per_degree  # s/deg to s/km
     qa0 = np.sqrt(a0**(-2) - slw**2)
     qb0 = np.sqrt(b0**(-2) - slw**2)
 

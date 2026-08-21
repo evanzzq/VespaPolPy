@@ -3,12 +3,13 @@ from __future__ import annotations
 import multiprocessing as mp
 import os
 import pickle
+import tempfile
 import time
 from pathlib import Path
 
 import numpy as np
 
-from .config import load_config
+from .config import load_config, load_dataset_manifest
 from .model import Bookkeeping, Prior, Prior3c
 from .utils import (
     calc_array_center,
@@ -18,6 +19,7 @@ from .utils import (
     est_stf_wid,
     prep_data,
 )
+from .validation import validate_dataset
 
 
 def _run_chain(chain_id: int, exp_vars: dict) -> list:
@@ -74,14 +76,66 @@ def _run_chain(chain_id: int, exp_vars: dict) -> list:
     return samples
 
 
-def _prepare_stf(data_dir: str, man_stf: bool, stfshape: str, U_obs, is3c, dt):
+def _normalize_bandpass(value):
+    if value is None:
+        return None
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        raise ValueError("bandpass must contain exactly [frequency_min, frequency_max].")
+    fmin, fmax = map(float, value)
+    if not (0 < fmin < fmax):
+        raise ValueError("bandpass frequencies must satisfy 0 < fmin < fmax.")
+    return fmin, fmax
+
+
+def _resolve_stf_bandpass(params: dict, dataset_dir: str):
+    configured = _normalize_bandpass(params.get("bandpass"))
+    manifest = load_dataset_manifest(dataset_dir)
+    prepared = _normalize_bandpass(manifest.get("processing", {}).get("bandpass"))
+    if configured is not None and prepared is not None and not np.allclose(configured, prepared):
+        raise ValueError(
+            f"Run bandpass {configured} does not match the prepared dataset bandpass {prepared}."
+        )
+    return configured if configured is not None else prepared
+
+
+def _filter_stf(stf, bandpass_hz):
+    if bandpass_hz is None:
+        return stf
+    from scipy.signal import butter, sosfiltfilt
+
+    stf = np.asarray(stf, dtype=float).copy()
+    if stf.ndim != 2 or stf.shape[1] != 2 or stf.shape[0] < 4:
+        raise ValueError("Bandpass filtering requires stf.csv with at least four time/amplitude rows.")
+    intervals = np.diff(stf[:, 0])
+    stf_dt = float(np.median(intervals))
+    if np.any(intervals <= 0) or not np.allclose(intervals, stf_dt, rtol=1e-6):
+        raise ValueError("STF time samples must be strictly increasing and uniform.")
+    fmin, fmax = bandpass_hz
+    nyquist = 0.5 / stf_dt
+    if fmax >= nyquist:
+        raise ValueError(
+            f"STF bandpass upper frequency {fmax:g} Hz must be below Nyquist {nyquist:g} Hz."
+        )
+    sos = butter(2, (fmin, fmax), btype="bandpass", fs=1.0 / stf_dt, output="sos")
+    padlen = min(3 * (2 * len(sos) + 1), stf.shape[0] - 1)
+    filtered = sosfiltfilt(sos, stf[:, 1], padlen=padlen)
+    scale = float(np.max(np.abs(filtered)))
+    if not np.isfinite(scale) or scale == 0:
+        raise ValueError("Bandpass filtering produced an invalid zero-amplitude STF.")
+    stf[:, 1] = filtered / scale
+    return stf
+
+
+def _prepare_stf(data_dir: str, man_stf: bool, stfshape: str, U_obs, is3c, dt, bandpass_hz=None):
     if man_stf:
-        return np.loadtxt(os.path.join(data_dir, "stf.csv"), delimiter=",", skiprows=1)
-    if stfshape == "dGaussian":
-        return create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1 / dt), dt)
-    if stfshape == "Gaussian":
-        return create_stf_gaussian(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1 / dt), dt)
-    raise ValueError(f"Unsupported stfshape: {stfshape}")
+        stf = np.loadtxt(os.path.join(data_dir, "stf.csv"), delimiter=",", skiprows=1)
+    elif stfshape == "dGaussian":
+        stf = create_stf(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1 / dt), dt)
+    elif stfshape == "Gaussian":
+        stf = create_stf_gaussian(est_dom_freq(U_obs if not is3c else U_obs[:, :, 0], 1 / dt), dt)
+    else:
+        raise ValueError(f"Unsupported stfshape: {stfshape}")
+    return _filter_stf(stf, bandpass_hz)
 
 
 def _prepare_prior(is3c: bool, stf_wid: float, maxN: int, sigma: float, Utime, ampRange, slwRange, distDiffRange, bazDiffRange):
@@ -109,7 +163,32 @@ def _physical_cpu_count() -> int:
         return mp.cpu_count()
 
 
+def _validate_run_parameters(params: dict) -> None:
+    total_steps = int(params["totalSteps"])
+    burn_in_steps = int(params["burnInSteps"])
+    n_save_models = int(params["nSaveModels"])
+    num_chains = int(params["num_chains"])
+    actions_per_step = int(params["actionsPerStep"])
+    max_n = int(params["maxN"])
+    norm_opt = int(params["normOpt"])
+    if total_steps <= 0:
+        raise ValueError("totalSteps must be positive.")
+    if not 0 <= burn_in_steps < total_steps:
+        raise ValueError("burnInSteps must satisfy 0 <= burnInSteps < totalSteps.")
+    if n_save_models <= 0 or n_save_models > total_steps - burn_in_steps:
+        raise ValueError("nSaveModels must be positive and no larger than post-burn-in steps.")
+    if num_chains <= 0:
+        raise ValueError("num_chains must be positive.")
+    if actions_per_step <= 0:
+        raise ValueError("actionsPerStep must be positive.")
+    if max_n <= 0:
+        raise ValueError("maxN must be positive.")
+    if norm_opt not in {1, 2}:
+        raise ValueError("normOpt must be 1 (L1) or 2 (L2).")
+
+
 def run_experiment(params: dict) -> None:
+    _validate_run_parameters(params)
     data_name = params.get("dataset")
     if not data_name:
         raise ValueError("Each experiment must define 'dataset'.")
@@ -158,13 +237,31 @@ def run_experiment(params: dict) -> None:
 
     print(f"\n=== Running experiment: {data_name} / {runname} ===")
 
+    dataset_dir = os.path.join(data_root, data_name)
+    validation = validate_dataset(
+        dataset_dir,
+        is3c=is3c,
+        component=comp,
+        cdopt=CDopt,
+        source_array=srcArray,
+        is_mars=isMars,
+        manual_stf=man_stf,
+    )
+    print(
+        f"Validated dataset: {validation.n_samples} samples, "
+        f"{validation.n_traces} traces, {validation.sampling_rate_hz:g} Hz."
+    )
+
     U_obs, Utime, CDinv, CD_sqrt_inv, metadata, is3c = prep_data(
         data_root, data_name, is3c, comp, CDopt, is_mars=isMars, src_array=srcArray
     )
     dt = Utime[1] - Utime[0]
 
-    dataset_dir = os.path.join(data_root, data_name)
-    stf = _prepare_stf(dataset_dir, man_stf, stfshape, U_obs, is3c, dt)
+    stf_bandpass = _resolve_stf_bandpass(params, dataset_dir)
+    stf = _prepare_stf(
+        dataset_dir, man_stf, stfshape, U_obs, is3c, dt,
+        bandpass_hz=stf_bandpass,
+    )
     if not man_stf:
         stf_path = os.path.join(dataset_dir, "stf.csv")
         np.savetxt(stf_path, stf, delimiter=",", header="time,stf", comments="")
@@ -175,6 +272,10 @@ def run_experiment(params: dict) -> None:
     )
     save_dir = os.path.join(runs_root, data_name, runname)
     os.makedirs(save_dir, exist_ok=True)
+    np.savetxt(
+        os.path.join(save_dir, "stf_used.csv"), stf,
+        delimiter=",", header="time,stf", comments="",
+    )
     prior_path = os.path.join(save_dir, "Prior.pkl")
     if not os.path.exists(prior_path):
         with open(prior_path, "wb") as handle:
@@ -226,9 +327,6 @@ def run_experiment(params: dict) -> None:
     else:
         print("Single chain: allow full multithreading.")
 
-    ctx = mp.get_context("spawn")
-    batch_size = cpu_cores
-    total_batches = (num_chains + batch_size - 1) // batch_size
     exp_vars = {
         "U_obs": U_obs,
         "CDinv": CDinv,
@@ -245,7 +343,22 @@ def run_experiment(params: dict) -> None:
         "runs_root": runs_root,
     }
 
+    # Diagnostic plotting needs writable cache locations on restricted systems.
+    cache_root = Path(tempfile.gettempdir()) / "tapir-cache"
+    matplotlib_cache = cache_root / "matplotlib"
+    matplotlib_cache.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("MPLCONFIGDIR", str(matplotlib_cache))
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache_root))
+
     start = time.time()
+    if num_chains == 1:
+        _run_chain(0, exp_vars)
+        print(f"Total elapsed time: {time.time() - start:.2f} seconds")
+        return
+
+    ctx = mp.get_context("spawn")
+    batch_size = cpu_cores
+    total_batches = (num_chains + batch_size - 1) // batch_size
     for batch_idx in range(total_batches):
         start_chain = batch_idx * batch_size
         end_chain = min(start_chain + batch_size, num_chains)

@@ -3,9 +3,11 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from .config import load_yaml_with_workspace
+from .config import load_yaml_with_workspace, write_dataset_manifest
 from .runner import run_config
 from .utils import plot_prep_summary, prepare_inputs_from_sac, prepare_source_inputs_from_sac
+from .validation import validate_dataset
+from .summary import summarize_run
 
 
 def _parse_pair(value: str, name: str) -> tuple[float, float]:
@@ -151,7 +153,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser = subparsers.add_parser("run", help="Run one or more experiments from a YAML config")
     run_parser.add_argument(
         "--config",
-        default="parameter_setup.yaml",
+        default="configs/example_parameter_setup.yaml",
         help="Path to a YAML config file",
     )
 
@@ -274,6 +276,28 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Optional YAML file; if provided and output_dir is omitted, use its output_dir setting",
     )
+
+    validate_parser = subparsers.add_parser(
+        "validate-data",
+        help="Validate a TAPIR-compatible dataset directory",
+    )
+    validate_parser.add_argument("dataset_dir", help="Prepared TAPIR dataset directory")
+    validate_parser.add_argument(
+        "--is-3c", action=argparse.BooleanOptionalAction, default=True,
+        help="Validate three-component data (default: true)",
+    )
+    validate_parser.add_argument("--component", default="Z", choices=["Z", "R", "T"])
+    validate_parser.add_argument("--cdopt", type=int, default=0, choices=[0, 3])
+    validate_parser.add_argument("--source-array", action="store_true")
+    validate_parser.add_argument("--mars", action="store_true")
+    validate_parser.add_argument("--manual-stf", action="store_true")
+
+    summarize_parser = subparsers.add_parser(
+        "summarize",
+        help="Summarize completed or in-progress TAPIR run traces",
+    )
+    summarize_parser.add_argument("run_dir", help="Run directory containing traces or chain_N folders")
+    summarize_parser.add_argument("--output", default=None, help="Optional output PNG path")
     return parser
 
 
@@ -297,6 +321,14 @@ def main(argv: list[str] | None = None) -> None:
             twin=prep_args["time_window"],
             plot_summary=prep_args["plot_summary"],
         )
+        write_dataset_manifest(
+            prep_args["output_dir"],
+            body="earth",
+            array_type="receiver",
+            bandpass=prep_args["bandpass"],
+            downsample_hz=prep_args["downsample_hz"],
+            time_window=prep_args["time_window"],
+        )
     elif args.command == "prep-source-earth":
         prep_args = _resolve_prep_source_earth_args(args)
         prepare_source_inputs_from_sac(
@@ -311,6 +343,14 @@ def main(argv: list[str] | None = None) -> None:
             twin=prep_args["time_window"],
             plot_summary=prep_args["plot_summary"],
         )
+        write_dataset_manifest(
+            prep_args["output_dir"],
+            body="earth",
+            array_type="source",
+            bandpass=prep_args["bandpass"],
+            downsample_hz=prep_args["downsample_hz"],
+            time_window=prep_args["time_window"],
+        )
     elif args.command == "plot-prep":
         output_dir = args.output_dir
         if output_dir is None and args.config:
@@ -319,3 +359,29 @@ def main(argv: list[str] | None = None) -> None:
         if not output_dir:
             raise ValueError("plot-prep requires an output directory either as an argument or via --config.")
         plot_prep_summary(str(Path(output_dir)))
+    elif args.command == "validate-data":
+        result = validate_dataset(
+            args.dataset_dir,
+            is3c=args.is_3c,
+            component=args.component,
+            cdopt=args.cdopt,
+            source_array=args.source_array,
+            is_mars=args.mars,
+            manual_stf=args.manual_stf,
+        )
+        print(f"Valid TAPIR dataset: {result.dataset_dir}")
+        print(
+            f"  {result.n_samples} samples, {result.n_traces} traces, "
+            f"components={','.join(result.components)}, "
+            f"sampling_rate={result.sampling_rate_hz:g} Hz, "
+            f"metadata={result.metadata_format}"
+        )
+    elif args.command == "summarize":
+        summaries = summarize_run(args.run_dir, output=args.output)
+        for summary in summaries:
+            print(
+                f"{summary.name}: steps={summary.steps}, "
+                f"final_logL={summary.final_log_likelihood:.6g}, "
+                f"best_logL={summary.best_log_likelihood:.6g}, "
+                f"median_Nphase={summary.median_phase_count:g}"
+            )
