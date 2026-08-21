@@ -46,10 +46,35 @@ Regenerate a QC summary figure from an existing prepared event directory:
 tapir plot-prep /path/to/RealData/my_event
 ```
 
+Validate an Earth receiver-array dataset before running it:
+
+```bash
+tapir validate-data /path/to/RealData/my_event --cdopt 3
+```
+
+Validate externally prepared Mars data:
+
+```bash
+tapir validate-data /path/to/RealData/mars_event --mars --cdopt 3 --manual-stf
+```
+
 Run an inversion:
 
 ```bash
 tapir run --config configs/example_parameter_setup.yaml
+```
+
+Run the small, self-contained smoke examples:
+
+```bash
+tapir run --config configs/example_run_earth.yaml
+tapir run --config configs/example_run_mars.yaml
+```
+
+Summarize completed or in-progress chain traces:
+
+```bash
+tapir summarize /path/to/runs/dataset/runname
 ```
 
 The compatibility entrypoint also works:
@@ -63,6 +88,11 @@ python main.py --config configs/example_parameter_setup.yaml
 ### Earth Data
 
 Use `tapir prep-earth` to convert SAC files into the CSV-based input format expected by the inversion workflow. The preprocessing step can apply optional bandpass filtering, optional downsampling, optional time-window trimming, noise-based covariance estimation, and automatic trace rejection based on noise statistics and SNR. It can also optionally save a quick-look QC PDF into the prepared event directory.
+
+Earth preparation writes these choices to `dataset.yaml` in the prepared data
+directory. During inversion, TAPIR automatically applies the recorded passband
+to the source-time function using the same two-corner, zero-phase Butterworth
+filter used for the waveform and noise traces.
 
 `prep-earth` reads all SAC files in the event directory and uses the SAC channel header to identify components, but in practice the directory should ideally contain only the Z/R/T files intended for preparation. When a noise directory is provided, the prep step now writes only the fitted covariance outputs (`CD_UZ_fit.csv`, `CD_UR_fit.csv`, `CD_UT_fit.csv`) for downstream use.
 
@@ -96,6 +126,16 @@ For Mars runs, provide:
 - `stf.csv` when `man_stf: true`
 
 Set `isMars: true` in the inversion config. In this mode, TAPIR interprets metadata as `dist/baz`, enforces source-array geometry, and uses Mars-specific geometry constants in the 3C transform. The effective half-space velocities used by the free-surface transform can be set with `fstVp` and `fstVs` (in km/s). If omitted, they default to 6.571/4.1 for Earth and 5.0/3.0 for Mars.
+
+Because Mars data are prepared externally, set the data passband in the Mars
+run experiment, for example `bandpass: [0.2, 0.6]`. TAPIR does not refilter the
+Mars waveform CSVs; it applies this passband to the STF and saves the result as
+`stf_used.csv` in the run directory.
+
+`tapir validate-data` is the supported handoff between external Mars processing
+and TAPIR. It checks file presence, dimensions, sampling, coordinates, optional
+source-time functions, and fitted covariance matrices without modifying data.
+See [the data-format reference](docs/data-format.md) for the CSV contract.
 
 ## Configuration
 
@@ -138,14 +178,29 @@ An Earth event prepared for inversion typically contains:
 
 - `vespainv/`: core package code
 - `configs/`: example configuration files
-- `scripts/`: helper and legacy scripts
-- `notebooks/`: exploratory notebooks
+- `examples/data/`: small constructed datasets for runnable examples and tests
+- `docs/`: data-format and workflow documentation
 - `tests/`: lightweight regression tests
+
+## Run Progress
+
+Each chain writes `log_likelihood.txt`, `loge.txt`, `Nphase.txt`,
+`progress.txt`, and `likelihood_phase_count_progress.png` while sampling.
+For multi-chain runs these files are kept in each `chain_N/` directory. Final
+ensemble files are written when the chain completes.
+
+`tapir summarize RUN_DIR` reads these traces, prints per-chain statistics, and
+writes `run_summary.png`. It works while chains are running as soon as their
+trace files contain data.
 
 ## Notes
 
 The `prep_data()` loader is intended for internal use by the inversion runner. In normal use, the public entrypoints are `tapir prep-earth` and `tapir run`.
 
+Contributions are described in [CONTRIBUTING.md](CONTRIBUTING.md). Citation
+metadata are provided in [CITATION.cff](CITATION.cff), and release changes are
+tracked in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-A project license has not been added yet.
+TAPIR is released under the [MIT License](LICENSE).

@@ -122,3 +122,36 @@ def load_config(path: str | Path) -> dict:
         config["defaults"] = {}
 
     return config
+
+
+def write_dataset_manifest(
+    output_dir: str | Path,
+    *,
+    body: str,
+    array_type: str,
+    bandpass,
+    downsample_hz,
+    time_window,
+) -> Path:
+    """Record preparation choices needed by later inversion steps."""
+    output_path = Path(output_dir) / "dataset.yaml"
+    manifest = {
+        "schema_version": 1,
+        "body": body,
+        "array_type": array_type,
+        "processing": {
+            "bandpass": list(bandpass) if bandpass is not None else None,
+            "downsample_hz": downsample_hz,
+            "time_window": list(time_window) if time_window is not None else None,
+        },
+    }
+    with output_path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(manifest, handle, sort_keys=False)
+    return output_path
+
+
+def load_dataset_manifest(dataset_dir: str | Path) -> dict:
+    path = Path(dataset_dir) / "dataset.yaml"
+    if not path.is_file():
+        return {}
+    return load_yaml_mapping(path)

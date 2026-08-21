@@ -4,6 +4,52 @@ import time
 import numpy as np
 from vespainv.utils import generate_arr
 
+
+def _initialize_progress_outputs(save_dir):
+    os.makedirs(save_dir, exist_ok=True)
+    for name in ("log_likelihood.txt", "loge.txt", "Nphase.txt", "progress.txt"):
+        with open(os.path.join(save_dir, name), "w", encoding="utf-8"):
+            pass
+
+
+def _write_progress_checkpoint(
+    save_dir, start_index, log_likelihood, loge, nphase, step, total_steps, elapsed
+):
+    traces = {
+        "log_likelihood.txt": log_likelihood,
+        "loge.txt": loge,
+        "Nphase.txt": nphase,
+    }
+    for name, values in traces.items():
+        with open(os.path.join(save_dir, name), "a", encoding="utf-8") as handle:
+            np.savetxt(handle, np.asarray(values[start_index:]))
+
+    with open(os.path.join(save_dir, "progress.txt"), "a", encoding="utf-8") as handle:
+        handle.write(f"Step {step}/{total_steps}, Elapsed: {elapsed:.2f} sec\n")
+
+    # Keep one lightweight, readable diagnostic current while the chain runs.
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    steps = np.arange(1, len(log_likelihood) + 1)
+    fig, axes = plt.subplots(2, 1, figsize=(9, 6), sharex=True)
+    axes[0].plot(steps, log_likelihood, linewidth=0.7)
+    axes[0].set_ylabel("Log likelihood")
+    axes[0].grid(alpha=0.25)
+    axes[1].plot(steps, nphase, linewidth=0.7)
+    axes[1].set_xlabel("Step")
+    axes[1].set_ylabel("Number of phases")
+    axes[1].grid(alpha=0.25)
+    fig.suptitle(f"Chain progress: {step}/{total_steps}")
+    fig.tight_layout()
+    output = os.path.join(save_dir, "likelihood_phase_count_progress.png")
+    temporary = output + ".tmp"
+    fig.savefig(temporary, format="png", dpi=130)
+    plt.close(fig)
+    os.replace(temporary, output)
+
 def compute_log_likelihood(U_obs, U_model, CDinv=None, sigma=0.01):
     """
     Compute log-likelihood for 1- or 3-component seismic data.
@@ -337,6 +383,8 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
 
     start_time = time.time()
     checkpoint_interval = max(1, totalSteps // 100)
+    _initialize_progress_outputs(saveDir)
+    last_checkpoint = 0
 
     Nphase = []
 
@@ -413,8 +461,17 @@ def rjmcmc_run(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkeepi
         # Lightweight progress checkpoint every 1%
         if (iStep + 1) % checkpoint_interval == 0:
             elapsed = time.time() - start_time
-            with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-                f.write(f"Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
+            _write_progress_checkpoint(
+                saveDir, last_checkpoint, logL_trace, loge_trace, Nphase,
+                iStep + 1, totalSteps, elapsed,
+            )
+            last_checkpoint = len(logL_trace)
+
+    if last_checkpoint < len(logL_trace):
+        _write_progress_checkpoint(
+            saveDir, last_checkpoint, logL_trace, loge_trace, Nphase,
+            totalSteps, totalSteps, time.time() - start_time,
+        )
 
     return samples, logL_trace, loge_trace, Nphase
 
@@ -470,6 +527,8 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
 
     start_time = time.time()
     checkpoint_interval = max(1, totalSteps // 100)
+    _initialize_progress_outputs(saveDir)
+    last_checkpoint = 0
     Nphase = []
 
     for iStep in range(totalSteps):
@@ -553,7 +612,16 @@ def rjmcmc_run3c(U_obs, CDinv, CD_sqrt_inv, metadata, Utime, stf, prior, bookkee
         # Lightweight progress checkpoint every 1%
         if (iStep + 1) % checkpoint_interval == 0:
             elapsed = time.time() - start_time
-            with open(os.path.join(saveDir, "progress_log.txt"), "a") as f:
-                f.write(f"Step {iStep+1}/{totalSteps}, Elapsed: {elapsed:.2f} sec\n")
+            _write_progress_checkpoint(
+                saveDir, last_checkpoint, logL_trace, loge_trace, Nphase,
+                iStep + 1, totalSteps, elapsed,
+            )
+            last_checkpoint = len(logL_trace)
+
+    if last_checkpoint < len(logL_trace):
+        _write_progress_checkpoint(
+            saveDir, last_checkpoint, logL_trace, loge_trace, Nphase,
+            totalSteps, totalSteps, time.time() - start_time,
+        )
 
     return samples, logL_trace, loge_trace, Nphase

@@ -861,7 +861,7 @@ def prepare_source_inputs_from_sac(
 def make_vespagram(
     U: np.ndarray,                   # shape (n_time, n_traces)
     time: np.ndarray,               # shape (n_time,)
-    metadata: np.ndarray,           # shape (n_traces, 2) = (lat, lon)
+    metadata: np.ndarray,           # shape (n_traces, 2) = (distance_deg, azimuth)
     refLat: float,
     refLon: float,
     srcLat: float,
@@ -869,24 +869,69 @@ def make_vespagram(
     slow_grid: np.ndarray,
     refBaz: float,
     srcArray: bool,
-    clim: tuple
+    clim: tuple | None = None,
+    ax=None,
+    title: str = "Vespagram",
+    show: bool = True,
+    metadata_format: str = "distbaz",
+    root_order: float = 1.0,
 ) -> np.ndarray:
+    """Calculate and optionally plot a conventional delay-and-stack vespagram.
+
+    ``metadata_format='distbaz'`` preserves the legacy input convention based
+    on ``station_metadata_db.csv``.  Prefer ``metadata_format='latlon'`` for
+    receiver arrays so station coordinates are not reconstructed from a
+    long-distance back-azimuth. Source arrays use ``distbaz``. ``root_order``
+    selects a sign-preserving nth-root stack; 1 is the conventional linear
+    stack and 4 is the common fourth-root stack.
+    """
 
     import matplotlib.pyplot as plt
     from scipy.interpolate import interp1d
 
+    U = np.asarray(U, dtype=float)
+    time = np.asarray(time, dtype=float)
+    metadata = np.asarray(metadata, dtype=float)
+    slow_grid = np.asarray(slow_grid, dtype=float)
+    if U.ndim == 1:
+        U = U[:, np.newaxis]
+    if metadata.ndim == 1:
+        metadata = metadata[np.newaxis, :]
+    if U.ndim != 2 or time.ndim != 1 or slow_grid.ndim != 1:
+        raise ValueError("U must be 2D and time/slow_grid must be 1D.")
+    if U.shape[0] != time.size:
+        raise ValueError("The number of waveform samples must match time.size.")
+    if metadata.shape != (U.shape[1], 2):
+        raise ValueError("metadata must have one distance/azimuth row per trace.")
+    if time.size < 2 or not np.all(np.diff(time) > 0):
+        raise ValueError("time must contain at least two strictly increasing samples.")
+    if slow_grid.size == 0:
+        raise ValueError("slow_grid cannot be empty.")
+    if metadata_format not in {"distbaz", "latlon"}:
+        raise ValueError("metadata_format must be 'distbaz' or 'latlon'.")
+    root_order = float(root_order)
+    if not np.isfinite(root_order) or root_order <= 0:
+        raise ValueError("root_order must be a positive finite number.")
+
     n_time, n_traces = U.shape
     vespa = np.zeros((len(slow_grid), n_time))
+
+    scales = np.max(np.abs(U), axis=0)
+    if np.any(scales == 0):
+        bad = np.flatnonzero(scales == 0).tolist()
+        raise ValueError(f"Cannot normalize zero-amplitude trace columns: {bad}")
+    normalized = U / scales
 
     for i, slow in enumerate(slow_grid):
         stack = np.zeros(n_time)
 
         for itrace in range(n_traces):
-            trDist, trBaz = metadata[itrace]
-            trAz = (trBaz + 180)%360
-
-            # Compute station lat/lon
-            trLat, trLon = dest_point(srcLat, srcLon, trAz, trDist)
+            if metadata_format == "latlon":
+                trLat, trLon = metadata[itrace]
+            else:
+                trDist, trBaz = metadata[itrace]
+                trAz = (trBaz + 180) % 360
+                trLat, trLon = dest_point(srcLat, srcLon, trAz, trDist)
 
             # Local dx, dy (same convention as forward modeling)
             dx = (((trLon - refLon + 180.0) % 360.0) - 180.0) * np.cos(np.radians(refLat)) # lon wrapping needed
@@ -905,8 +950,7 @@ def make_vespagram(
             tshift = (slow_x * dx + slow_y * dy)
 
             # Interpolate and stack
-            trace = U[:, itrace]
-            trace /= np.max(np.abs(trace))  # normalize
+            trace = normalized[:, itrace]
             shifted = interp1d(
                 time,
                 trace,
@@ -914,12 +958,20 @@ def make_vespagram(
                 bounds_error=False,
                 fill_value=0.0
             )(time+tshift)
-            stack += shifted
+            if root_order == 1.0:
+                stack += shifted
+            else:
+                stack += np.sign(shifted) * np.abs(shifted) ** (1.0 / root_order)
 
-        vespa[i, :] = stack / n_traces
+        stack /= n_traces
+        if root_order == 1.0:
+            vespa[i, :] = stack
+        else:
+            vespa[i, :] = np.sign(stack) * np.abs(stack) ** root_order
 
     # Plot
-    plt.figure(figsize=(10, 6))
+    if ax is None:
+        _, ax = plt.subplots(figsize=(10, 6))
     extent = [time[0], time[-1], slow_grid[0], slow_grid[-1]]
 
     if clim is None:
@@ -928,17 +980,136 @@ def make_vespagram(
     else:
         vmin, vmax = clim
         
-    plt.imshow(vespa, aspect='auto', extent=extent, origin='lower',
-               cmap='seismic', vmin=vmin, vmax=vmax)
-    plt.colorbar(label='Amplitude')
-    plt.xlabel("Time (s)")
-    plt.ylabel("Slowness (s/deg)")
-    plt.title("Vespagram")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+    image = ax.imshow(
+        vespa, aspect="auto", extent=extent, origin="lower",
+        cmap="seismic", vmin=vmin, vmax=vmax,
+    )
+    ax.figure.colorbar(image, ax=ax, label="Amplitude")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("Slowness (s/deg)")
+    ax.set_title(title)
+    ax.grid(True)
+    ax.figure.tight_layout()
+    if show:
+        plt.show()
 
     return vespa
+
+
+def make_tapir_dataset_vespagram(
+    dataset_dir,
+    component="Z",
+    slow_grid=None,
+    source_array=False,
+    bandpass_hz=None,
+    clim=None,
+    ax=None,
+    title=None,
+    show=True,
+    root_order=1.0,
+):
+    """Load a standard TAPIR-prepared dataset and make its vespagram.
+
+    Parameters
+    ----------
+    dataset_dir : path-like
+        Directory containing ``time.csv``, ``station_metadata_db.csv``,
+        ``station_metadata.csv``, ``eventinfo.csv``, and waveform CSVs.
+    component : {"Z", "R", "T", "U"}
+        ``U`` selects ``U.csv``; the others select ``UZ.csv``, ``UR.csv``, or
+        ``UT.csv``.
+    source_array : bool
+        Set for TAPIR source-array and Mars-style datasets. Receiver arrays use
+        geographic station metadata to calculate their reference point.
+    bandpass_hz : tuple or None
+        Optional ``(fmin, fmax)`` in Hz.
+    root_order : float
+        Stack order. Use 1 for a linear stack or 4 for a fourth-root stack.
+
+    Returns
+    -------
+    vespa, time, slow_grid : tuple of numpy.ndarray
+        The stack image and its coordinate vectors.
+    """
+    from pathlib import Path
+
+    dataset_dir = Path(dataset_dir).expanduser().resolve()
+    component = str(component).upper()
+    if component not in {"Z", "R", "T", "U"}:
+        raise ValueError("component must be one of 'Z', 'R', 'T', or 'U'.")
+    waveform_name = "U.csv" if component == "U" else f"U{component}.csv"
+    required = [
+        "time.csv", waveform_name, "station_metadata_db.csv",
+        "station_metadata.csv", "eventinfo.csv",
+    ]
+    missing = [name for name in required if not (dataset_dir / name).is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Missing required TAPIR file(s) in {dataset_dir}: {', '.join(missing)}"
+        )
+
+    time = np.atleast_1d(np.loadtxt(dataset_dir / "time.csv", delimiter=","))
+    waveforms = np.loadtxt(dataset_dir / waveform_name, delimiter=",")
+    if waveforms.ndim == 1:
+        waveforms = waveforms[:, np.newaxis]
+    metadata_db = np.atleast_2d(np.loadtxt(
+        dataset_dir / "station_metadata_db.csv", delimiter=",", skiprows=1,
+    ))
+    metadata_geo = np.atleast_2d(np.loadtxt(
+        dataset_dir / "station_metadata.csv", delimiter=",", skiprows=1,
+    ))
+    event_location = np.asarray(np.loadtxt(
+        dataset_dir / "eventinfo.csv", delimiter=",", skiprows=1,
+    ), dtype=float).reshape(-1)
+    if event_location.size != 2:
+        raise ValueError("eventinfo.csv must contain exactly one coordinate pair.")
+    if metadata_geo.shape != (waveforms.shape[1], 2):
+        raise ValueError("station_metadata.csv must have one row per waveform trace.")
+
+    if bandpass_hz is not None:
+        fmin, fmax = map(float, bandpass_hz)
+        dt = float(np.median(np.diff(time)))
+        if not (0 < fmin < fmax < 0.5 / dt):
+            raise ValueError("bandpass_hz must lie strictly between zero and Nyquist.")
+        waveforms = bandpass(waveforms, 1.0 / dt, fmin, fmax)
+
+    if slow_grid is None:
+        slow_grid = np.linspace(0.0, 15.0, 201)
+    else:
+        slow_grid = np.asarray(slow_grid, dtype=float)
+
+    src_lat, src_lon = event_location
+    geometry_metadata = metadata_db if source_array else metadata_geo
+    metadata_format = "distbaz" if source_array else "latlon"
+    ref_lat, ref_lon, _, ref_baz = calc_array_center(
+        geometry_metadata,
+        src_lat,
+        src_lon,
+        source_array,
+        metadata_format=metadata_format,
+    )
+    if title is None:
+        title = f"{dataset_dir.name}: {waveform_name} ({waveforms.shape[1]} traces)"
+
+    vespa = make_vespagram(
+        U=waveforms,
+        time=time,
+        metadata=geometry_metadata,
+        refLat=ref_lat,
+        refLon=ref_lon,
+        srcLat=src_lat,
+        srcLon=src_lon,
+        slow_grid=slow_grid,
+        refBaz=ref_baz,
+        srcArray=source_array,
+        clim=clim,
+        ax=ax,
+        title=title,
+        show=show,
+        metadata_format=metadata_format,
+        root_order=root_order,
+    )
+    return vespa, time, slow_grid
 
 def bandpass(data, fs, fmin, fmax, corners=4, zerophase=True):
     """

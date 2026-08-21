@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use TAPIR in your research, please cite the software and the associated method publication when available."
+title: "TAPIR: Transdimensional Array-Based Phase Inversion"
+type: software
+authors:
+  - family-names: "Zhang"
+    given-names: "Evan"
+repository-code: "https://github.com/evanzzq/TAPIR"
+version: "0.1.0"
+license: "MIT"
